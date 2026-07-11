@@ -1,121 +1,145 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
+import iconReceiving from './assets/home/icon-receiving.svg'
+import iconCells from './assets/home/icon-cells.svg'
+import iconAssembly from './assets/home/icon-assembly.svg'
+import iconCalendar from './assets/home/icon-calendar.svg'
+import iconLogin from './assets/home/icon-login.svg'
+
+type Theme = 'dark' | 'light'
+
+const navItems = ['РЕВИЗИЯ', 'МАГАЗИНЫ', 'КОЛЛЕКТОР', 'ИСТОРИЯ']
+
+const mainActions = [
+  {
+    title: 'ПРИЕМКА',
+    description: 'Добавление товара на склад',
+    icon: iconReceiving,
+  },
+  {
+    title: 'ЯЧЕЙКИ',
+    description: 'Страница схемы ячеек и их содержимого',
+    icon: iconCells,
+  },
+  {
+    title: 'СБОРКА',
+    description: 'Страница с выдачей и сборкой заказов',
+    icon: iconAssembly,
+  },
+]
+
+const warehouseStats = {
+  operations: 'x',
+  collector: 'x',
+  products: 'x',
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [theme, setTheme] = useState<Theme>('dark')
+
+  const isLightTheme = theme === 'light'
+
+  function toggleTheme() {
+    setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
+    <main className={`homePage homePage--${theme}`}>
+      <header className="header">
         <button
+          className="headerIconButton"
           type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          aria-label="Открыть календарь ревизий"
         >
-          Count is {count}
+          <img className="headerIcon" src={iconCalendar} alt="" aria-hidden="true" />
+        </button>
+
+        <nav className="nav nav--left" aria-label="Левая навигация">
+          {navItems.slice(0, 2).map((item) => (
+            <button className="navButton" type="button" key={item}>
+              {item}
+            </button>
+          ))}
+        </nav>
+
+        <a className="logo" href="/" aria-label="Главная страница">
+          <span>TREMOR</span>
+          <span>СКЛАД</span>
+        </a>
+
+        <nav className="nav nav--right" aria-label="Правая навигация">
+          {navItems.slice(2).map((item) => (
+            <button className="navButton" type="button" key={item}>
+              {item}
+            </button>
+          ))}
+        </nav>
+
+        <div className="headerActions">
+          <button
+            className="themeToggle"
+            type="button"
+            aria-label="Переключить тему"
+            aria-pressed={isLightTheme}
+            onClick={toggleTheme}
+          >
+            <span className="themeToggle__thumb">
+              {isLightTheme ? '☾' : '☀'}
+            </span>
+          </button>
+
+          <button className="loginButton" type="button" aria-label="Войти в аккаунт">
+            <img className="headerIcon" src={iconLogin} alt="" aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
+      <section className="hero" aria-labelledby="home-title">
+        <p className="hero__eyebrow">СКЛАДСКАЯ СИСТЕМА</p>
+
+        <h1 className="hero__title" id="home-title">
+          TREMOR SCLAD
+        </h1>
+
+        <div className="mainActions" aria-label="Основные действия">
+          {mainActions.map((action) => (
+            <button className="mainActionButton" type="button" key={action.title}>
+              <img className="mainActionButton__icon" src={action.icon} alt="" aria-hidden="true" />
+              <span className="mainActionButton__title">{action.title}</span>
+              <span className="mainActionButton__description">
+                {action.description}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <button className="manualModeButton" type="button">
+          РУЧНОЙ РЕЖИМ
         </button>
       </section>
 
-      <div className="ticks"></div>
+      <footer className="statsPanel" aria-label="Статистика склада">
+        <span className="statsPanel__today">
+          СЕГОДНЯ<span className="statsPanel__colon">:</span>
+        </span>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <span>
+          {warehouseStats.operations} ОПЕРАЦИЙ
+        </span>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        <span className="statsPanel__separator">•</span>
+
+        <span>
+         {warehouseStats.collector} В КОЛЛЕКТОРЕ
+        </span>
+
+        <span className="statsPanel__separator">•</span>
+
+        <span>
+          {warehouseStats.products} ТОВАРОВ НА СКЛАДЕ
+        </span>
+      </footer>
+    </main>
   )
 }
 
