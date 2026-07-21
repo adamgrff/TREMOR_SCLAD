@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import './App.css'
+
 import iconReceiving from './assets/home/icon-receiving.svg'
 import iconCells from './assets/home/icon-cells.svg'
 import iconAssembly from './assets/home/icon-assembly.svg'
+
+import iconReceivingBlack from './assets/home/icon-receiving-black.svg'
+import iconCellsBlack from './assets/home/icon-cells-black.svg'
+import iconAssemblyBlack from './assets/home/icon-assembly-black.svg'
+
 import iconCalendar from './assets/home/icon-calendar.svg'
 import iconLogin from './assets/home/icon-login.svg'
+
+import manualModeLight from './assets/home/manual-mode-light.svg'
+import manualModeBlack from './assets/home/manual-mode-black.svg'
 
 type Theme = 'dark' | 'light'
 
@@ -15,16 +24,19 @@ const mainActions = [
     title: 'ПРИЕМКА',
     description: 'Добавление товара на склад',
     icon: iconReceiving,
+    lightIcon: iconReceivingBlack,
   },
   {
     title: 'ЯЧЕЙКИ',
     description: 'Страница схемы ячеек и их содержимого',
     icon: iconCells,
+    lightIcon: iconCellsBlack,
   },
   {
     title: 'СБОРКА',
     description: 'Страница с выдачей и сборкой заказов',
     icon: iconAssembly,
+    lightIcon: iconAssemblyBlack,
   },
 ]
 
@@ -104,7 +116,12 @@ function App() {
         <div className="mainActions" aria-label="Основные действия">
           {mainActions.map((action) => (
             <button className="mainActionButton" type="button" key={action.title}>
-              <img className="mainActionButton__icon" src={action.icon} alt="" aria-hidden="true" />
+              <img
+                className="mainActionButton__icon"
+                src={isLightTheme ? action.lightIcon : action.icon}
+                alt=""
+                aria-hidden="true"
+              />
               <span className="mainActionButton__title">{action.title}</span>
               <span className="mainActionButton__description">
                 {action.description}
@@ -113,8 +130,17 @@ function App() {
           ))}
         </div>
 
-        <button className="manualModeButton" type="button">
-          РУЧНОЙ РЕЖИМ
+        <button
+          className="manualModeButton"
+          type="button"
+          aria-label="Ручной режим"
+        >
+          <img
+            className="manualModeButton__image"
+            src={isLightTheme ? manualModeLight : manualModeBlack}
+            alt=""
+            aria-hidden="true"
+          />
         </button>
       </section>
 
