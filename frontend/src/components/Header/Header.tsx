@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 
-import '../../App.css'
+import './Header.css'
 
 import iconCalendar from '../../assets/home/icon-calendar.svg'
 import iconLogin from '../../assets/home/icon-login.svg'
