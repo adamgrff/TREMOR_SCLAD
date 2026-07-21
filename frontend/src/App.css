@@ -291,7 +291,7 @@ button {
   transition: right 220ms ease, left 220ms ease, transform 220ms ease;
 }
 
-.homePage--light .themeToggle__thumb {
+.header--light .themeToggle__thumb {
   right: calc(100% - 26px);
 }
 
@@ -545,40 +545,41 @@ button {
   }
 }
 
-.homePage--light .header {
+.header--light {
   --text: #ffffff;
   --line: rgba(255, 255, 255, 0.18);
   --glow: 0 0 6px rgba(255, 255, 255, 0.65);
 
   color: #ffffff;
+
   background:
-  linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.035) 32%,
-    rgba(255, 255, 255, 0) 62%
-  ),
-  rgba(0, 0, 0, 0.5);
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.035) 32%,
+      rgba(255, 255, 255, 0) 62%
+    ),
+    rgba(0, 0, 0, 0.5);
 
   box-shadow:
-  0 8px 40px rgba(0, 0, 0, 0.8),
-  inset 0 1px 0 rgba(255, 255, 255, 0.14),
-  inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+    0 8px 40px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
 
   backdrop-filter:
-  blur(2px)
-  saturate(1.12)
-  contrast(1.03);
+    blur(2px)
+    saturate(1.12)
+    contrast(1.03);
 
   -webkit-backdrop-filter:
-  blur(2px)
-  saturate(1.12)
-  contrast(1.03);
+    blur(2px)
+    saturate(1.12)
+    contrast(1.03);
 
   isolation: isolate;
 }
 
-.homePage--light .header::before {
+.header--light::before {
   content: '';
 
   position: absolute;
@@ -598,17 +599,20 @@ button {
   pointer-events: none;
 }
 
-.homePage--light .header > * {
+.header--light > * {
   z-index: 1;
 }
-
 
 .homePage--light .statsPanel {
   color: #ffffff;
   background: rgba(0, 0, 0, 0.7);
 }
 
-.homePage--dark .header {
+.header--dark {
+  --text: #ffffff;
+  --line: rgba(255, 255, 255, 0.18);
+  --glow: 0 0 6px rgba(255, 255, 255, 0.6);
+
   color: #ffffff;
   background-color: rgba(0, 0, 0, 0.5);
 
@@ -618,7 +622,7 @@ button {
   isolation: isolate;
 }
 
-.homePage--dark .header::before {
+.header--dark::before {
   content: '';
 
   position: absolute;
@@ -647,6 +651,6 @@ button {
   pointer-events: none;
 }
 
-.homePage--dark .header > * {
+.header--dark > * {
   z-index: 1;
 }

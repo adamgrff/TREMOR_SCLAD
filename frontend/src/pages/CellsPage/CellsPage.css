@@ -1,0 +1,43 @@
+.cellsPage {
+  --text: #ffffff;
+  --muted: rgba(0, 0, 0, 0.7);
+  --line: rgba(0, 0, 0, 0.18);
+  --panel: rgba(0, 0, 0, 0.12);
+  --glow: 0 0 6px rgba(255, 255, 255, 0.6);
+
+  width: 100%;
+  min-height: 100svh;
+
+  padding: 20px 120px 38px;
+
+  color: var(--text);
+
+  background-image: url('../../assets/home/background-light.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.cellsPage--light {
+  --text: #050505;
+  --glow: 0 0 6px rgba(0, 0, 0, 0.28);
+}
+
+.cellsPage--dark {
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.72);
+  --line: rgba(255, 255, 255, 0.18);
+  --panel: rgba(255, 255, 255, 0.18);
+  --glow: 0 0 6px rgba(255, 255, 255, 0.6);
+
+  background-image: url('../../assets/home/background.png');
+}
+
+.cellsPage__content {
+  padding-top: 100px;
+}
+
+.cellsPage__content h1 {
+  margin: 0;
+  color: var(--text);
+}
