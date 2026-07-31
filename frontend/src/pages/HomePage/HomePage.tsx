@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import '../../App.css'
 
-import Header, { type Theme } from '../../components/Header/Header'
+import Header from '../../components/Header/Header'
+import { useTheme } from '../../hooks/useTheme'
 
 import iconReceiving from '../../assets/home/icon-receiving.svg'
 import iconCells from '../../assets/home/icon-cells.svg'
@@ -53,13 +53,9 @@ const warehouseStats = {
 
 function HomePage() {
   const navigate = useNavigate()
-  const [theme, setTheme] = useState<Theme>('dark')
+  const { theme, toggleTheme } = useTheme('dark')
 
   const isLightTheme = theme === 'light'
-
-  function toggleTheme() {
-    setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))
-  }
 
   return (
     <main className={`homePage homePage--${theme}`}>
