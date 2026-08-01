@@ -135,7 +135,7 @@ button {
 
   min-height: 18px;
 
-  font-family: 'Palui SP Demo', sans-serif;
+  font-family: var(--font-interface);
   font-size: 18px;
   font-weight: 700;
   line-height: 1;
@@ -215,7 +215,7 @@ button {
   background: rgba(255, 255, 255, 0.22);
   border-radius: 999px;
 
-  font-family: 'Palui SP Demo', sans-serif;
+  font-family: var(--font-interface);
   font-size: 15px;
   font-weight: 400;
   line-height: 1;
@@ -247,9 +247,13 @@ button {
   font-size: 21px;
 }
 
+.statsPanel__value {
+  font-family: var(--font-symbols);
+}
+
 .statsPanel__separator {
   margin: 0 2px;
-  font-family: 'Palui SP Demo', sans-serif;
+  font-family: var(--font-symbols);
 }
 
 @media (max-width: 1100px) {

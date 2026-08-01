@@ -119,7 +119,7 @@
 }
 
 .logo span:last-child {
-  font-family: 'Palui SP Demo', sans-serif;
+  font-family: var(--font-interface);
   font-size: 24px;
   font-weight: 400;
   line-height: 0.9;
@@ -155,7 +155,7 @@
   color: var(--text);
   background: transparent;
 
-  font-family: 'Palui SP Demo', sans-serif;
+  font-family: var(--font-interface);
   font-size: 15px;
   font-weight: 400;
   line-height: 1;

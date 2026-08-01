@@ -114,19 +114,28 @@ function HomePage() {
         </span>
 
         <span>
-          {warehouseStats.operations} ОПЕРАЦИЙ
+          <span className="statsPanel__value">
+            {warehouseStats.operations}
+          </span>{' '}
+          ОПЕРАЦИЙ
         </span>
 
         <span className="statsPanel__separator">•</span>
 
         <span>
-         {warehouseStats.collector} В КОЛЛЕКТОРЕ
+          <span className="statsPanel__value">
+            {warehouseStats.collector}
+          </span>{' '}
+          В КОЛЛЕКТОРЕ
         </span>
 
         <span className="statsPanel__separator">•</span>
 
         <span>
-          {warehouseStats.products} ТОВАРОВ НА СКЛАДЕ
+          <span className="statsPanel__value">
+            {warehouseStats.products}
+          </span>{' '}
+          ТОВАРОВ НА СКЛАДЕ
         </span>
       </footer>
     </main>
