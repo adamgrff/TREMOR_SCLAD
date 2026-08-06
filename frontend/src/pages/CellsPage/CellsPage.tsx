@@ -17,6 +17,12 @@ type CellItem = {
   quantity: number
 }
 
+type CellLoadStatus =
+  | 'idle'
+  | 'loading'
+  | 'success'
+  | 'error'
+
 const productCategories: ProductCategory[] = [
   'TREMOR',
   'КОТЛЕТКИ',
@@ -36,46 +42,20 @@ const rackConfigs: Record<ProductCategory, RackConfig | null> = {
   ВАЗЫ: null,
 }
 
-/*
-  Временные данные.
+async function getCellContents(
+  cellName: string,
+): Promise<CellItem[]> {
+  const response = await fetch(
+    `http://127.0.0.1:8080/api/cells/${encodeURIComponent(cellName)}`,
+  )
 
-  Позже этот объект заменим запросом к backend API.
-  Например: GET /api/cells/A1
-*/
-const cellContents: Record<string, CellItem[]> = {
-  A1: [
-    {
-      id: 'a1-product-1',
-      name: 'Ручка TREMOR Classic',
-      quantity: 12,
-    },
-    {
-      id: 'a1-product-2',
-      name: 'Ручка TREMOR Pro',
-      quantity: 7,
-    },
-    {
-      id: 'a1-product-3',
-      name: 'Комплект креплений',
-      quantity: 24,
-    },
-  ],
+  if (!response.ok) {
+    throw new Error(
+      `Не удалось загрузить ячейку: ${response.status}`,
+    )
+  }
 
-  A2: [
-    {
-      id: 'a2-product-1',
-      name: 'Ручка TREMOR Mini',
-      quantity: 5,
-    },
-  ],
-
-  B1: [
-    {
-      id: 'b1-product-1',
-      name: 'Запасные болты',
-      quantity: 42,
-    },
-  ],
+  return (await response.json()) as CellItem[]
 }
 
 function CellsPage() {
@@ -88,33 +68,78 @@ function CellsPage() {
 
   const [selectedCell, setSelectedCell] =
     useState<string | null>(null)
-    useEffect(() => {
-      if (!selectedCell) {
-        return
+
+  const [selectedCellItems, setSelectedCellItems] =
+    useState<CellItem[]>([])
+
+  const [cellLoadStatus, setCellLoadStatus] =
+    useState<CellLoadStatus>('idle')
+
+  const [cellReloadKey, setCellReloadKey] = useState(0)
+
+  useEffect(() => {
+    if (!selectedCell) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setSelectedCell(null)
       }
+    }
 
-      const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleKeyDown)
 
-      function handleKeyDown(event: KeyboardEvent) {
-        if (event.key === 'Escape') {
-          setSelectedCell(null)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedCell])
+
+  useEffect(() => {
+    if (!selectedCell) {
+      setSelectedCellItems([])
+      setCellLoadStatus('idle')
+      return
+    }
+
+    const cellName = selectedCell
+
+    let isCancelled = false
+
+    async function loadCellContents() {
+      setSelectedCellItems([])
+      setCellLoadStatus('loading')
+
+      try {
+        const items = await getCellContents(cellName)
+
+        if (isCancelled) {
+          return
         }
-      }
 
-      document.body.style.overflow = 'hidden'
-      window.addEventListener('keydown', handleKeyDown)
+        setSelectedCellItems(items)
+        setCellLoadStatus('success')
+      } catch {
+        if (isCancelled) {
+          return
+        }
 
-      return () => {
-        document.body.style.overflow = previousOverflow
-        window.removeEventListener('keydown', handleKeyDown)
+        setCellLoadStatus('error')
       }
-    }, [selectedCell])
+    }
+
+    void loadCellContents()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [selectedCell, cellReloadKey])
 
   const currentRack = rackConfigs[selectedCategory]
-
-  const selectedCellItems = selectedCell
-    ? cellContents[selectedCell] ?? []
-    : []
 
   function selectCategory(category: ProductCategory) {
     setSelectedCategory(category)
@@ -128,6 +153,14 @@ function CellsPage() {
 
   function closeCellModal() {
     setSelectedCell(null)
+  }
+
+  function retryLoadCellContents() {
+    if (!selectedCell) {
+      return
+    }
+
+    setCellReloadKey((currentValue) => currentValue + 1)
   }
 
   return (
@@ -281,36 +314,60 @@ function CellsPage() {
                 ТОВАР<span className="cellsPage__symbolText">:</span>
               </h3>
 
-              {selectedCellItems.length > 0 ? (
-                <ul className="cellsPage__cellItems">
-                  {selectedCellItems.map((item) => (
-                    <li
-                      className="cellsPage__cellItem"
-                      key={item.id}
-                    >
-                      <span className="cellsPage__cellItemName">
-                        {item.name}
-                      </span>
-
-                      <span
-                        className="cellsPage__cellItemDots"
-                        aria-hidden="true"
-                      />
-
-                      <span className="cellsPage__cellItemQuantity">
-                        <span className="cellsPage__cellItemNumber">
-                          {item.quantity}
-                        </span>{' '}
-                        ШТ<span className="cellsPage__symbolText">.</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
+              {cellLoadStatus === 'loading' && (
                 <p className="cellsPage__cellModalEmpty">
-                  Ячейка пуста
+                  Загрузка содержимого
+                  <span className="cellsPage__symbolText">...</span>
                 </p>
               )}
+
+              {cellLoadStatus === 'error' && (
+                <div className="cellsPage__cellModalError">
+                  <p className="cellsPage__cellModalEmpty">
+                    Не удалось загрузить содержимое ячейки
+                  </p>
+
+                  <button
+                    className="cellsPage__cellModalRetry"
+                    type="button"
+                    onClick={retryLoadCellContents}
+                  >
+                    ПОВТОРИТЬ
+                  </button>
+                </div>
+              )}
+
+              {cellLoadStatus === 'success' &&
+                (selectedCellItems.length > 0 ? (
+                  <ul className="cellsPage__cellItems">
+                    {selectedCellItems.map((item) => (
+                      <li
+                        className="cellsPage__cellItem"
+                        key={item.id}
+                      >
+                        <span className="cellsPage__cellItemName">
+                          {item.name}
+                        </span>
+
+                        <span
+                          className="cellsPage__cellItemDots"
+                          aria-hidden="true"
+                        />
+
+                        <span className="cellsPage__cellItemQuantity">
+                          <span className="cellsPage__cellItemNumber">
+                            {item.quantity}
+                          </span>{' '}
+                          ШТ<span className="cellsPage__symbolText">.</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="cellsPage__cellModalEmpty">
+                    Ячейка пуста
+                  </p>
+                ))}
             </div>
           </section>
         </div>

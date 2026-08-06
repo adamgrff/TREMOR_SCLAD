@@ -489,6 +489,47 @@
   letter-spacing: 1px;
 }
 
+.cellsPage__cellModalError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+
+  padding-left: 42px;
+}
+
+.cellsPage__cellModalError .cellsPage__cellModalEmpty {
+  padding-left: 0;
+}
+
+.cellsPage__cellModalRetry {
+  padding: 10px 16px;
+
+  color: #ffffff;
+  background: transparent;
+
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+
+  font-family: var(--font-interface);
+  font-size: 15px;
+  letter-spacing: 1px;
+
+  transition:
+    transform 160ms ease,
+    filter 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.cellsPage__cellModalRetry:hover {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+}
+
+.cellsPage__cellModalRetry:active {
+  transform: scale(0.96);
+}
+
 .cellsPage__symbolText {
   font-family: var(--font-symbols);
 }

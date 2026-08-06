@@ -1,0 +1,7 @@
+﻿# Go build files
+/backend/*.exe
+
+# Local environment files
+.env
+.env.*
+!.env.example
