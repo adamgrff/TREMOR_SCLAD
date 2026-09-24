@@ -1,0 +1,289 @@
+.receivingPage {
+  zoom: 0.8;
+    
+  --text: #ffffff;
+  --muted: rgba(0, 0, 0, 0.7);
+  --line: rgba(0, 0, 0, 0.18);
+  --panel: rgba(0, 0, 0, 0.12);
+  --glow: 0 0 6px rgba(255, 255, 255, 0.6);
+
+  width: 100%;
+  min-height: 125svh;
+
+  padding: 20px 120px 38px;
+
+  color: var(--text);
+
+  background-image: url('../../assets/home/background-light.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.receivingPage--light {
+  --text: #050505;
+  --glow: 0 0 6px rgba(0, 0, 0, 0.28);
+}
+
+.receivingPage--dark {
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.72);
+  --line: rgba(255, 255, 255, 0.18);
+  --panel: rgba(255, 255, 255, 0.18);
+  --glow: 0 0 6px rgba(255, 255, 255, 0.6);
+
+  background-image: url('../../assets/home/background.png');
+}
+
+.receivingPage__content {
+  width: calc(100% + 120px);
+  margin: 0 -60px;
+  padding-top: 30px;
+
+  font-family: 'Noto Sans', Arial, sans-serif;
+}
+
+.receivingPage__scanPanel {
+  box-sizing: border-box;
+
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 40px;
+
+  min-height: 150px;
+  padding: 0 40px;
+
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 20px;
+
+  box-shadow: 6px 8px 20px rgba(0, 0, 0, 0.8);
+}
+
+.receivingPage__scanIcon {
+  display: block;
+  width: 70px;
+  height: 70px;
+}
+
+.receivingPage__scanText {
+  min-width: 0;
+}
+
+.receivingPage__scanTitle {
+  margin: 0;
+
+  font-family: 'Noto Sans', Arial, sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: -1.28px;
+}
+
+.receivingPage__scanHint {
+  margin: 10px 0 0;
+
+  color: #9a9a9a;
+  font-family: 'Noto Sans', Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: normal;
+  letter-spacing: -0.64px;
+}
+
+.receivingPage__scanStatus {
+  padding: 5px 10px;
+
+  color: #ffffff;
+  background: rgba(0, 111, 255, 0.5);
+  border: 0;
+  border-radius: 10px;
+
+  font-family: 'Noto Sans', Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .receivingPage__scanPanel {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 20px 24px;
+    padding: 24px;
+  }
+
+  .receivingPage__scanStatus {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+.receivingPage__workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 350px;
+  gap: 15px;
+
+  margin-top: 15px;
+}
+
+.receivingPage__panel {
+  box-sizing: border-box;
+  min-width: 0;
+
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 20px;
+
+  box-shadow: 6px 8px 20px rgba(0, 0, 0, 0.8);
+}
+
+.receivingPage__pending {
+  min-height: 500px;
+  padding: 20px 40px;
+}
+
+.receivingPage__panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  margin-bottom: 36px;
+}
+
+.receivingPage__panelTitle {
+  margin: 0;
+
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.receivingPage__panelSubtitle {
+  margin: 10px 0 0;
+
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.receivingPage__clearButton {
+  padding: 8px 12px;
+
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+  border: 0;
+  border-radius: 999px;
+
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.receivingPage__clearButton:disabled {
+  color: rgba(255, 255, 255, 0.55);
+  cursor: not-allowed;
+}
+
+.receivingPage__pendingTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+
+  font-size: 20px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.receivingPage__pendingTable th {
+  padding: 0 0 14px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.35);
+
+  font-size: 24px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.receivingPage__pendingTable th:first-child {
+  width: 50%;
+}
+
+.receivingPage__pendingTable th:nth-child(2),
+.receivingPage__pendingTable th:nth-child(3) {
+  width: 25%;
+}
+
+.receivingPage__pendingEmpty {
+  height: 280px;
+  padding: 24px;
+
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.receivingPage__context {
+  padding: 20px;
+}
+
+.receivingPage__contextSection + .receivingPage__contextSection {
+  margin-top: 24px;
+  padding-top: 20px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.receivingPage__contextLabel {
+  margin: 0;
+
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.receivingPage__contextValue {
+  margin: 10px 0 0;
+
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.receivingPage__contextHint {
+  margin: 6px 0 0;
+
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+@media (max-width: 1100px) {
+  .receivingPage__workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .receivingPage__pending {
+    padding: 24px;
+  }
+
+  .receivingPage__pendingTable th {
+    font-size: 18px;
+  }
+}
+
+.receivingPage__contextSection:first-child
+  .receivingPage__contextValue {
+  font-size: 20px;
+}
+
+.receivingPage__contextSection:not(:first-child)
+  .receivingPage__contextValue {
+  font-size: 24px;
+}
