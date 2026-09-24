@@ -2,8 +2,42 @@ import Header from '../../components/Header/Header'
 import { useTheme } from '../../hooks/useTheme'
 import './ReceivingPage.css'
 
+type ReceivingState = 'start' | 'scanned' | 'placed'
+
+const testState: ReceivingState = 'placed'
+
+const scannedItems = [
+  { name: 'Ручка TREMOR', code: 'TRM-001', quantity: 2 },
+  { name: 'Комплект TREMOR', code: 'TRM-002', quantity: 1 },
+]
+
+const placedItems = [
+  { name: 'Ручка TREMOR', quantity: 2, cell: 'A-01', time: '14:32' },
+  { name: 'Комплект TREMOR', quantity: 1, cell: 'A-01', time: '14:32' },
+]
+
 function ReceivingPage() {
   const { theme, toggleTheme } = useTheme('light')
+
+  const hasScannedItems = testState === 'scanned'
+  const isPlaced = testState === 'placed'
+
+  const scannedTotal = scannedItems.reduce(
+    (total, item) => total + item.quantity,
+    0,
+  )
+
+  const lastScanText = hasScannedItems
+    ? scannedItems[scannedItems.length - 1].name
+    : isPlaced
+      ? `Ячейка ${placedItems[0].cell}`
+      : 'Сканов ещё не было'
+
+  const lastScanHint = hasScannedItems
+    ? 'Последний отсканированный товар'
+    : isPlaced
+      ? 'Последнее размещение выполнено'
+      : 'Первый товар появится здесь'
 
   return (
     <main className={`receivingPage receivingPage--${theme}`}>
@@ -61,7 +95,9 @@ function ReceivingPage() {
                 </h2>
 
                 <p className="receivingPage__panelSubtitle">
-                  Группа пока пуста
+                  {hasScannedItems
+                    ? 'Товары готовы к размещению'
+                    : 'Группа пуста - можно продолжать сканирование'}
                 </p>
               </div>
 
@@ -84,14 +120,26 @@ function ReceivingPage() {
               </thead>
 
               <tbody>
-                <tr>
-                  <td
-                    className="receivingPage__pendingEmpty"
-                    colSpan={3}
-                  >
-                    Отсканированные товары появятся здесь
-                  </td>
-                </tr>
+                {hasScannedItems ? (
+                  scannedItems.map((item) => (
+                    <tr key={item.code}>
+                      <td>{item.name}</td>
+                      <td>{item.code}</td>
+                      <td>{item.quantity}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      className="receivingPage__pendingEmpty"
+                      colSpan={3}
+                    >
+                      {isPlaced
+                        ? 'Группа размещена. Сканируйте следующие товары'
+                        : 'Отсканированные товары появятся здесь'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </section>
@@ -106,11 +154,11 @@ function ReceivingPage() {
               </h2>
 
               <p className="receivingPage__contextValue">
-                Сканов ещё не было
+                {lastScanText}
               </p>
 
               <p className="receivingPage__contextHint">
-                Первый товар появится здесь
+                {lastScanHint}
               </p>
             </section>
 
@@ -119,10 +167,14 @@ function ReceivingPage() {
                 Рекомендуемая ячейка
               </h3>
 
-              <p className="receivingPage__contextValue">—</p>
+              <p className="receivingPage__contextValue">
+                {hasScannedItems ? 'A-01' : '—'}
+              </p>
 
               <p className="receivingPage__contextHint">
-                Рекомендация появится после сканирования товара.
+                {hasScannedItems
+                  ? 'Группа готова к размещению'
+                  : 'Рекомендация появится после сканирования товара.'}
               </p>
             </section>
 
@@ -132,17 +184,21 @@ function ReceivingPage() {
               </h3>
 
               <p className="receivingPage__contextValue">
-                0 единиц
+                {hasScannedItems
+                  ? `${scannedTotal} единицы`
+                  : '0 единиц'}
               </p>
 
               <p className="receivingPage__contextHint">
-                Сначала отсканируйте товар
+                {hasScannedItems
+                  ? 'Отсканируйте QR ячейки'
+                  : 'Сначала отсканируйте товар'}
               </p>
             </section>
           </aside>
         </div>
 
-                <section
+        <section
           className="receivingPage__panel receivingPage__placed"
           aria-labelledby="receiving-placed-title"
         >
@@ -156,7 +212,9 @@ function ReceivingPage() {
               </h2>
 
               <p className="receivingPage__placedHint">
-                В этой приёмке пока ничего не размещено
+                {isPlaced
+                  ? 'Товары размещены в ячейке A-01'
+                  : 'В этой приёмке пока ничего не размещено'}
               </p>
             </div>
 
@@ -190,20 +248,29 @@ function ReceivingPage() {
             </thead>
 
             <tbody>
-              <tr>
-                <td
-                  className="receivingPage__placedEmpty"
-                  colSpan={4}
-                >
-                  История размещения появится после сканирования QR ячейки
-                </td>
-              </tr>
+              {isPlaced ? (
+                placedItems.map((item) => (
+                  <tr key={`${item.name}-${item.cell}-${item.time}`}>
+                    <td>{item.name}</td>
+                    <td>{item.quantity}</td>
+                    <td>{item.cell}</td>
+                    <td>{item.time}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    className="receivingPage__placedEmpty"
+                    colSpan={4}
+                  >
+                    История размещения появится после сканирования QR ячейки
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </section>
-
       </section>
-
     </main>
   )
 }
