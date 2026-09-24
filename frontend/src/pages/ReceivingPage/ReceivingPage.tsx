@@ -142,6 +142,66 @@ function ReceivingPage() {
           </aside>
         </div>
 
+                <section
+          className="receivingPage__panel receivingPage__placed"
+          aria-labelledby="receiving-placed-title"
+        >
+          <div className="receivingPage__placedHeader">
+            <div>
+              <h2
+                className="receivingPage__panelTitle"
+                id="receiving-placed-title"
+              >
+                УЖЕ РАЗМЕЩЕНО
+              </h2>
+
+              <p className="receivingPage__placedHint">
+                В этой приёмке пока ничего не размещено
+              </p>
+            </div>
+
+            <div className="receivingPage__placedActions">
+              <button
+                className="receivingPage__undoButton"
+                type="button"
+                disabled
+              >
+                Отменить последнее действие
+              </button>
+
+              <button
+                className="receivingPage__finishButton"
+                type="button"
+                disabled
+              >
+                ЗАВЕРШИТЬ ПРИЕМКУ
+              </button>
+            </div>
+          </div>
+
+          <table className="receivingPage__placedTable">
+            <thead>
+              <tr>
+                <th scope="col">ТОВАР</th>
+                <th scope="col">КОЛИЧЕСТВО</th>
+                <th scope="col">ЯЧЕЙКА</th>
+                <th scope="col">ВРЕМЯ</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr>
+                <td
+                  className="receivingPage__placedEmpty"
+                  colSpan={4}
+                >
+                  История размещения появится после сканирования QR ячейки
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
       </section>
 
     </main>

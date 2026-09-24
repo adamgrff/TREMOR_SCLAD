@@ -287,3 +287,108 @@
   .receivingPage__contextValue {
   font-size: 24px;
 }
+
+.receivingPage__placed {
+  min-height: 500px;
+  margin-top: 15px;
+  padding: 20px 40px;
+}
+
+.receivingPage__placedHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+
+  margin-bottom: 36px;
+}
+
+.receivingPage__placedHint {
+  margin: 10px 0 0;
+
+  color: #9a9a9a;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.receivingPage__placedActions {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.receivingPage__undoButton,
+.receivingPage__finishButton {
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.receivingPage__undoButton {
+  padding: 5px 0;
+
+  color: rgba(255, 255, 255, 0.75);
+  background: transparent;
+  border: 0;
+}
+
+.receivingPage__finishButton {
+  padding: 5px 10px;
+
+  color: rgba(0, 0, 0, 0.75);
+  background: rgba(255, 255, 255, 0.75);
+  border: 0;
+  border-radius: 30px;
+}
+
+.receivingPage__undoButton:disabled,
+.receivingPage__finishButton:disabled {
+  cursor: not-allowed;
+}
+
+.receivingPage__placedTable {
+  width: 100%;
+
+  border-collapse: collapse;
+  table-layout: fixed;
+
+  font-family: inherit;
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.receivingPage__placedTable th {
+  padding: 0 0 14px;
+
+  border-bottom: 2px solid rgba(255, 255, 255, 0.35);
+
+  font-size: 24px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.receivingPage__placedTable th:first-child {
+  width: 45%;
+}
+
+.receivingPage__placedTable th:nth-child(2) {
+  width: 25%;
+}
+
+.receivingPage__placedTable th:nth-child(3),
+.receivingPage__placedTable th:nth-child(4) {
+  width: 15%;
+}
+
+.receivingPage__placedEmpty {
+  height: 280px;
+  padding: 24px;
+
+  color: rgba(255, 255, 255, 0.75);
+  text-align: center;
+  vertical-align: middle;
+}
