@@ -1,10 +1,9 @@
+import { useState } from 'react'
 import Header from '../../components/Header/Header'
 import { useTheme } from '../../hooks/useTheme'
 import './ReceivingPage.css'
 
 type ReceivingState = 'start' | 'scanned' | 'placed'
-
-const testState: ReceivingState = 'placed'
 
 const scannedItems = [
   { name: 'Ручка TREMOR', code: 'TRM-001', quantity: 2 },
@@ -18,17 +17,19 @@ const placedItems = [
 
 function ReceivingPage() {
   const { theme, toggleTheme } = useTheme('light')
+  const [testState, setTestState] = useState<ReceivingState>('scanned')
+  const [currentItems, setCurrentItems] = useState(scannedItems)
 
-  const hasScannedItems = testState === 'scanned'
+  const hasScannedItems = testState === 'scanned' && currentItems.length > 0
   const isPlaced = testState === 'placed'
 
-  const scannedTotal = scannedItems.reduce(
+  const scannedTotal = currentItems.reduce(
     (total, item) => total + item.quantity,
     0,
   )
 
   const lastScanText = hasScannedItems
-    ? scannedItems[scannedItems.length - 1].name
+    ? currentItems[currentItems.length - 1].name
     : isPlaced
       ? `Ячейка ${placedItems[0].cell}`
       : 'Сканов ещё не было'
@@ -104,7 +105,11 @@ function ReceivingPage() {
               <button
                 className="receivingPage__clearButton"
                 type="button"
-                disabled
+                disabled={!hasScannedItems}
+                onClick={() => {
+                  setCurrentItems([])
+                  setTestState('start')
+                }}
               >
                 ОЧИСТИТЬ ГРУППУ
               </button>
@@ -121,7 +126,7 @@ function ReceivingPage() {
 
               <tbody>
                 {hasScannedItems ? (
-                  scannedItems.map((item) => (
+                  currentItems.map((item) => (
                     <tr key={item.code}>
                       <td>{item.name}</td>
                       <td>{item.code}</td>
