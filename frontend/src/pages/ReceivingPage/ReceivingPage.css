@@ -1,5 +1,5 @@
 .receivingPage {
-  zoom: 0.8;
+  zoom: 0.7;
     
   --text: #ffffff;
   --muted: rgba(0, 0, 0, 0.7);
@@ -8,7 +8,7 @@
   --glow: 0 0 6px rgba(255, 255, 255, 0.6);
 
   width: 100%;
-  min-height: 125svh;
+  min-height: 150svh;
 
   padding: 20px 120px 38px;
 
