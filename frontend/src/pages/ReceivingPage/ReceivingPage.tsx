@@ -1,44 +1,214 @@
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import Header from '../../components/Header/Header'
 import { useTheme } from '../../hooks/useTheme'
 import './ReceivingPage.css'
 
-type ReceivingState = 'start' | 'scanned' | 'placed'
+type ReceivingState = 'start' | 'scanned' | 'placed' | 'finished'
+type LastScanKind = 'product' | 'cell' | null
 
-const scannedItems = [
-  { name: 'Ручка TREMOR', code: 'TRM-001', quantity: 2 },
-  { name: 'Комплект TREMOR', code: 'TRM-002', quantity: 1 },
+type Product = {
+  name: string
+  code: string
+}
+
+type ReceivingItem = Product & {
+  quantity: number
+}
+
+type PlacedItem = ReceivingItem & {
+  cell: string
+  time: string
+  placementId: string
+}
+
+const productCatalog: Product[] = [
+  { name: 'Ручка TREMOR', code: 'TRM-001' },
+  { name: 'Комплект TREMOR', code: 'TRM-002' },
 ]
 
-const placedItems = [
-  { name: 'Ручка TREMOR', quantity: 2, cell: 'A-01', time: '14:32' },
-  { name: 'Комплект TREMOR', quantity: 1, cell: 'A-01', time: '14:32' },
-]
+const cellCatalog = ['A-01']
+
+function getUnitWord(count: number) {
+  const lastTwoDigits = count % 100
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return 'единиц'
+  }
+
+  switch (count % 10) {
+    case 1:
+      return 'единица'
+    case 2:
+    case 3:
+    case 4:
+      return 'единицы'
+    default:
+      return 'единиц'
+  }
+}
+
+function getCurrentTime() {
+  return new Intl.DateTimeFormat('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date())
+}
 
 function ReceivingPage() {
   const { theme, toggleTheme } = useTheme('light')
-  const [testState, setTestState] = useState<ReceivingState>('scanned')
-  const [currentItems, setCurrentItems] = useState(scannedItems)
+
+  const [testState, setTestState] = useState<ReceivingState>('start')
+  const [currentItems, setCurrentItems] = useState<ReceivingItem[]>([])
+  const [placedItems, setPlacedItems] = useState<PlacedItem[]>([])
+  const [scanCode, setScanCode] = useState('')
+  const [scanMessage, setScanMessage] = useState('')
+  const [lastScannedName, setLastScannedName] = useState('')
+  const [lastScanKind, setLastScanKind] = useState<LastScanKind>(null)
 
   const hasScannedItems = testState === 'scanned' && currentItems.length > 0
   const isPlaced = testState === 'placed'
+
+  const isFinished = testState === 'finished'
+  const canFinish =
+    placedItems.length > 0 && currentItems.length === 0 && !isFinished
 
   const scannedTotal = currentItems.reduce(
     (total, item) => total + item.quantity,
     0,
   )
 
-  const lastScanText = hasScannedItems
-    ? currentItems[currentItems.length - 1].name
-    : isPlaced
-      ? `Ячейка ${placedItems[0].cell}`
-      : 'Сканов ещё не было'
+  const latestPlacementId =
+    placedItems[placedItems.length - 1]?.placementId
+  const canUndoPlacement = Boolean(latestPlacementId)
 
-  const lastScanHint = hasScannedItems
-    ? 'Последний отсканированный товар'
-    : isPlaced
-      ? 'Последнее размещение выполнено'
-      : 'Первый товар появится здесь'
+  const lastScanText = lastScannedName || 'Сканов ещё не было'
+
+  const lastScanHint =
+    lastScanKind === 'product'
+      ? 'Последний отсканированный товар'
+      : lastScanKind === 'cell'
+        ? 'Последнее размещение выполнено'
+        : 'Первый товар появится здесь'
+
+  function handleUndoLastPlacement() {
+    if (!latestPlacementId) return
+
+    const lastPlacedGroup = placedItems.filter(
+      (item) => item.placementId === latestPlacementId,
+    )
+
+    const restoredItems: ReceivingItem[] = lastPlacedGroup.map(
+      ({ name, code, quantity }) => ({ name, code, quantity }),
+    )
+
+    setPlacedItems((items) =>
+      items.filter((item) => item.placementId !== latestPlacementId),
+    )
+
+    setCurrentItems((items) => {
+      let mergedItems = [...items]
+
+      for (const restoredItem of restoredItems) {
+        const existingItem = mergedItems.find(
+          (item) => item.code === restoredItem.code,
+        )
+
+        if (existingItem) {
+          mergedItems = mergedItems.map((item) =>
+            item.code === restoredItem.code
+              ? { ...item, quantity: item.quantity + restoredItem.quantity }
+              : item,
+          )
+        } else {
+          mergedItems = [...mergedItems, restoredItem]
+        }
+      }
+
+      return mergedItems
+    })
+
+    setTestState('scanned')
+    setLastScannedName(restoredItems[restoredItems.length - 1].name)
+    setLastScanKind('product')
+    setScanMessage('Последнее размещение отменено; товары возвращены в группу')
+  }
+
+  function handleFinishReceiving() {
+    if (!canFinish) return
+
+    setTestState('finished')
+    setScanMessage('Приёмка завершена')
+    setScanCode('')
+  }
+
+  function handleProductScan(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (isFinished) return
+
+    const code = scanCode.trim().toUpperCase()
+    if (!code) return
+
+    const cell = cellCatalog.find(
+      (item) => item.toUpperCase() === code,
+    )
+
+    if (cell) {
+      if (!hasScannedItems) {
+        setScanMessage('Сначала отсканируйте товары')
+        setScanCode('')
+        return
+      }
+
+      const placementId = Date.now().toString()
+      const time = getCurrentTime()
+
+      const newPlacedItems = currentItems.map((item) => ({
+        ...item,
+        cell,
+        time,
+        placementId,
+      }))
+
+      setPlacedItems((items) => [...items, ...newPlacedItems])
+      setCurrentItems([])
+      setTestState('placed')
+      setLastScannedName(`Ячейка ${cell}`)
+      setLastScanKind('cell')
+      setScanMessage(`Группа размещена в ячейке ${cell}`)
+      setScanCode('')
+      return
+    }
+
+    const product = productCatalog.find(
+      (item) => item.code.toUpperCase() === code,
+    )
+
+    if (!product) {
+      setScanMessage(`Код ${code} не найден`)
+      setScanCode('')
+      return
+    }
+
+    setCurrentItems((items) => {
+      const existingItem = items.find((item) => item.code === product.code)
+
+      if (existingItem) {
+        return items.map((item) =>
+          item.code === product.code
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
+        )
+      }
+
+      return [...items, { ...product, quantity: 1 }]
+    })
+
+    setLastScannedName(product.name)
+    setLastScanKind('product')
+    setTestState('scanned')
+    setScanMessage(`Добавлен товар: ${product.name}`)
+    setScanCode('')
+  }
 
   return (
     <main className={`receivingPage receivingPage--${theme}`}>
@@ -74,10 +244,42 @@ function ReceivingPage() {
             <p className="receivingPage__scanHint">
               КОД ТОВАРА БУДЕТ РАСПОЗНАН АВТОМАТИЧЕСКИ
             </p>
+
+            <form
+              className="receivingPage__scanForm"
+              onSubmit={handleProductScan}
+            >
+              <input
+                className="receivingPage__scanInput"
+                aria-label="Код товара или ячейки"
+                autoComplete="off"
+                autoFocus
+                placeholder="Введите или отсканируйте код"
+                value={scanCode}
+                onChange={(event) => {
+                  setScanCode(event.target.value)
+                  setScanMessage('')
+                }}
+              />
+
+              <button
+                className="receivingPage__scanSubmit"
+                type="submit"
+                disabled={isFinished}
+              >
+                ДОБАВИТЬ
+              </button>
+            </form>
+
+            {scanMessage && (
+              <p className="receivingPage__scanMessage" role="status">
+                {scanMessage}
+              </p>
+            )}
           </div>
 
           <span className="receivingPage__scanStatus">
-            Сканирование АКТИВНО
+            {isFinished ? 'Приёмка ЗАВЕРШЕНА' : 'Сканирование АКТИВНО'}
           </span>
         </div>
 
@@ -105,10 +307,11 @@ function ReceivingPage() {
               <button
                 className="receivingPage__clearButton"
                 type="button"
-                disabled={!hasScannedItems}
+                disabled={!hasScannedItems || isFinished}
                 onClick={() => {
                   setCurrentItems([])
                   setTestState('start')
+                  setScanMessage('')
                 }}
               >
                 ОЧИСТИТЬ ГРУППУ
@@ -190,7 +393,7 @@ function ReceivingPage() {
 
               <p className="receivingPage__contextValue">
                 {hasScannedItems
-                  ? `${scannedTotal} единицы`
+                  ? `${scannedTotal} ${getUnitWord(scannedTotal)}`
                   : '0 единиц'}
               </p>
 
@@ -217,9 +420,11 @@ function ReceivingPage() {
               </h2>
 
               <p className="receivingPage__placedHint">
-                {isPlaced
-                  ? 'Товары размещены в ячейке A-01'
-                  : 'В этой приёмке пока ничего не размещено'}
+                {isFinished
+                  ? 'Приёмка завершена'
+                  : placedItems.length > 0
+                    ? 'Товары размещены в ячейке A-01'
+                    : 'В этой приёмке пока ничего не размещено'}
               </p>
             </div>
 
@@ -227,7 +432,8 @@ function ReceivingPage() {
               <button
                 className="receivingPage__undoButton"
                 type="button"
-                disabled
+                disabled={!canUndoPlacement || isFinished}
+                onClick={handleUndoLastPlacement}
               >
                 Отменить последнее действие
               </button>
@@ -235,9 +441,10 @@ function ReceivingPage() {
               <button
                 className="receivingPage__finishButton"
                 type="button"
-                disabled
+                disabled={!canFinish || isFinished}
+                onClick={handleFinishReceiving}
               >
-                ЗАВЕРШИТЬ ПРИЕМКУ
+                {isFinished ? 'ПРИЁМКА ЗАВЕРШЕНА' : 'ЗАВЕРШИТЬ ПРИЕМКУ'}
               </button>
             </div>
           </div>
@@ -253,9 +460,9 @@ function ReceivingPage() {
             </thead>
 
             <tbody>
-              {isPlaced ? (
+              {placedItems.length > 0 ? (
                 placedItems.map((item) => (
-                  <tr key={`${item.name}-${item.cell}-${item.time}`}>
+                  <tr key={`${item.placementId}-${item.code}`}>
                     <td>{item.name}</td>
                     <td>{item.quantity}</td>
                     <td>{item.cell}</td>
