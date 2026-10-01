@@ -12,8 +12,9 @@
 }
 
 .receivingHistory__hint {
-  color: #aaa;
+  color: #9a9a9a;
   font-size: 18px;
+  font-weight: 700;
   line-height: 1.5;
 }
 
@@ -53,7 +54,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.receivingHistory__table th { white-space: nowrap; }
+.receivingHistory__table th { white-space: nowrap; font-size: 24px; text-transform: uppercase; border-bottom: 2px solid rgba(255, 255, 255, 0.35); }
 .receivingHistory__sku { display: block; color: #aaa; font-size: inherit; }
 .receivingHistory__pagination { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 20px; }
 
@@ -109,18 +110,23 @@
 }
 
 .receivingHistory__columnHeading { display: inline-flex; align-items: center; gap: 8px; }
-.receivingHistory__summaryTable { table-layout: fixed; min-width: 1330px; --cell-width: 196px; --quantity-width: 196px; }
+.receivingHistory__summaryTable { table-layout: fixed; min-width: 1600px; --cell-width: 250px; --quantity-width: 250px; }
 .receivingHistory__summaryTable th,
 .receivingHistory__summaryTable td { padding-inline: 64px; }
 .receivingHistory__summaryTable th:first-child,
 .receivingHistory__summaryTable td:first-child { padding-left: 16px; }
 .receivingHistory__summaryTable th:last-child,
 .receivingHistory__summaryTable td:last-child { padding-right: 16px; }
-.receivingHistory__receiptCol { width: 190px; }
+.receivingHistory__receiptCol { width: 200px; }
 .receivingHistory__cellCol { width: var(--cell-width); }
 .receivingHistory__quantityCol { width: var(--quantity-width); }
-.receivingHistory__dateCol { width: 296px; }
-.receivingHistory__actionsCol { width: 160px; }
+.receivingHistory__dateCol { width: 320px; }
+.receivingHistory__actionsCol { width: 200px; }
+.receivingHistory__summaryTable th:nth-child(3),
+.receivingHistory__summaryTable th:nth-child(4),
+.receivingHistory__summaryTable th:nth-child(5) { text-align: left; }
+.receivingHistory__summaryTable td:nth-last-child(2),
+.receivingHistory__compositionGrid > span:not(:first-child) { text-align: left; }
 .receivingHistory__summaryTable td { vertical-align: top; overflow-wrap: anywhere; }
 .receivingHistory__summaryTable td:nth-last-child(2) { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .receivingHistory__summaryTable td.receivingHistory__composition { padding: 0; }

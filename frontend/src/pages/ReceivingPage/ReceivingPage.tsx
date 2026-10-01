@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import Header from '../../components/Header/Header'
 import ReceivingHistory from './ReceivingHistory'
+import ProductCatalog from './ProductCatalog'
 import { useTheme } from '../../hooks/useTheme'
 import './ReceivingPage.css'
 
@@ -91,6 +92,7 @@ function getUnitWord(count: number) {
 
 function formatPlacementTime(value: string) {
   return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))
@@ -179,7 +181,7 @@ function ReceivingPage() {
   const [isCheckingCell, setIsCheckingCell] = useState(false)
   const [isUndoing, setIsUndoing] = useState(false)
   const [isFinishing, setIsFinishing] = useState(false)
-  const [isClearingItems, setIsClearingItems] = useState(false)
+  const [isRemovingItem, setIsRemovingItem] = useState(false)
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [historyRevision, setHistoryRevision] = useState(0)
@@ -192,7 +194,7 @@ function ReceivingPage() {
     isScanBusy ||
     isUndoing ||
     isFinishing ||
-    isClearingItems ||
+    isRemovingItem ||
     isCreatingSession ||
     isLoadingHistory
 
@@ -500,14 +502,14 @@ function ReceivingPage() {
     }
   }
 
-  async function handleClearPendingItems() {
+  async function handleRemovePendingItem(code: string) {
     if (sessionId === null || isBusy || currentItems.length === 0) return
 
-    setIsClearingItems(true)
+    setIsRemovingItem(true)
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/receiving/sessions/${sessionId}/items`,
+        `${API_BASE_URL}/receiving/sessions/${sessionId}/items/${encodeURIComponent(code)}`,
         { method: 'DELETE' },
       )
 
@@ -515,13 +517,14 @@ function ReceivingPage() {
         throw new Error(`Ошибка API: ${response.status}`)
       }
 
-      setCurrentItems([])
-      setReceivingState(placedItems.length > 0 ? 'placed' : 'start')
-      setScanMessage('Группа очищена и удалена из черновика')
+      const remaining = currentItems.filter((item) => item.code !== code)
+      setCurrentItems(remaining)
+      if (remaining.length === 0) setReceivingState(placedItems.length > 0 ? 'placed' : 'start')
+      setScanMessage(`Товар ${code} удалён из ожидающих размещения`)
     } catch {
-      setScanMessage('Не удалось очистить группу в базе')
+      setScanMessage('Не удалось удалить товар из базы')
     } finally {
-      setIsClearingItems(false)
+      setIsRemovingItem(false)
     }
   }
 
@@ -717,9 +720,6 @@ function ReceivingPage() {
               СКАНИРУЙТЕ ТОВАР
             </h1>
 
-            <p className="receivingPage__scanHint">
-              КОД ТОВАРА БУДЕТ РАСПОЗНАН АВТОМАТИЧЕСКИ
-            </p>
 
             <form
               className="receivingPage__scanForm"
@@ -785,14 +785,6 @@ function ReceivingPage() {
                 </p>
               </div>
 
-              <button
-                className="receivingPage__clearButton"
-                type="button"
-                disabled={!hasScannedItems || isBusy || isFinished}
-                onClick={handleClearPendingItems}
-              >
-                ОЧИСТИТЬ ГРУППУ
-              </button>
             </div>
 
             <table className="receivingPage__pendingTable">
@@ -801,6 +793,7 @@ function ReceivingPage() {
                   <th scope="col">ТОВАР</th>
                   <th scope="col">КОД</th>
                   <th scope="col">КОЛИЧЕСТВО</th>
+                  <th scope="col" aria-label="Действия" />
                 </tr>
               </thead>
 
@@ -811,13 +804,16 @@ function ReceivingPage() {
                       <td>{item.name}</td>
                       <td>{item.code}</td>
                       <td>{item.quantity}</td>
+                      <td><button type="button" className="receivingHistory__button receivingHistory__deleteButton receivingHistory__iconButton" disabled={isBusy || isFinished} aria-label={`Удалить ${item.code} из ожидающих`} title="Удалить товар" onClick={() => void handleRemovePendingItem(item.code)}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg>
+                      </button></td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td
                       className="receivingPage__pendingEmpty"
-                      colSpan={3}
+                      colSpan={4}
                     >
                       {isPlaced
                         ? 'Группа размещена. Сканируйте следующие товары'
@@ -939,9 +935,10 @@ function ReceivingPage() {
             <thead>
               <tr>
                 <th scope="col">ТОВАР</th>
-                <th scope="col">КОЛИЧЕСТВО</th>
                 <th scope="col">ЯЧЕЙКА</th>
+                <th scope="col">КОЛИЧЕСТВО</th>
                 <th scope="col">ВРЕМЯ</th>
+                <th scope="col" aria-label="Отступ" />
               </tr>
             </thead>
 
@@ -950,16 +947,17 @@ function ReceivingPage() {
                 placedItems.map((item) => (
                   <tr key={`${item.placementId}-${item.code}`}>
                     <td>{item.name}</td>
-                    <td>{item.quantity}</td>
                     <td>{item.cell}</td>
+                    <td>{item.quantity}</td>
                     <td>{item.time}</td>
+                    <td />
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
                     className="receivingPage__placedEmpty"
-                    colSpan={4}
+                    colSpan={5}
                   >
                     Размещения этой приёмки появятся после сканирования QR ячейки
                   </td>
@@ -977,6 +975,7 @@ function ReceivingPage() {
             setScanMessage(`Приёмка №${id} удалена из истории. Остатки товаров сохранены.`)
           }
         }} />
+        <ProductCatalog />
       </section>
     </main>
   )

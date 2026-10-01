@@ -441,7 +441,7 @@ func addReceivingSessionItemHandler(
 	}
 }
 
-func clearReceivingSessionItemsHandler(
+func deleteReceivingSessionItemHandler(
 	database *pgxpool.Pool,
 	w http.ResponseWriter,
 	r *http.Request,
@@ -456,11 +456,11 @@ func clearReceivingSessionItemsHandler(
 
 	tx, err := database.Begin(r.Context())
 	if err != nil {
-		log.Printf("failed to start clear-items transaction: %v", err)
+		log.Printf("failed to start delete-item transaction: %v", err)
 		writeErrorResponse(
 			w,
 			http.StatusInternalServerError,
-			"failed to clear pending items",
+			"failed to delete pending item",
 		)
 		return
 	}
@@ -488,39 +488,41 @@ func clearReceivingSessionItemsHandler(
 		writeErrorResponse(
 			w,
 			http.StatusInternalServerError,
-			"failed to clear pending items",
+			"failed to delete pending item",
 		)
 		return
 	}
 
 	_, err = tx.Exec(
 		r.Context(),
-		`DELETE FROM receiving_session_items WHERE session_id = $1`,
+		`DELETE FROM receiving_session_items WHERE session_id = $1
+		 AND product_id = (SELECT id FROM products WHERE sku = $2)`,
 		sessionID,
+		r.PathValue("sku"),
 	)
 	if err != nil {
-		log.Printf("failed to clear pending items for session %d: %v", sessionID, err)
+		log.Printf("failed to delete pending item for session %d: %v", sessionID, err)
 		writeErrorResponse(
 			w,
 			http.StatusInternalServerError,
-			"failed to clear pending items",
+			"failed to delete pending item",
 		)
 		return
 	}
 
 	if err := tx.Commit(r.Context()); err != nil {
-		log.Printf("failed to commit clear-items transaction: %v", err)
+		log.Printf("failed to commit delete-item transaction: %v", err)
 		writeErrorResponse(
 			w,
 			http.StatusInternalServerError,
-			"failed to clear pending items",
+			"failed to delete pending item",
 		)
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(
-		receivingSessionStatusResponse{Status: "cleared"},
+		receivingSessionStatusResponse{Status: "deleted"},
 	); err != nil {
-		log.Printf("failed to encode clear-items response: %v", err)
+		log.Printf("failed to encode delete-item response: %v", err)
 	}
 }

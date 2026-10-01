@@ -43,6 +43,7 @@ const mainActions: MainAction[] = [
     description: 'Страница с выдачей и сборкой заказов',
     icon: iconAssembly,
     lightIcon: iconAssemblyBlack,
+    path: '/issuing',
   },
 ]
 

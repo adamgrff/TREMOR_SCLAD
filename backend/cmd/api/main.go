@@ -67,6 +67,9 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("GET /api/product-catalog", func(w http.ResponseWriter, r *http.Request) {
+		productCatalogHandler(database, w, r)
+	})
 
 	mux.HandleFunc(
 		"GET /api/cells/{cellName}",
@@ -146,11 +149,24 @@ func main() {
 	)
 
 	mux.HandleFunc(
-		"DELETE /api/receiving/sessions/{sessionID}/items",
+		"DELETE /api/receiving/sessions/{sessionID}/items/{sku}",
 		func(w http.ResponseWriter, r *http.Request) {
-			clearReceivingSessionItemsHandler(database, w, r)
+			deleteReceivingSessionItemHandler(database, w, r)
 		},
 	)
+
+	mux.HandleFunc("GET /api/products/{sku}/stock", func(w http.ResponseWriter, r *http.Request) {
+		productStockHandler(database, w, r)
+	})
+	mux.HandleFunc("GET /api/issuing", func(w http.ResponseWriter, r *http.Request) {
+		issueHistoryHandler(database, w, r)
+	})
+	mux.HandleFunc("POST /api/issuing", func(w http.ResponseWriter, r *http.Request) {
+		createIssueHandler(database, w, r)
+	})
+	mux.HandleFunc("POST /api/issuing/{issueID}/undo", func(w http.ResponseWriter, r *http.Request) {
+		undoIssueHandler(database, w, r)
+	})
 
 	server := &http.Server{
 		Addr:              "127.0.0.1:8080",

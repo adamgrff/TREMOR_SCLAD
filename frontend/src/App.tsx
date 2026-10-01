@@ -3,6 +3,7 @@
 import HomePage from './pages/HomePage/HomePage'
 import CellsPage from './pages/CellsPage/CellsPage'
 import ReceivingPage from './pages/ReceivingPage/ReceivingPage'
+import IssuingPage from './pages/IssuingPage/IssuingPage'
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/cells" element={<CellsPage />} />
       <Route path="/receiving" element={<ReceivingPage />} />
+      <Route path="/issuing" element={<IssuingPage />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

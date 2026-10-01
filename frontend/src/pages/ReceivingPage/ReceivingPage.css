@@ -42,8 +42,7 @@
   align-items: center;
   gap: 40px;
 
-  min-height: 150px;
-  padding: 0 40px;
+  padding: 24px 40px;
 
   color: #ffffff;
   background: rgba(0, 0, 0, 0.75);
@@ -71,15 +70,6 @@
   letter-spacing: -1.28px;
 }
 
-.receivingPage__scanHint {
-  margin: 10px 0 0;
-
-  color: #9a9a9a;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: normal;
-  letter-spacing: -0.64px;
-}
 
 .receivingPage__scanForm {
   display: flex;
@@ -131,9 +121,10 @@
 }
 
 .receivingPage__scanMessage {
-  margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
+  margin: 20px 0 0;
+  color: #9a9a9a;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .receivingPage__scanStatus {
@@ -212,29 +203,12 @@
 .receivingPage__panelSubtitle {
   margin: 10px 0 0;
 
-  color: rgba(255, 255, 255, 0.8);
+  color: #9a9a9a;
   font-size: 20px;
+  font-weight: 700;
   line-height: 1.4;
 }
 
-.receivingPage__clearButton {
-  padding: 8px 12px;
-
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.16);
-  border: 0;
-  border-radius: 999px;
-
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-.receivingPage__clearButton:disabled {
-  color: rgba(255, 255, 255, 0.55);
-  cursor: not-allowed;
-}
 
 .receivingPage__pendingTable {
   width: 100%;
@@ -255,14 +229,6 @@
   text-align: left;
 }
 
-.receivingPage__pendingTable th:first-child {
-  width: 50%;
-}
-
-.receivingPage__pendingTable th:nth-child(2),
-.receivingPage__pendingTable th:nth-child(3) {
-  width: 25%;
-}
 
 .receivingPage__pendingEmpty {
   height: 280px;
@@ -409,18 +375,34 @@
   text-align: left;
 }
 
-.receivingPage__placedTable th:first-child {
-  width: 45%;
-}
 
-.receivingPage__placedTable th:nth-child(2) {
-  width: 25%;
-}
-
-.receivingPage__placedTable th:nth-child(3),
-.receivingPage__placedTable th:nth-child(4) {
-  width: 15%;
-}
+.receivingPage__pendingTable th,
+.receivingPage__pendingTable td,
+.receivingPage__placedTable th,
+.receivingPage__placedTable td { padding: 12px 64px; }
+.receivingPage__pendingTable td,
+.receivingPage__placedTable td { border-bottom: 1px solid rgba(255, 255, 255, 0.2); font-size: 18px; }
+.receivingPage__pendingTable th:first-child,
+.receivingPage__pendingTable td:first-child,
+.receivingPage__placedTable th:first-child,
+.receivingPage__placedTable td:first-child { padding-left: 16px; }
+.receivingPage__pendingTable th:last-child,
+.receivingPage__pendingTable td:last-child { padding-right: 16px; }
+.receivingPage__pendingTable th:nth-child(2) { width: 28%; }
+.receivingPage__pendingTable th:nth-child(3) { width: 320px; }
+.receivingPage__pendingTable th:last-child { width: 116px; }
+.receivingPage__placedTable th:nth-child(2),
+.receivingPage__placedTable th:nth-child(3) { width: 250px; }
+.receivingPage__placedTable th:nth-child(4) { width: 320px; }
+.receivingPage__placedTable th:last-child { width: 200px; }
+.receivingPage__placedTable { min-width: 1600px; }
+.receivingPage__placed { overflow-x: auto; }
+.receivingPage__placedTable th:not(:first-child) { text-align: left; }
+.receivingPage__placedTable td:not(:first-child) { text-align: left; }
+.receivingPage__placedTable td:nth-child(4) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.receivingPage__pending { overflow-x: auto; }
+.receivingPage__pendingTable { min-width: 1100px; }
+.receivingPage__pendingTable th { white-space: nowrap; }
 
 .receivingPage__placedEmpty {
   height: 280px;
