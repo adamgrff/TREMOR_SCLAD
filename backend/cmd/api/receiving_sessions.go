@@ -148,7 +148,7 @@ func getReceivingSessionHandler(
 		`
 			SELECT id, status, started_at, completed_at
 			FROM receiving_sessions
-			WHERE id = $1
+			WHERE id = $1 AND deleted_at IS NULL
 		`,
 		sessionID,
 	).Scan(

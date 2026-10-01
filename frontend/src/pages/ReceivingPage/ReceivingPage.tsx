@@ -183,6 +183,7 @@ function ReceivingPage() {
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [historyRevision, setHistoryRevision] = useState(0)
+  const [completedSessionId, setCompletedSessionId] = useState<number | null>(null)
 
   const isFinished = receivingState === 'finished'
   const isPlaced = receivingState === 'placed'
@@ -321,6 +322,7 @@ function ReceivingPage() {
     )
 
     setSessionId(session.status === 'active' ? session.id : null)
+    setCompletedSessionId(session.status === 'completed' ? session.id : null)
     if (session.status === 'active') {
       localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, String(session.id))
     } else {
@@ -364,6 +366,7 @@ function ReceivingPage() {
   }
 
   function restoreLatestReceiving(receiving: LatestReceivingResponse) {
+    setCompletedSessionId(receiving.id)
     const restoredItems: PlacedItem[] = receiving.items.map((item) => ({
       name: item.name,
       code: item.sku,
@@ -458,6 +461,7 @@ function ReceivingPage() {
       setReceivingState('finished')
       setScanCode('')
       setScanMessage('Приёмка завершена и сохранена в базе')
+      setCompletedSessionId(sessionId)
       setHistoryRevision((revision) => revision + 1)
     } catch {
       setScanMessage(
@@ -481,6 +485,7 @@ function ReceivingPage() {
         String(session.id),
       )
       setSessionId(session.id)
+      setCompletedSessionId(null)
       setCurrentItems([])
       setPlacedItems([])
       setScanCode('')
@@ -963,7 +968,15 @@ function ReceivingPage() {
             </tbody>
           </table>
         </section>
-        <ReceivingHistory revision={historyRevision} />
+        <ReceivingHistory revision={historyRevision} onDeleted={(id) => {
+          if (id === completedSessionId) {
+            setCompletedSessionId(null)
+            setPlacedItems([])
+            setLastScannedName('')
+            setLastScanKind(null)
+            setScanMessage(`Приёмка №${id} удалена из истории. Остатки товаров сохранены.`)
+          }
+        }} />
       </section>
     </main>
   )

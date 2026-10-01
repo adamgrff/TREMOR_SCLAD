@@ -29,6 +29,7 @@ const mainActions: MainAction[] = [
     description: 'Добавление товара на склад',
     icon: iconReceiving,
     lightIcon: iconReceivingBlack,
+    path: '/receiving',
   },
   {
     title: 'ЯЧЕЙКИ',

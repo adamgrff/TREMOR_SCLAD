@@ -2,13 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+const receivingHistoryPageSize = 5
 
 type completedReceivingSummary struct {
 	ID             int64     `json:"id"`
@@ -26,6 +30,12 @@ type completedReceivingHistoryResponse struct {
 
 func completedReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	order := r.URL.Query().Get("order")
+	if order != "" && order != "asc" && order != "desc" {
+		writeErrorResponse(w, http.StatusBadRequest, "order must be asc or desc")
+		return
+	}
+	ascending := order == "asc"
 	var cursor int64
 	if value := r.URL.Query().Get("before"); value != "" {
 		var err error
@@ -38,13 +48,13 @@ func completedReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWri
 	rows, err := database.Query(r.Context(), `
 		WITH page AS (
 			SELECT id, completed_at FROM receiving_sessions
-			WHERE status = 'completed'
-				AND ($1::bigint = 0 OR (completed_at, id) < (
-					SELECT completed_at, id FROM receiving_sessions
-					WHERE id = $1 AND status = 'completed'
-				))
-			ORDER BY completed_at DESC, id DESC
-			LIMIT 21
+			WHERE status = 'completed' AND deleted_at IS NULL
+				AND ($1::bigint = 0
+					OR ($2::boolean AND (completed_at, id) > ((SELECT completed_at FROM receiving_sessions WHERE id = $1), $1))
+					OR (NOT $2 AND (completed_at, id) < ((SELECT completed_at FROM receiving_sessions WHERE id = $1), $1)))
+			ORDER BY CASE WHEN $2 THEN completed_at END ASC, CASE WHEN NOT $2 THEN completed_at END DESC,
+				CASE WHEN $2 THEN id END ASC, CASE WHEN NOT $2 THEN id END DESC
+			LIMIT $3
 		)
 		SELECT page.id, page.completed_at,
 			COUNT(DISTINCT placements.id), COUNT(DISTINCT items.product_id),
@@ -54,8 +64,9 @@ func completedReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWri
 			ON placements.receiving_session_id = page.id AND placements.status = 'active'
 		LEFT JOIN receiving_placement_items AS items ON items.placement_id = placements.id
 		GROUP BY page.id, page.completed_at
-		ORDER BY page.completed_at DESC, page.id DESC
-	`, cursor)
+		ORDER BY CASE WHEN $2 THEN page.completed_at END ASC, CASE WHEN NOT $2 THEN page.completed_at END DESC,
+			CASE WHEN $2 THEN page.id END ASC, CASE WHEN NOT $2 THEN page.id END DESC
+	`, cursor, ascending, receivingHistoryPageSize+1)
 	if err != nil {
 		log.Printf("failed to load receiving history: %v", err)
 		writeErrorResponse(w, http.StatusInternalServerError, "failed to load receiving history")
@@ -77,9 +88,9 @@ func completedReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWri
 		writeErrorResponse(w, http.StatusInternalServerError, "failed to load receiving history")
 		return
 	}
-	if len(response.Sessions) > 20 {
-		response.Sessions = response.Sessions[:20]
-		id := response.Sessions[19].ID
+	if len(response.Sessions) > receivingHistoryPageSize {
+		response.Sessions = response.Sessions[:receivingHistoryPageSize]
+		id := response.Sessions[receivingHistoryPageSize-1].ID
 		response.NextCursor = &id
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -134,7 +145,7 @@ func latestReceivingHandler(
 			WHERE sessions.id = (
 				SELECT id
 				FROM receiving_sessions
-				WHERE status = 'completed'
+				WHERE status = 'completed' AND deleted_at IS NULL
 				ORDER BY completed_at DESC, id DESC
 				LIMIT 1
 			)
@@ -207,4 +218,40 @@ func latestReceivingHandler(
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("failed to encode latest receiving response: %v", err)
 	}
+}
+
+// Removing history never changes placements or cell stock. Keep the underlying
+// records so other stock operations retain their audit references.
+func deleteReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	sessionID, err := parseReceivingSessionID(r)
+	if err != nil {
+		writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var id int64
+	err = database.QueryRow(r.Context(), `
+		UPDATE receiving_sessions SET deleted_at = COALESCE(deleted_at, NOW())
+		WHERE id = $1 AND status = 'completed' RETURNING id
+	`, sessionID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		var exists bool
+		if err := database.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM receiving_sessions WHERE id = $1)`, sessionID).Scan(&exists); err != nil {
+			log.Printf("failed to check receiving %d: %v", sessionID, err)
+			writeErrorResponse(w, http.StatusInternalServerError, "failed to delete receiving history")
+			return
+		}
+		if exists {
+			writeErrorResponse(w, http.StatusConflict, "active receiving cannot be deleted from history")
+		} else {
+			writeErrorResponse(w, http.StatusNotFound, "receiving session not found")
+		}
+		return
+	}
+	if err != nil {
+		log.Printf("failed to delete receiving history %d: %v", sessionID, err)
+		writeErrorResponse(w, http.StatusInternalServerError, "failed to delete receiving history")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

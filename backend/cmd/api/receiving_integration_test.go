@@ -52,7 +52,7 @@ func receivingTestDB(t *testing.T) *pgxpool.Pool {
 		t.Fatal(err)
 	}
 	t.Cleanup(db.Close)
-	for _, name := range []string{"001_init.sql", "003_receiving_placements.sql", "004_receiving_sessions.sql", "005_receiving_drafts.sql"} {
+	for _, name := range []string{"001_init.sql", "003_receiving_placements.sql", "004_receiving_sessions.sql", "005_receiving_drafts.sql", "007_receiving_history_deletion.sql"} {
 		migration, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
 		if err != nil {
 			t.Fatal(err)
@@ -240,7 +240,7 @@ func TestReceivingHistoryPagination(t *testing.T) {
 		return page
 	}
 	page := load("/")
-	if len(page.Sessions) != 20 || page.NextCursor == nil || *page.NextCursor != 3 {
+	if len(page.Sessions) != 5 || page.NextCursor == nil || *page.NextCursor != 18 {
 		t.Fatalf("first page: %+v", page)
 	}
 	for index, session := range page.Sessions {
@@ -252,8 +252,10 @@ func TestReceivingHistoryPagination(t *testing.T) {
 	if _, err := db.Exec(context.Background(), `INSERT INTO receiving_sessions (status, completed_at) VALUES ('completed', NOW())`); err != nil {
 		t.Fatal(err)
 	}
-	page = load("/?before=3")
-	if len(page.Sessions) != 2 || page.Sessions[0].ID != 2 || page.Sessions[1].ID != 1 || page.NextCursor != nil {
+	w := receivingRequest(db, deleteReceivingHistoryHandler, "", "sessionID", 18)
+	requireReceivingStatus(t, w, http.StatusNoContent)
+	page = load("/?before=18")
+	if len(page.Sessions) != 5 || page.Sessions[0].ID != 17 || page.Sessions[4].ID != 13 || page.NextCursor == nil || *page.NextCursor != 13 {
 		t.Fatalf("older page: %+v", page)
 	}
 }

@@ -132,6 +132,13 @@ func main() {
 	)
 
 	mux.HandleFunc(
+		"DELETE /api/receiving/sessions/{sessionID}",
+		func(w http.ResponseWriter, r *http.Request) {
+			deleteReceivingHistoryHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
 		"POST /api/receiving/sessions/{sessionID}/items",
 		func(w http.ResponseWriter, r *http.Request) {
 			addReceivingSessionItemHandler(database, w, r)
