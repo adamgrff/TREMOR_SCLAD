@@ -1,14 +1,19 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import Header from '../../components/Header/Header'
 import { useTheme } from '../../hooks/useTheme'
 import './ReceivingPage.css'
 
 type ReceivingState = 'start' | 'scanned' | 'placed' | 'finished'
-type LastScanKind = 'product' | 'cell' | null
+type LastScanKind = 'product' | 'cell' | 'receiving' | null
 
 type Product = {
   name: string
   code: string
+}
+
+type ProductLookupResponse = {
+  name: string
+  sku: string
 }
 
 type ReceivingItem = Product & {
@@ -21,12 +26,48 @@ type PlacedItem = ReceivingItem & {
   placementId: string
 }
 
-const productCatalog: Product[] = [
-  { name: 'Ручка TREMOR', code: 'TRM-001' },
-  { name: 'Комплект TREMOR', code: 'TRM-002' },
-]
+type PlacementResponse = {
+  id: number
+  cellCode: string
+  createdAt: string
+}
 
-const cellCatalog = ['A-01']
+type LatestReceivingItem = {
+  placementId: number
+  cellCode: string
+  createdAt: string
+  name: string
+  sku: string
+  quantity: number
+}
+
+type LatestReceivingResponse = {
+  id: number
+  items: LatestReceivingItem[]
+}
+
+type ReceivingSessionDetails = {
+  id: number
+  status: 'active' | 'completed'
+  pendingItems: Array<{
+    name: string
+    sku: string
+    quantity: number
+  }>
+  placedItems: LatestReceivingItem[]
+}
+
+type CreateReceivingSessionResponse = {
+  id: number
+  status: 'active'
+}
+
+type InitialReceivingData =
+  | { type: 'session'; session: ReceivingSessionDetails }
+  | { type: 'latest'; receiving: LatestReceivingResponse }
+
+const API_BASE_URL = 'http://127.0.0.1:8080/api'
+const ACTIVE_SESSION_STORAGE_KEY = 'tremor.receiving.activeSessionId'
 
 function getUnitWord(count: number) {
   const lastTwoDigits = count % 100
@@ -47,30 +88,113 @@ function getUnitWord(count: number) {
   }
 }
 
-function getCurrentTime() {
+function formatPlacementTime(value: string) {
   return new Intl.DateTimeFormat('ru-RU', {
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date())
+  }).format(new Date(value))
+}
+
+async function createReceivingSession() {
+  const response = await fetch(`${API_BASE_URL}/receiving/sessions`, {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    throw new Error(`Не удалось создать сессию: ${response.status}`)
+  }
+
+  return (await response.json()) as CreateReceivingSessionResponse
+}
+
+async function loadInitialReceivingData(): Promise<InitialReceivingData> {
+  const storedSessionID = Number(
+    localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY),
+  )
+
+  if (Number.isSafeInteger(storedSessionID) && storedSessionID > 0) {
+    const response = await fetch(
+      `${API_BASE_URL}/receiving/sessions/${storedSessionID}`,
+    )
+
+    if (response.ok) {
+      const session = (await response.json()) as ReceivingSessionDetails
+      return { type: 'session', session }
+    }
+
+    if (response.status !== 404) {
+      throw new Error(`Не удалось восстановить сессию: ${response.status}`)
+    }
+
+    localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+  } else if (localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY)) {
+    localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+  }
+
+  const latestResponse = await fetch(
+    `${API_BASE_URL}/receiving/sessions/latest`,
+  )
+
+  if (latestResponse.ok) {
+    const receiving = (await latestResponse.json()) as LatestReceivingResponse
+    return { type: 'latest', receiving }
+  }
+
+  if (latestResponse.status !== 404) {
+    throw new Error(`Не удалось загрузить историю: ${latestResponse.status}`)
+  }
+
+  const createdSession = await createReceivingSession()
+  localStorage.setItem(
+    ACTIVE_SESSION_STORAGE_KEY,
+    String(createdSession.id),
+  )
+
+  return {
+    type: 'session',
+    session: {
+      id: createdSession.id,
+      status: createdSession.status,
+      pendingItems: [],
+      placedItems: [],
+    },
+  }
 }
 
 function ReceivingPage() {
   const { theme, toggleTheme } = useTheme('light')
+  const initialDataPromise = useRef<Promise<InitialReceivingData> | null>(null)
 
-  const [testState, setTestState] = useState<ReceivingState>('start')
+  const [receivingState, setReceivingState] =
+    useState<ReceivingState>('start')
+  const [sessionId, setSessionId] = useState<number | null>(null)
   const [currentItems, setCurrentItems] = useState<ReceivingItem[]>([])
   const [placedItems, setPlacedItems] = useState<PlacedItem[]>([])
   const [scanCode, setScanCode] = useState('')
   const [scanMessage, setScanMessage] = useState('')
   const [lastScannedName, setLastScannedName] = useState('')
   const [lastScanKind, setLastScanKind] = useState<LastScanKind>(null)
+  const [isLookingUpProduct, setIsLookingUpProduct] = useState(false)
+  const [isCheckingCell, setIsCheckingCell] = useState(false)
+  const [isUndoing, setIsUndoing] = useState(false)
+  const [isFinishing, setIsFinishing] = useState(false)
+  const [isClearingItems, setIsClearingItems] = useState(false)
+  const [isCreatingSession, setIsCreatingSession] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true)
 
-  const hasScannedItems = testState === 'scanned' && currentItems.length > 0
-  const isPlaced = testState === 'placed'
+  const isFinished = receivingState === 'finished'
+  const isPlaced = receivingState === 'placed'
+  const isScanBusy = isLookingUpProduct || isCheckingCell
+  const isBusy =
+    isScanBusy ||
+    isUndoing ||
+    isFinishing ||
+    isClearingItems ||
+    isCreatingSession ||
+    isLoadingHistory
 
-  const isFinished = testState === 'finished'
-  const canFinish =
-    placedItems.length > 0 && currentItems.length === 0 && !isFinished
+  const hasScannedItems =
+    receivingState === 'scanned' && currentItems.length > 0
 
   const scannedTotal = currentItems.reduce(
     (total, item) => total + item.quantity,
@@ -81,6 +205,22 @@ function ReceivingPage() {
     placedItems[placedItems.length - 1]?.placementId
   const canUndoPlacement = Boolean(latestPlacementId)
 
+  const canFinish =
+    sessionId !== null &&
+    placedItems.length > 0 &&
+    currentItems.length === 0 &&
+    !isFinished &&
+    !isBusy
+
+  const placedCellCodes = [
+    ...new Set(placedItems.map((item) => item.cell)),
+  ]
+
+  const placedCellsDescription =
+    placedCellCodes.length === 1
+      ? `Товары размещены в ячейке ${placedCellCodes[0]}`
+      : `Товары размещены в ячейках ${placedCellCodes.join(', ')}`
+
   const lastScanText = lastScannedName || 'Сканов ещё не было'
 
   const lastScanHint =
@@ -88,126 +228,454 @@ function ReceivingPage() {
       ? 'Последний отсканированный товар'
       : lastScanKind === 'cell'
         ? 'Последнее размещение выполнено'
-        : 'Первый товар появится здесь'
+        : lastScanKind === 'receiving'
+          ? 'Последняя приёмка загружена из базы'
+          : 'Первый товар появится здесь'
 
-  function handleUndoLastPlacement() {
-    if (!latestPlacementId) return
+  async function handleUndoLastPlacement() {
+    if (!latestPlacementId || isBusy || isFinished) return
 
-    const lastPlacedGroup = placedItems.filter(
-      (item) => item.placementId === latestPlacementId,
-    )
+    setIsUndoing(true)
 
-    const restoredItems: ReceivingItem[] = lastPlacedGroup.map(
-      ({ name, code, quantity }) => ({ name, code, quantity }),
-    )
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/receiving/placements/${encodeURIComponent(latestPlacementId)}/undo`,
+        { method: 'POST' },
+      )
 
-    setPlacedItems((items) =>
-      items.filter((item) => item.placementId !== latestPlacementId),
-    )
-
-    setCurrentItems((items) => {
-      let mergedItems = [...items]
-
-      for (const restoredItem of restoredItems) {
-        const existingItem = mergedItems.find(
-          (item) => item.code === restoredItem.code,
+      if (!response.ok) {
+        setScanMessage(
+          response.status === 409
+            ? 'Не удалось отменить размещение: остаток в ячейке изменился'
+            : 'Не удалось отменить размещение в базе',
         )
-
-        if (existingItem) {
-          mergedItems = mergedItems.map((item) =>
-            item.code === restoredItem.code
-              ? { ...item, quantity: item.quantity + restoredItem.quantity }
-              : item,
-          )
-        } else {
-          mergedItems = [...mergedItems, restoredItem]
-        }
+        return
       }
 
-      return mergedItems
-    })
+      const lastPlacedGroup = placedItems.filter(
+        (item) => item.placementId === latestPlacementId,
+      )
 
-    setTestState('scanned')
-    setLastScannedName(restoredItems[restoredItems.length - 1].name)
-    setLastScanKind('product')
-    setScanMessage('Последнее размещение отменено; товары возвращены в группу')
+      const restoredItems: ReceivingItem[] = lastPlacedGroup.map(
+        ({ name, code, quantity }) => ({ name, code, quantity }),
+      )
+
+      setPlacedItems((items) =>
+        items.filter((item) => item.placementId !== latestPlacementId),
+      )
+
+      setCurrentItems((items) => {
+        const mergedItems = new Map(
+          items.map((item) => [item.code, { ...item }]),
+        )
+
+        for (const restoredItem of restoredItems) {
+          const existingItem = mergedItems.get(restoredItem.code)
+
+          if (existingItem) {
+            existingItem.quantity += restoredItem.quantity
+          } else {
+            mergedItems.set(restoredItem.code, restoredItem)
+          }
+        }
+
+        return [...mergedItems.values()]
+      })
+
+      setReceivingState(
+        restoredItems.length > 0 ? 'scanned' : 'start',
+      )
+      setLastScannedName(
+        restoredItems[restoredItems.length - 1]?.name ?? '',
+      )
+      setLastScanKind(restoredItems.length > 0 ? 'product' : null)
+      setScanMessage(
+        'Последнее размещение отменено; товары возвращены в группу',
+      )
+    } catch {
+      setScanMessage('Не удалось связаться с API при отмене размещения')
+    } finally {
+      setIsUndoing(false)
+    }
   }
 
-  function handleFinishReceiving() {
-    if (!canFinish) return
+  function restoreSession(session: ReceivingSessionDetails) {
+    const restoredPendingItems: ReceivingItem[] = session.pendingItems.map(
+      (item) => ({
+        name: item.name,
+        code: item.sku,
+        quantity: item.quantity,
+      }),
+    )
+    const restoredPlacedItems: PlacedItem[] = session.placedItems.map(
+      (item) => ({
+        name: item.name,
+        code: item.sku,
+        quantity: item.quantity,
+        cell: item.cellCode,
+        time: formatPlacementTime(item.createdAt),
+        placementId: String(item.placementId),
+      }),
+    )
 
-    setTestState('finished')
-    setScanMessage('Приёмка завершена')
-    setScanCode('')
+    setSessionId(session.status === 'active' ? session.id : null)
+    if (session.status === 'active') {
+      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, String(session.id))
+    } else {
+      localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+    }
+
+    setCurrentItems(restoredPendingItems)
+    setPlacedItems(restoredPlacedItems)
+    setReceivingState(
+      session.status === 'completed'
+        ? 'finished'
+        : restoredPendingItems.length > 0
+          ? 'scanned'
+          : restoredPlacedItems.length > 0
+            ? 'placed'
+            : 'start',
+    )
+
+    const latestPlacedItem =
+      restoredPlacedItems[restoredPlacedItems.length - 1]
+    const latestPendingItem =
+      restoredPendingItems[restoredPendingItems.length - 1]
+
+    if (session.status === 'completed') {
+      setLastScannedName(`Приёмка №${session.id}`)
+      setLastScanKind('receiving')
+      setScanMessage(`Загружена завершённая приёмка №${session.id}`)
+    } else if (latestPendingItem) {
+      setLastScannedName(latestPendingItem.name)
+      setLastScanKind('product')
+      setScanMessage(`Восстановлена активная приёмка №${session.id}`)
+    } else if (latestPlacedItem) {
+      setLastScannedName(`Ячейка ${latestPlacedItem.cell}`)
+      setLastScanKind('cell')
+      setScanMessage(`Восстановлена активная приёмка №${session.id}`)
+    } else {
+      setLastScannedName('')
+      setLastScanKind(null)
+      setScanMessage(`Новая приёмка №${session.id} готова к сканированию`)
+    }
   }
 
-  function handleProductScan(event: FormEvent<HTMLFormElement>) {
+  function restoreLatestReceiving(receiving: LatestReceivingResponse) {
+    const restoredItems: PlacedItem[] = receiving.items.map((item) => ({
+      name: item.name,
+      code: item.sku,
+      quantity: item.quantity,
+      cell: item.cellCode,
+      time: formatPlacementTime(item.createdAt),
+      placementId: String(item.placementId),
+    }))
+
+    setSessionId(null)
+    localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+    setCurrentItems([])
+    setPlacedItems(restoredItems)
+    setReceivingState('finished')
+    setLastScannedName(`Приёмка №${receiving.id}`)
+    setLastScanKind('receiving')
+    setScanMessage(`Загружена завершённая приёмка №${receiving.id}`)
+  }
+
+  useEffect(() => {
+    let ignoreResult = false
+    initialDataPromise.current ??= loadInitialReceivingData()
+
+    void initialDataPromise.current
+      .then((initialData) => {
+        if (ignoreResult) return
+
+        if (initialData.type === 'session') {
+          restoreSession(initialData.session)
+        } else {
+          restoreLatestReceiving(initialData.receiving)
+        }
+      })
+      .catch(() => {
+        if (!ignoreResult) {
+          setScanMessage('Не удалось загрузить приёмку из базы')
+        }
+      })
+      .finally(() => {
+        if (!ignoreResult) {
+          setIsLoadingHistory(false)
+        }
+      })
+
+    return () => {
+      ignoreResult = true
+    }
+  }, [])
+
+  async function handleFinishReceiving() {
+    if (!canFinish || sessionId === null) return
+
+    const placementIds = [
+      ...new Set(placedItems.map((item) => Number(item.placementId))),
+    ]
+
+    if (
+      placementIds.length === 0 ||
+      placementIds.some((id) => !Number.isSafeInteger(id) || id <= 0)
+    ) {
+      setScanMessage('Не удалось определить размещения для завершения')
+      return
+    }
+
+    setIsFinishing(true)
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/receiving/finish`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sessionId, placementIds }),
+        },
+      )
+
+      if (response.status === 409) {
+        setScanMessage(
+          'Не удалось завершить приёмку: одно из размещений изменилось',
+        )
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(`Ошибка API: ${response.status}`)
+      }
+
+      setSessionId(null)
+      localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+      setReceivingState('finished')
+      setScanCode('')
+      setScanMessage('Приёмка завершена и сохранена в базе')
+    } catch {
+      setScanMessage(
+        'Не удалось завершить приёмку. Проверьте, что backend запущен.',
+      )
+    } finally {
+      setIsFinishing(false)
+    }
+  }
+
+  async function handleStartNewReceiving() {
+    if (isBusy) return
+
+    setIsCreatingSession(true)
+
+    try {
+      const session = await createReceivingSession()
+
+      localStorage.setItem(
+        ACTIVE_SESSION_STORAGE_KEY,
+        String(session.id),
+      )
+      setSessionId(session.id)
+      setCurrentItems([])
+      setPlacedItems([])
+      setScanCode('')
+      setScanMessage(`Новая приёмка №${session.id} начата`)
+      setLastScannedName('')
+      setLastScanKind(null)
+      setReceivingState('start')
+    } catch {
+      setScanMessage('Не удалось начать новую приёмку. Проверьте backend.')
+    } finally {
+      setIsCreatingSession(false)
+    }
+  }
+
+  async function handleClearPendingItems() {
+    if (sessionId === null || isBusy || currentItems.length === 0) return
+
+    setIsClearingItems(true)
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/receiving/sessions/${sessionId}/items`,
+        { method: 'DELETE' },
+      )
+
+      if (!response.ok) {
+        throw new Error(`Ошибка API: ${response.status}`)
+      }
+
+      setCurrentItems([])
+      setReceivingState(placedItems.length > 0 ? 'placed' : 'start')
+      setScanMessage('Группа очищена и удалена из черновика')
+    } catch {
+      setScanMessage('Не удалось очистить группу в базе')
+    } finally {
+      setIsClearingItems(false)
+    }
+  }
+
+  async function handleProductScan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (isFinished) return
+
+    if (isFinished || isBusy) return
+    if (sessionId === null) {
+      setScanMessage('Активная приёмка не загружена. Перезагрузите страницу.')
+      return
+    }
 
     const code = scanCode.trim().toUpperCase()
     if (!code) return
 
-    const cell = cellCatalog.find(
-      (item) => item.toUpperCase() === code,
-    )
+    const isCellCode = /^[A-Z]-?\d+$/.test(code)
 
-    if (cell) {
+    if (isCellCode) {
+      const cell = code.replace('-', '')
+
       if (!hasScannedItems) {
         setScanMessage('Сначала отсканируйте товары')
         setScanCode('')
         return
       }
 
-      const placementId = Date.now().toString()
-      const time = getCurrentTime()
-
-      const newPlacedItems = currentItems.map((item) => ({
-        ...item,
-        cell,
-        time,
-        placementId,
-      }))
-
-      setPlacedItems((items) => [...items, ...newPlacedItems])
-      setCurrentItems([])
-      setTestState('placed')
-      setLastScannedName(`Ячейка ${cell}`)
-      setLastScanKind('cell')
-      setScanMessage(`Группа размещена в ячейке ${cell}`)
+      setIsCheckingCell(true)
       setScanCode('')
-      return
-    }
 
-    const product = productCatalog.find(
-      (item) => item.code.toUpperCase() === code,
-    )
-
-    if (!product) {
-      setScanMessage(`Код ${code} не найден`)
-      setScanCode('')
-      return
-    }
-
-    setCurrentItems((items) => {
-      const existingItem = items.find((item) => item.code === product.code)
-
-      if (existingItem) {
-        return items.map((item) =>
-          item.code === product.code
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/receiving/placements`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sessionId,
+              cellCode: cell,
+              items: currentItems.map((item) => ({
+                sku: item.code,
+                quantity: item.quantity,
+              })),
+            }),
+          },
         )
+
+        if (response.status === 404) {
+          setScanMessage(
+            `Ячейка ${cell} или товар не найдены в базе`,
+          )
+          return
+        }
+
+        if (!response.ok) {
+          throw new Error(`Ошибка API: ${response.status}`)
+        }
+
+        const placement =
+          (await response.json()) as PlacementResponse
+
+        const placementId = String(placement.id)
+        const time = formatPlacementTime(placement.createdAt)
+
+        const newPlacedItems = currentItems.map((item) => ({
+          ...item,
+          cell: placement.cellCode,
+          time,
+          placementId,
+        }))
+
+        setPlacedItems((items) => [...items, ...newPlacedItems])
+        setCurrentItems([])
+        setReceivingState('placed')
+        setLastScannedName(`Ячейка ${placement.cellCode}`)
+        setLastScanKind('cell')
+        setScanMessage(
+          `Группа размещена в ячейке ${placement.cellCode}`,
+        )
+      } catch {
+        setScanMessage(
+          'Не удалось проверить ячейку. Проверьте, что backend запущен.',
+        )
+      } finally {
+        setIsCheckingCell(false)
       }
 
-      return [...items, { ...product, quantity: 1 }]
-    })
+      return
+    }
 
-    setLastScannedName(product.name)
-    setLastScanKind('product')
-    setTestState('scanned')
-    setScanMessage(`Добавлен товар: ${product.name}`)
+    setIsLookingUpProduct(true)
     setScanCode('')
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/products/${encodeURIComponent(code)}`,
+      )
+
+      if (response.status === 404) {
+        setScanMessage(`Код ${code} не найден`)
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(`Ошибка API: ${response.status}`)
+      }
+
+      const productData =
+        (await response.json()) as ProductLookupResponse
+
+      const product: Product = {
+        name: productData.name,
+        code: productData.sku,
+      }
+
+      const saveResponse = await fetch(
+        `${API_BASE_URL}/receiving/sessions/${sessionId}/items`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sku: product.code, quantity: 1 }),
+        },
+      )
+
+      if (!saveResponse.ok) {
+        if (saveResponse.status === 409) {
+          setScanMessage('Приёмка уже завершена. Начните новую приёмку.')
+          return
+        }
+        throw new Error(`Не удалось сохранить товар: ${saveResponse.status}`)
+      }
+
+      setCurrentItems((items) => {
+        const existingItem = items.find(
+          (item) => item.code === product.code,
+        )
+
+        if (existingItem) {
+          return items.map((item) =>
+            item.code === product.code
+              ? { ...item, quantity: item.quantity + 1 }
+              : item,
+          )
+        }
+
+        return [...items, { ...product, quantity: 1 }]
+      })
+
+      setLastScannedName(product.name)
+      setLastScanKind('product')
+      setReceivingState('scanned')
+      setScanMessage(`Добавлен товар: ${product.name}`)
+    } catch {
+      setScanMessage(
+        'Не удалось связаться с API. Проверьте, что backend запущен.',
+      )
+    } finally {
+      setIsLookingUpProduct(false)
+    }
   }
 
   return (
@@ -254,6 +722,7 @@ function ReceivingPage() {
                 aria-label="Код товара или ячейки"
                 autoComplete="off"
                 autoFocus
+                disabled={isBusy || isFinished}
                 placeholder="Введите или отсканируйте код"
                 value={scanCode}
                 onChange={(event) => {
@@ -265,9 +734,11 @@ function ReceivingPage() {
               <button
                 className="receivingPage__scanSubmit"
                 type="submit"
-                disabled={isFinished}
+                disabled={isBusy || isFinished}
               >
-                ДОБАВИТЬ
+                {isLookingUpProduct || isCheckingCell
+                  ? 'ПРОВЕРЯЮ...'
+                  : 'ДОБАВИТЬ'}
               </button>
             </form>
 
@@ -279,7 +750,9 @@ function ReceivingPage() {
           </div>
 
           <span className="receivingPage__scanStatus">
-            {isFinished ? 'Приёмка ЗАВЕРШЕНА' : 'Сканирование АКТИВНО'}
+            {isFinished
+              ? 'Приёмка ЗАВЕРШЕНА'
+              : 'Сканирование АКТИВНО'}
           </span>
         </div>
 
@@ -307,12 +780,8 @@ function ReceivingPage() {
               <button
                 className="receivingPage__clearButton"
                 type="button"
-                disabled={!hasScannedItems || isFinished}
-                onClick={() => {
-                  setCurrentItems([])
-                  setTestState('start')
-                  setScanMessage('')
-                }}
+                disabled={!hasScannedItems || isBusy || isFinished}
+                onClick={handleClearPendingItems}
               >
                 ОЧИСТИТЬ ГРУППУ
               </button>
@@ -375,14 +844,10 @@ function ReceivingPage() {
                 Рекомендуемая ячейка
               </h3>
 
-              <p className="receivingPage__contextValue">
-                {hasScannedItems ? 'A-01' : '—'}
-              </p>
+              <p className="receivingPage__contextValue">—</p>
 
               <p className="receivingPage__contextHint">
-                {hasScannedItems
-                  ? 'Группа готова к размещению'
-                  : 'Рекомендация появится после сканирования товара.'}
+                Автоматический подбор ячейки пока не подключён.
               </p>
             </section>
 
@@ -423,7 +888,7 @@ function ReceivingPage() {
                 {isFinished
                   ? 'Приёмка завершена'
                   : placedItems.length > 0
-                    ? 'Товары размещены в ячейке A-01'
+                    ? placedCellsDescription
                     : 'В этой приёмке пока ничего не размещено'}
               </p>
             </div>
@@ -432,20 +897,33 @@ function ReceivingPage() {
               <button
                 className="receivingPage__undoButton"
                 type="button"
-                disabled={!canUndoPlacement || isFinished}
+                disabled={
+                  !canUndoPlacement || isBusy || isFinished
+                }
                 onClick={handleUndoLastPlacement}
               >
                 Отменить последнее действие
               </button>
 
-              <button
-                className="receivingPage__finishButton"
-                type="button"
-                disabled={!canFinish || isFinished}
-                onClick={handleFinishReceiving}
-              >
-                {isFinished ? 'ПРИЁМКА ЗАВЕРШЕНА' : 'ЗАВЕРШИТЬ ПРИЕМКУ'}
-              </button>
+              {isFinished ? (
+                <button
+                  className="receivingPage__finishButton"
+                  type="button"
+                  disabled={isBusy}
+                  onClick={handleStartNewReceiving}
+                >
+                  НОВАЯ ПРИЁМКА
+                </button>
+              ) : (
+                <button
+                  className="receivingPage__finishButton"
+                  type="button"
+                  disabled={!canFinish}
+                  onClick={handleFinishReceiving}
+                >
+                  {isFinishing ? 'СОХРАНЯЮ...' : 'ЗАВЕРШИТЬ ПРИЕМКУ'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -475,7 +953,8 @@ function ReceivingPage() {
                     className="receivingPage__placedEmpty"
                     colSpan={4}
                   >
-                    История размещения появится после сканирования QR ячейки
+                    История размещения появится после сканирования QR
+                    ячейки
                   </td>
                 </tr>
               )}

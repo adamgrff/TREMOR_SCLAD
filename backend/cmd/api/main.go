@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
@@ -20,6 +21,12 @@ type cellItem struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Quantity int    `json:"quantity"`
+}
+
+type productItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	SKU  string `json:"sku"`
 }
 
 type errorResponse struct {
@@ -65,6 +72,69 @@ func main() {
 		"GET /api/cells/{cellName}",
 		func(w http.ResponseWriter, r *http.Request) {
 			cellHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"GET /api/products/{sku}",
+		func(w http.ResponseWriter, r *http.Request) {
+			productHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/placements",
+		func(w http.ResponseWriter, r *http.Request) {
+			createReceivingPlacementHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/placements/{placementID}/undo",
+		func(w http.ResponseWriter, r *http.Request) {
+			undoReceivingPlacementHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/finish",
+		func(w http.ResponseWriter, r *http.Request) {
+			finishReceivingHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"GET /api/receiving/sessions/latest",
+		func(w http.ResponseWriter, r *http.Request) {
+			latestReceivingHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/sessions",
+		func(w http.ResponseWriter, r *http.Request) {
+			createReceivingSessionHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"GET /api/receiving/sessions/{sessionID}",
+		func(w http.ResponseWriter, r *http.Request) {
+			getReceivingSessionHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/sessions/{sessionID}/items",
+		func(w http.ResponseWriter, r *http.Request) {
+			addReceivingSessionItemHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"DELETE /api/receiving/sessions/{sessionID}/items",
+		func(w http.ResponseWriter, r *http.Request) {
+			clearReceivingSessionItemsHandler(database, w, r)
 		},
 	)
 
@@ -232,6 +302,62 @@ func cellHandler(
 			"failed to encode cell response: %v",
 			err,
 		)
+	}
+}
+
+func productHandler(
+	database *pgxpool.Pool,
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	w.Header().Set(
+		"Content-Type",
+		"application/json; charset=utf-8",
+	)
+
+	sku := r.PathValue("sku")
+
+	var item productItem
+
+	err := database.QueryRow(
+		r.Context(),
+		`
+			SELECT
+				id::text,
+				name,
+				sku
+			FROM products
+			WHERE sku = $1
+		`,
+		sku,
+	).Scan(
+		&item.ID,
+		&item.Name,
+		&item.SKU,
+	)
+
+	if err == pgx.ErrNoRows {
+		writeErrorResponse(
+			w,
+			http.StatusNotFound,
+			"product not found",
+		)
+		return
+	}
+
+	if err != nil {
+		log.Printf("failed to load product %s: %v", sku, err)
+
+		writeErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"failed to load product",
+		)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(item); err != nil {
+		log.Printf("failed to encode product response: %v", err)
 	}
 }
 
