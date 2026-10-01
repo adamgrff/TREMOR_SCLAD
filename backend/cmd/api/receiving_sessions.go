@@ -383,7 +383,7 @@ func addReceivingSessionItemHandler(
 
 	err = tx.QueryRow(
 		r.Context(),
-		`SELECT id FROM products WHERE sku = $1`,
+		`SELECT id FROM products WHERE sku = $1 AND NOT archived FOR SHARE`,
 		request.SKU,
 	).Scan(&productID)
 	if errors.Is(err, pgx.ErrNoRows) {

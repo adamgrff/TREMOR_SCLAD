@@ -23,6 +23,7 @@ button {
 }
 
 .homePage {
+  position: relative;
   --bg: #050505;
   --text: #ffffff;
   --muted: rgba(255, 255, 255, 0.72);
@@ -31,7 +32,7 @@ button {
   --glow: 0 0 6px rgba(255, 255, 255, 0.6);
 
   width: 100%;
-  height: 100svh;
+  height: calc(100svh / var(--site-scale));
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -39,10 +40,6 @@ button {
 
   padding: 20px 120px 38px;
   color: var(--text);
-  background-image: url('./assets/home/background.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
 }
 
 .homePage--light {
@@ -53,7 +50,6 @@ button {
   --panel: rgba(0, 0, 0, 0.12);
   --glow: 0 0 6px rgba(0, 0, 0, 0.28);
 
-  background-image: url('./assets/home/background-light.png');
 }
 
 .hero {
@@ -74,8 +70,12 @@ button {
 }
 
 .mainActions {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
   display: grid;
-  grid-template-columns: repeat(3, 210px);
+  grid-template-columns: repeat(3, 262.5px);
   align-items: start;
   justify-content: center;
   column-gap: 118px;
@@ -85,13 +85,13 @@ button {
 
 .mainActionButton {
   display: grid;
-  grid-template-rows: 190px auto;
+  grid-template-rows: 237.5px auto;
   justify-items: center;
   align-items: end;
-  row-gap: 14px;
+  row-gap: 17.5px;
 
-  width: 210px;
-  height: 222px;
+  width: 262.5px;
+  height: 277.5px;
   min-height: 0;
   padding: 0;
 
@@ -110,8 +110,8 @@ button {
   display: block;
   align-self: center;
 
-  width: 190px;
-  height: 190px;
+  width: 237.5px;
+  height: 237.5px;
 
   object-fit: contain;
   object-position: center;
@@ -136,7 +136,7 @@ button {
   min-height: 18px;
 
   font-family: var(--font-interface);
-  font-size: 18px;
+  font-size: 22.5px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 1.6px;
@@ -155,7 +155,7 @@ button {
   height: auto;
   min-height: 0;
 
-  margin-top: 72px;
+  margin-top: 0;
   padding: 0;
 
   background: transparent;
@@ -170,6 +170,18 @@ button {
   transition:
     filter 180ms ease,
     transform 120ms ease;
+}
+
+.homePage__bottom {
+  position: absolute;
+  top: calc(50% + 138.75px);
+  right: 0;
+  bottom: 38px;
+  left: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+  align-items: center;
 }
 
 .manualModeButton__image {

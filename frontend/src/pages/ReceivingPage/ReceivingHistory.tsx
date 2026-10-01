@@ -254,7 +254,7 @@ function HistoryList({ onDeleted }: { onDeleted: (id: number) => void }) {
 
 export default function ReceivingHistory({ revision, onDeleted }: { revision: number; onDeleted: (id: number) => void }) {
   return (
-    <section className="receivingPage__panel receivingHistory" aria-labelledby="receiving-history-title">
+    <section className="receivingPage__panel receivingHistory" id="receiving-history" aria-labelledby="receiving-history-title">
       <h2 className="receivingPage__panelTitle" id="receiving-history-title">ИСТОРИЯ ПРИЁМОК</h2>
       <HistoryList key={revision} onDeleted={onDeleted} />
     </section>

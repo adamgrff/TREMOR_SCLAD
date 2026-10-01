@@ -15,6 +15,8 @@
 }
 
 :root {
+  --site-scale: 0.7;
+  zoom: var(--site-scale);
   font-family: var(--font-interface);
   color: #ffffff;
   background: #050505;
@@ -29,6 +31,15 @@
   --font-symbols:
     'Bauhaus 93 Remastered',
     sans-serif;
+  background-image: url('./assets/home/background.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+:root[data-theme='light'] {
+  background-image: url('./assets/home/background-light.png');
 }
 
 html,
@@ -47,7 +58,7 @@ a {
 body {
   margin: 0;
   overflow-x: hidden;
-  background: #050505;
+  background: transparent;
 }
 
 #root {

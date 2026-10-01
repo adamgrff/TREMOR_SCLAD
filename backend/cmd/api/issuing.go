@@ -86,7 +86,7 @@ func productStockHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	sku := strings.ToUpper(strings.TrimSpace(r.PathValue("sku")))
 	response := productStockResponse{Cells: make([]productStockCell, 0)}
-	err := db.QueryRow(r.Context(), `SELECT sku, name FROM products WHERE sku = $1`, sku).Scan(&response.SKU, &response.Name)
+	err := db.QueryRow(r.Context(), `SELECT sku, name FROM products WHERE sku = $1 AND NOT archived`, sku).Scan(&response.SKU, &response.Name)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeErrorResponse(w, http.StatusNotFound, "product not found")
 		return
@@ -100,7 +100,7 @@ func productStockHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Reques
 		JOIN cells ON cells.id = stock.cell_id
 		JOIN warehouses ON warehouses.id = cells.warehouse_id
 		JOIN products ON products.id = stock.product_id
-		WHERE products.sku = $1 AND stock.quantity > 0
+		WHERE products.sku = $1 AND NOT products.archived AND stock.quantity > 0
 		ORDER BY warehouses.name, cells.code, cells.id`, sku)
 	if err != nil {
 		issuingFailure(w, err)
@@ -167,7 +167,7 @@ func createIssueHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request
 		return
 	}
 	var productID int64
-	err = tx.QueryRow(r.Context(), `SELECT id FROM products WHERE sku = $1`, request.SKU).Scan(&productID)
+	err = tx.QueryRow(r.Context(), `SELECT id FROM products WHERE sku = $1 AND NOT archived FOR SHARE`, request.SKU).Scan(&productID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeErrorResponse(w, http.StatusNotFound, "product not found")
 		return

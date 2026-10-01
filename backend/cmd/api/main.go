@@ -19,6 +19,7 @@ type healthResponse struct {
 
 type cellItem struct {
 	ID       string `json:"id"`
+	SKU      string `json:"sku"`
 	Name     string `json:"name"`
 	Quantity int    `json:"quantity"`
 }
@@ -67,6 +68,12 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("POST /api/racks", func(w http.ResponseWriter, r *http.Request) { createRackHandler(database, w, r) })
+	mux.HandleFunc("GET /api/racks", func(w http.ResponseWriter, r *http.Request) { racksHandler(database, w, r) })
+	mux.HandleFunc("POST /api/receiving/sessions/{sessionID}/quantities/{productID}", func(w http.ResponseWriter, r *http.Request) { receivingQuantityHandler(database, w, r) })
+	mux.HandleFunc("PUT /api/receiving/sessions/{sessionID}/quantities/{productID}", func(w http.ResponseWriter, r *http.Request) { receivingQuantityHandler(database, w, r) })
+	mux.HandleFunc("POST /api/product-catalog", func(w http.ResponseWriter, r *http.Request) { saveCatalogProductHandler(database, w, r) })
+	mux.HandleFunc("PUT /api/product-catalog/{productID}", func(w http.ResponseWriter, r *http.Request) { saveCatalogProductHandler(database, w, r) })
 	mux.HandleFunc("GET /api/product-catalog", func(w http.ResponseWriter, r *http.Request) {
 		productCatalogHandler(database, w, r)
 	})
@@ -213,6 +220,7 @@ func cellHandler(
 	)
 
 	cellName := r.PathValue("cellName")
+	categoryID := r.URL.Query().Get("categoryId")
 
 	var cellExists bool
 
@@ -222,10 +230,11 @@ func cellHandler(
 			SELECT EXISTS (
 				SELECT 1
 				FROM cells
-				WHERE code = $1
+				WHERE code = $1 AND ($2 = '' OR category_id::text = $2)
 			)
 		`,
 		cellName,
+		categoryID,
 	).Scan(&cellExists)
 
 	if err != nil {
@@ -258,16 +267,19 @@ func cellHandler(
 			SELECT
 				products.id::text,
 				products.name,
+				products.sku,
 				cell_stock.quantity
 			FROM cells
 			JOIN cell_stock
 				ON cell_stock.cell_id = cells.id
 			JOIN products
 				ON products.id = cell_stock.product_id
-			WHERE cells.code = $1
+			WHERE cells.code = $1 AND ($2 = '' OR cells.category_id::text = $2)
+			AND NOT products.archived AND cell_stock.quantity > 0
 			ORDER BY products.name
 		`,
 		cellName,
+		categoryID,
 	)
 	if err != nil {
 		log.Printf(
@@ -293,6 +305,7 @@ func cellHandler(
 		if err := rows.Scan(
 			&item.ID,
 			&item.Name,
+			&item.SKU,
 			&item.Quantity,
 		); err != nil {
 			log.Printf(
@@ -357,7 +370,7 @@ func productHandler(
 				name,
 				sku
 			FROM products
-			WHERE sku = $1
+			WHERE sku = $1 AND NOT archived
 		`,
 		sku,
 	).Scan(

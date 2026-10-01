@@ -17,8 +17,8 @@ import (
 
 type receivingPlacementRequest struct {
 	SessionID int64                           `json:"sessionId"`
-	CellCode string                          `json:"cellCode"`
-	Items    []receivingPlacementRequestItem `json:"items"`
+	CellCode  string                          `json:"cellCode"`
+	Items     []receivingPlacementRequestItem `json:"items"`
 }
 
 type receivingPlacementRequestItem struct {
@@ -190,12 +190,21 @@ func createReceivingPlacementHandler(
 
 	err = tx.QueryRow(
 		r.Context(),
-		`SELECT id FROM cells WHERE code = $1`,
+		`SELECT cells.id FROM cells
+		 WHERE cells.code = $1
+		 AND cells.category_id = (SELECT category_id FROM products WHERE sku = $2)
+		 AND NOT EXISTS (
+		   SELECT 1 FROM receiving_session_items pending
+		   JOIN products ON products.id = pending.product_id
+		   WHERE pending.session_id = $3 AND products.category_id <> cells.category_id
+		 )`,
 		request.CellCode,
+		request.Items[0].SKU,
+		request.SessionID,
 	).Scan(&cellID)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		writeErrorResponse(w, http.StatusNotFound, "cell not found")
+		writeErrorResponse(w, http.StatusNotFound, "Ячейка не найдена в стеллаже товара. Все товары группы должны относиться к одному стеллажу.")
 		return
 	}
 
@@ -238,7 +247,7 @@ func createReceivingPlacementHandler(
 
 		err := tx.QueryRow(
 			r.Context(),
-			`SELECT id FROM products WHERE sku = $1`,
+			`SELECT id FROM products WHERE sku = $1 AND NOT archived FOR SHARE`,
 			item.SKU,
 		).Scan(&productID)
 

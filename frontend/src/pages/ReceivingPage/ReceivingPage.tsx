@@ -2,6 +2,8 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import Header from '../../components/Header/Header'
 import ReceivingHistory from './ReceivingHistory'
 import ProductCatalog from './ProductCatalog'
+import ReceivingQuantityDialog from './ReceivingQuantityDialog'
+import ReceivingScrollProgress from './ReceivingScrollProgress'
 import { useTheme } from '../../hooks/useTheme'
 import './ReceivingPage.css'
 
@@ -171,6 +173,7 @@ function ReceivingPage() {
   const [receivingState, setReceivingState] =
     useState<ReceivingState>('start')
   const [sessionId, setSessionId] = useState<number | null>(null)
+  const [quantityItem, setQuantityItem] = useState<ReceivingItem | null>(null)
   const [currentItems, setCurrentItems] = useState<ReceivingItem[]>([])
   const [placedItems, setPlacedItems] = useState<PlacedItem[]>([])
   const [scanCode, setScanCode] = useState('')
@@ -185,6 +188,7 @@ function ReceivingPage() {
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [historyRevision, setHistoryRevision] = useState(0)
+  const [catalogRevision, setCatalogRevision] = useState(0)
   const [completedSessionId, setCompletedSessionId] = useState<number | null>(null)
 
   const isFinished = receivingState === 'finished'
@@ -465,6 +469,7 @@ function ReceivingPage() {
       setScanMessage('Приёмка завершена и сохранена в базе')
       setCompletedSessionId(sessionId)
       setHistoryRevision((revision) => revision + 1)
+      setCatalogRevision((revision) => revision + 1)
     } catch {
       setScanMessage(
         'Не удалось завершить приёмку. Проверьте, что backend запущен.',
@@ -500,6 +505,13 @@ function ReceivingPage() {
     } finally {
       setIsCreatingSession(false)
     }
+  }
+
+  async function refreshReceivingSession() {
+    if (sessionId === null) return
+    const response = await fetch(`${API_BASE_URL}/receiving/sessions/${sessionId}`)
+    if (!response.ok) throw new Error('Количество сохранено, но приёмку не удалось обновить. Повторите или перезагрузите страницу.')
+    restoreSession(await response.json() as ReceivingSessionDetails)
   }
 
   async function handleRemovePendingItem(code: string) {
@@ -574,9 +586,8 @@ function ReceivingPage() {
         )
 
         if (response.status === 404) {
-          setScanMessage(
-            `Ячейка ${cell} или товар не найдены в базе`,
-          )
+          const error = await response.json() as { error?: string }
+          setScanMessage(error.error || `Ячейка ${cell} или товар не найдены в базе`)
           return
         }
 
@@ -692,12 +703,13 @@ function ReceivingPage() {
   return (
     <main className={`receivingPage receivingPage--${theme}`}>
       <Header theme={theme} onToggleTheme={toggleTheme} />
+      <ReceivingScrollProgress />
 
       <section
         className="receivingPage__content"
         aria-label="Приёмка товаров"
       >
-        <div className="receivingPage__scanPanel">
+        <div className="receivingPage__scanPanel" id="receiving-scan">
           <svg
             className="receivingPage__scanIcon"
             viewBox="0 0 24 24"
@@ -803,7 +815,7 @@ function ReceivingPage() {
                     <tr key={item.code}>
                       <td>{item.name}</td>
                       <td>{item.code}</td>
-                      <td>{item.quantity}</td>
+                      <td><button type="button" className="receivingHistory__button" disabled={isBusy || isFinished} aria-label={`Изменить количество ${item.code}`} onClick={() => setQuantityItem(item)}>{item.quantity} ✎</button></td>
                       <td><button type="button" className="receivingHistory__button receivingHistory__deleteButton receivingHistory__iconButton" disabled={isBusy || isFinished} aria-label={`Удалить ${item.code} из ожидающих`} title="Удалить товар" onClick={() => void handleRemovePendingItem(item.code)}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg>
                       </button></td>
@@ -877,6 +889,7 @@ function ReceivingPage() {
 
         <section
           className="receivingPage__panel receivingPage__placed"
+          id="receiving-placed"
           aria-labelledby="receiving-placed-title"
         >
           <div className="receivingPage__placedHeader">
@@ -975,7 +988,8 @@ function ReceivingPage() {
             setScanMessage(`Приёмка №${id} удалена из истории. Остатки товаров сохранены.`)
           }
         }} />
-        <ProductCatalog />
+        <ProductCatalog sessionId={sessionId} disabled={isBusy || isFinished} revision={catalogRevision} onReceivingChanged={refreshReceivingSession} />
+        {quantityItem && sessionId !== null && <ReceivingQuantityDialog sessionId={sessionId} product={{ name: quantityItem.name, sku: quantityItem.code, quantity: quantityItem.quantity }} onClose={() => setQuantityItem(null)} onSaved={refreshReceivingSession} />}
       </section>
     </main>
   )

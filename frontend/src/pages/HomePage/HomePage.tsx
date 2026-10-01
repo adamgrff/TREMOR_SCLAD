@@ -96,6 +96,9 @@ function HomePage() {
           ))}
         </div>
 
+      </section>
+
+      <div className="homePage__bottom">
         <button
           className="manualModeButton"
           type="button"
@@ -108,8 +111,6 @@ function HomePage() {
             aria-hidden="true"
           />
         </button>
-      </section>
-
       <footer className="statsPanel" aria-label="Статистика склада">
         <span className="statsPanel__today">
           СЕГОДНЯ<span className="statsPanel__colon">:</span>
@@ -140,6 +141,7 @@ function HomePage() {
           ТОВАРОВ НА СКЛАДЕ
         </span>
       </footer>
+      </div>
     </main>
   )
 }

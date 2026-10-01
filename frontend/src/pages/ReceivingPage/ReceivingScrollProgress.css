@@ -1,0 +1,22 @@
+.receivingScroll { position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 101; display: flex; flex-direction: column; }
+.receivingScroll__step { position: relative; display: flex; align-items: center; justify-content: flex-start; width: 50px; height: 50px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.receivingScroll__line { width: 20px; height: 40px; border-radius: 0 2px 2px 0; background: #999; transition: width 160ms ease, height 160ms ease, background-color 160ms ease; }
+.receivingScroll__step:first-child .receivingScroll__line { border-top-right-radius: 10px; }
+.receivingScroll__step:last-child .receivingScroll__line { border-bottom-right-radius: 10px; }
+.receivingScroll__step--active .receivingScroll__line { background: #fff; box-shadow: 0 0 4px #fff8; }
+.receivingScroll__step--neighbor .receivingScroll__line { width: 35px; background: #ddd; }
+.receivingScroll__step--highlighted .receivingScroll__line { width: 50px; height: 40px; background: #fff; }
+.receivingScroll__label { pointer-events: none; position: absolute; left: 58px; top: 50%; transform: translate(4px, -50%); padding: 16px 24px; border: 1px solid #ffffff26; border-radius: 10px; background: #242424; color: #fff; font-family: inherit; font-size: 24px; font-weight: 700; line-height: 1.2; white-space: nowrap; opacity: 0; transition: opacity 160ms ease, transform 160ms ease; box-shadow: 0 4px 16px #0004; }
+.receivingScroll__step--highlighted .receivingScroll__label { opacity: 1; transform: translate(0, -50%); }
+.receivingScroll__step:focus-visible { outline: 1px solid #fff; outline-offset: 2px; border-radius: 4px; }
+.receivingScroll__shade { position: fixed; inset: 0; z-index: 100; background: #000; opacity: 0; pointer-events: none; transition: opacity 180ms ease; }
+.receivingScroll__shade--visible { opacity: .6; }
+.receivingPage--light .receivingScroll__line { background: #666; }
+.receivingPage--light .receivingScroll__step--active .receivingScroll__line { background: #000; box-shadow: 0 0 4px #0008; }
+.receivingPage--light .receivingScroll__step--neighbor .receivingScroll__line { background: #222; }
+.receivingPage--light .receivingScroll__step--highlighted .receivingScroll__line { background: #000; }
+.receivingPage--light .receivingScroll__label { background: #dbdbdb; color: #000; border-color: #00000026; }
+.receivingPage--light .receivingScroll__step:focus-visible { outline-color: #000; }
+#receiving-scan, #receiving-placed, #receiving-history, #receiving-catalog { scroll-margin-top: 24px; }
+#receiving-catalog { scroll-margin-bottom: 24px; }
+@media (prefers-reduced-motion: reduce) { .receivingScroll__line, .receivingScroll__label, .receivingScroll__shade { transition: none; } }

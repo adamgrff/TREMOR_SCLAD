@@ -1,6 +1,4 @@
 .receivingPage {
-  zoom: 0.7;
-
   --text: #ffffff;
 
   width: 100%;
@@ -9,11 +7,6 @@
 
   color: var(--text);
 
-  background-image: url('../../assets/home/background-light.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
 }
 
 .receivingPage--light {
@@ -23,7 +16,6 @@
 .receivingPage--dark {
   --text: #ffffff;
 
-  background-image: url('../../assets/home/background.png');
 }
 
 .receivingPage__content {
