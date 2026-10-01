@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import Header from '../../components/Header/Header'
+import ReceivingHistory from './ReceivingHistory'
 import { useTheme } from '../../hooks/useTheme'
 import './ReceivingPage.css'
 
@@ -181,6 +182,7 @@ function ReceivingPage() {
   const [isClearingItems, setIsClearingItems] = useState(false)
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
+  const [historyRevision, setHistoryRevision] = useState(0)
 
   const isFinished = receivingState === 'finished'
   const isPlaced = receivingState === 'placed'
@@ -456,6 +458,7 @@ function ReceivingPage() {
       setReceivingState('finished')
       setScanCode('')
       setScanMessage('Приёмка завершена и сохранена в базе')
+      setHistoryRevision((revision) => revision + 1)
     } catch {
       setScanMessage(
         'Не удалось завершить приёмку. Проверьте, что backend запущен.',
@@ -953,14 +956,14 @@ function ReceivingPage() {
                     className="receivingPage__placedEmpty"
                     colSpan={4}
                   >
-                    История размещения появится после сканирования QR
-                    ячейки
+                    Размещения этой приёмки появятся после сканирования QR ячейки
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </section>
+        <ReceivingHistory revision={historyRevision} />
       </section>
     </main>
   )

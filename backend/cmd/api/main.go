@@ -111,6 +111,13 @@ func main() {
 	)
 
 	mux.HandleFunc(
+		"GET /api/receiving/sessions",
+		func(w http.ResponseWriter, r *http.Request) {
+			completedReceivingHistoryHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
 		"POST /api/receiving/sessions",
 		func(w http.ResponseWriter, r *http.Request) {
 			createReceivingSessionHandler(database, w, r)
