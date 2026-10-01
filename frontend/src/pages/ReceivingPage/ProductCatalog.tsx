@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import './ProductCatalog.css'
 import ReceivingQuantityDialog from './ReceivingQuantityDialog'
+import { API_BASE_URL } from '../../config/api'
 
 type Category = { id: number; name: string }
 type Product = { id: number; categoryId: number; name: string; sku: string; quantity: number; archived?: boolean }
@@ -40,7 +41,7 @@ export default function ProductCatalog({ sessionId, disabled, revision, onReceiv
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch('http://127.0.0.1:8080/api/product-catalog', { signal: controller.signal })
+    void fetch(`${API_BASE_URL}/product-catalog`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error('Не удалось загрузить каталог')
         const data = await response.json() as Catalog
@@ -71,7 +72,7 @@ export default function ProductCatalog({ sessionId, disabled, revision, onReceiv
       const data = { name: product.name, sku: product.sku, categoryId: product.categoryId, archived: Boolean(product.archived), receivingQuantity: amount, sessionId: amount > 0 ? sessionId : 0 }
       const payload = JSON.stringify(data)
       if (createOperation.current?.payload !== payload) createOperation.current = { payload, token: crypto.randomUUID() }
-      const response = await fetch(`http://127.0.0.1:8080/api/product-catalog${create ? '' : `/${product.id}`}`, {
+      const response = await fetch(`${API_BASE_URL}/product-catalog${create ? '' : `/${product.id}`}`, {
         method: create ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...data, requestId: createOperation.current.token }),
       })
@@ -113,21 +114,21 @@ export default function ProductCatalog({ sessionId, disabled, revision, onReceiv
         <input aria-label="Поиск товара или кода" placeholder="Найти товар или код…" value={query} onChange={(event) => setQuery(event.target.value)} />
         <select aria-label="Фильтр по стеллажу" value={category} onChange={(event) => setCategory(event.target.value)}><option value="all">Все стеллажи</option>{catalog?.categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
       </div><div className="productCatalog__tabs">
-        <button className={!showArchived ? 'productCatalog__tab--active' : ''} onClick={() => setShowArchived(false)}>Активные</button>
-        <button className={showArchived ? 'productCatalog__tab--active' : ''} onClick={() => setShowArchived(true)}>Архив</button>
-        <span>Найдено: {products.length}</span>
-      </div>
-      <div className="productCatalog__tableScroll"><table className="productCatalog__table"><thead><tr><th>Товар / код</th><th>Стеллаж</th><th>Остаток</th><th aria-label="Действия" /></tr></thead><tbody>
-        {products.map((product) => <tr key={product.id}><td>{product.name}<span className="receivingHistory__sku">{product.sku}</span></td><td>{catalog?.categories.find((item) => item.id === product.categoryId)?.name}</td><td>{product.quantity} ед.</td><td><div className="receivingHistory__rowActions">
-          {!product.archived && <button type="button" className="receivingHistory__button receivingHistory__iconButton" disabled={disabled || saving || sessionId === null} title="Добавить в приёмку" aria-label={`Добавить ${product.sku} в приёмку`} onClick={() => setReceivingProduct(product)}>+</button>}
-          {!product.archived && <button className="receivingHistory__button receivingHistory__iconButton" aria-label={`Редактировать ${product.sku}`} title="Редактировать" onClick={() => { setEditing(product); setName(product.name); setSku(product.sku); setRack(String(product.categoryId)); setNotice(''); nameRef.current?.focus() }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z M13 6l5 5" /></svg></button>}
-          <button className="receivingHistory__button receivingHistory__iconButton" disabled={saving} aria-label={`${product.archived ? 'Восстановить' : 'Архивировать'} ${product.sku}`} title={product.archived ? 'Восстановить' : 'В архив'} onClick={() => {
-            if (product.archived) { void saveProduct({ ...product, archived: false }) }
-            else { setArchiveError(''); setPendingArchive(product) }
-          }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={product.archived ? 'M4 10a8 8 0 1 1 1 8M4 4v6h6' : 'M3 3h18v5H3zM5 8v13h14V8M10 12h4'} /></svg></button>
-        </div></td></tr>)}
-        {!products.length && <tr><td colSpan={4}>{catalog ? 'Товары не найдены' : 'Загружаю каталог…'}</td></tr>}
-      </tbody></table></div></div>
+          <button className={!showArchived ? 'productCatalog__tab--active' : ''} onClick={() => setShowArchived(false)}>Активные</button>
+          <button className={showArchived ? 'productCatalog__tab--active' : ''} onClick={() => setShowArchived(true)}>Архив</button>
+          <span>Найдено: {products.length}</span>
+        </div>
+        <div className="productCatalog__tableScroll"><table className="productCatalog__table"><thead><tr><th>Товар / код</th><th>Стеллаж</th><th>Остаток</th><th aria-label="Действия" /></tr></thead><tbody>
+          {products.map((product) => <tr key={product.id}><td>{product.name}<span className="receivingHistory__sku">{product.sku}</span></td><td>{catalog?.categories.find((item) => item.id === product.categoryId)?.name}</td><td>{product.quantity} ед.</td><td><div className="receivingHistory__rowActions">
+            {!product.archived && <button type="button" className="receivingHistory__button receivingHistory__iconButton" disabled={disabled || saving || sessionId === null} title="Добавить в приёмку" aria-label={`Добавить ${product.sku} в приёмку`} onClick={() => setReceivingProduct(product)}>+</button>}
+            {!product.archived && <button className="receivingHistory__button receivingHistory__iconButton" aria-label={`Редактировать ${product.sku}`} title="Редактировать" onClick={() => { setEditing(product); setName(product.name); setSku(product.sku); setRack(String(product.categoryId)); setNotice(''); nameRef.current?.focus() }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z M13 6l5 5" /></svg></button>}
+            <button className="receivingHistory__button receivingHistory__iconButton" disabled={saving} aria-label={`${product.archived ? 'Восстановить' : 'Архивировать'} ${product.sku}`} title={product.archived ? 'Восстановить' : 'В архив'} onClick={() => {
+              if (product.archived) { void saveProduct({ ...product, archived: false }) }
+              else { setArchiveError(''); setPendingArchive(product) }
+            }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={product.archived ? 'M4 10a8 8 0 1 1 1 8M4 4v6h6' : 'M3 3h18v5H3zM5 8v13h14V8M10 12h4'} /></svg></button>
+          </div></td></tr>)}
+          {!products.length && <tr><td colSpan={4}>{catalog ? 'Товары не найдены' : 'Загружаю каталог…'}</td></tr>}
+        </tbody></table></div></div>
       <form ref={formRef} className="productCatalog__form" onSubmit={submit}><h3>{editing ? 'РЕДАКТИРОВАНИЕ ТОВАРА' : 'НОВЫЙ ТОВАР'}</h3>
         <label>Название<input ref={nameRef} required maxLength={200} placeholder="Например, Ручка TREMOR Classic" value={name} onChange={(event) => setName(event.target.value)} /></label>
         <label>Код / артикул<input required maxLength={128} placeholder="TREMOR-CLASSIC" value={sku} onChange={(event) => setSku(event.target.value)} /></label>

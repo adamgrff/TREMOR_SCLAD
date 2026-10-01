@@ -1,6 +1,6 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { useRef } from 'react'
+import { API_BASE_URL } from '../../config/api'
 
 import Header from '../../components/Header/Header'
 import CreateRackDialog from './CreateRackDialog'
@@ -33,7 +33,7 @@ async function getCellContents(
   categoryId: number,
 ): Promise<CellItem[]> {
   const response = await fetch(
-    `http://127.0.0.1:8080/api/cells/${encodeURIComponent(cellName)}?categoryId=${categoryId}`,
+    `${API_BASE_URL}/cells/${encodeURIComponent(cellName)}?categoryId=${categoryId}`,
   )
 
   if (!response.ok) {
@@ -59,7 +59,7 @@ function CellsPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch('http://127.0.0.1:8080/api/racks', { signal: controller.signal })
+    void fetch(`${API_BASE_URL}/racks`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error('Не удалось загрузить стеллажи')
         const data = await response.json() as RackConfig[]
@@ -132,6 +132,7 @@ function CellsPage() {
     }
 
     const cellName = selectedCell
+    const rackId = categoryId
 
     let isCancelled = false
 
@@ -140,7 +141,7 @@ function CellsPage() {
       setCellLoadStatus('loading')
 
       try {
-        const items = await getCellContents(cellName, categoryId as number)
+        const items = await getCellContents(cellName, rackId)
 
         if (isCancelled) {
           return
@@ -209,11 +210,10 @@ function CellsPage() {
               <span>{selectedCategory}</span>
 
               <span
-                className={`cellsPage__productsArrow ${
-                  isProductsOpen
+                className={`cellsPage__productsArrow ${isProductsOpen
                     ? 'cellsPage__productsArrow--open'
                     : ''
-                }`}
+                  }`}
                 aria-hidden="true"
               >
                 ▼
@@ -228,11 +228,10 @@ function CellsPage() {
               >
                 {productCategories.map((category) => (
                   <button
-                    className={`cellsPage__productsItem ${
-                      selectedCategory === category
+                    className={`cellsPage__productsItem ${selectedCategory === category
                         ? 'cellsPage__productsItem--active'
                         : ''
-                    }`}
+                      }`}
                     type="button"
                     role="menuitem"
                     key={category}
@@ -351,20 +350,20 @@ function CellsPage() {
               {cellLoadStatus === 'success' &&
                 (selectedCellItems.length > 0 ? (
                   <div className="cellsPage__cellTableScroll">
-                  <table className="cellsPage__cellTable" ref={cellTableRef}>
-                    <thead><tr><th scope="col">ТОВАР/АРТИКУЛ</th><th scope="col">КОЛ-ВО</th></tr></thead>
-                    <tbody>
-                    {selectedCellItems.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          {item.name}
-                          <small className="cellsPage__cellTableSku">{item.sku}</small>
-                        </td>
-                        <td>{item.quantity}</td>
-                      </tr>
-                    ))}
-                    </tbody>
-                  </table>
+                    <table className="cellsPage__cellTable" ref={cellTableRef}>
+                      <thead><tr><th scope="col">ТОВАР/АРТИКУЛ</th><th scope="col">КОЛ-ВО</th></tr></thead>
+                      <tbody>
+                        {selectedCellItems.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              {item.name}
+                              <small className="cellsPage__cellTableSku">{item.sku}</small>
+                            </td>
+                            <td>{item.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 ) : (
                   <p className="cellsPage__cellModalEmpty">

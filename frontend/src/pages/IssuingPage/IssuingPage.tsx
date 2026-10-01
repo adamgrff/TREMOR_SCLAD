@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import Header from '../../components/Header/Header'
 import { useTheme } from '../../hooks/useTheme'
 import './IssuingPage.css'
+import { API_BASE_URL as API } from '../../config/api'
 
 type Cell = { cellId: number; cellCode: string; warehouse: string; quantity: number }
 type Product = { sku: string; name: string; cells: Cell[] }
@@ -14,7 +15,6 @@ type Issue = {
 type Command = { requestId: string; sku: string; cellId: number; quantity: number }
 type History = { issues: Issue[]; undoableId: number | null }
 
-const API = 'http://127.0.0.1:8080/api'
 const PENDING_KEY = 'tremor.issuing.pendingCommand'
 const dateFormat = new Intl.DateTimeFormat('ru-RU', {
   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',

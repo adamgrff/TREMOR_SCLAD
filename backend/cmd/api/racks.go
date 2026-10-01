@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	"net/http"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type rackResponse struct {

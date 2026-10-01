@@ -6,6 +6,7 @@ import ReceivingQuantityDialog from './ReceivingQuantityDialog'
 import ReceivingScrollProgress from './ReceivingScrollProgress'
 import { useTheme } from '../../hooks/useTheme'
 import './ReceivingPage.css'
+import { API_BASE_URL } from '../../config/api'
 
 type ReceivingState = 'start' | 'scanned' | 'placed' | 'finished'
 type LastScanKind = 'product' | 'cell' | 'receiving' | null
@@ -70,7 +71,6 @@ type InitialReceivingData =
   | { type: 'session'; session: ReceivingSessionDetails }
   | { type: 'latest'; receiving: LatestReceivingResponse }
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api'
 const ACTIVE_SESSION_STORAGE_KEY = 'tremor.receiving.activeSessionId'
 
 function getUnitWord(count: number) {

@@ -1,4 +1,4 @@
-﻿import { Navigate, Route, Routes } from 'react-router'
+import { Navigate, Route, Routes } from 'react-router'
 
 import HomePage from './pages/HomePage/HomePage'
 import CellsPage from './pages/CellsPage/CellsPage'
@@ -17,15 +17,15 @@ function App() {
   }, [location])
   return (
     <>
-    <PageIntro key={location.key} closing={displayedLocation.key !== location.key} onClosed={switchPage} />
-    <Routes location={displayedLocation}>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/cells" element={<CellsPage />} />
-      <Route path="/receiving" element={<ReceivingPage />} />
-      <Route path="/issuing" element={<IssuingPage />} />
+      <PageIntro key={location.key} closing={displayedLocation.key !== location.key} onClosed={switchPage} />
+      <Routes location={displayedLocation}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/cells" element={<CellsPage />} />
+        <Route path="/receiving" element={<ReceivingPage />} />
+        <Route path="/issuing" element={<IssuingPage />} />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   )
 }

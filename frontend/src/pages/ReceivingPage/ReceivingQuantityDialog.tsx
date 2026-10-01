@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { API_BASE_URL } from '../../config/api'
 
 export default function ReceivingQuantityDialog({ sessionId, product, onClose, onSaved }: {
   sessionId: number; product: { id?: number; sku: string; name: string; quantity?: number }
@@ -18,15 +19,16 @@ export default function ReceivingQuantityDialog({ sessionId, product, onClose, o
     try {
       let id = product.id
       if (!id) {
-        const lookup = await fetch(`http://127.0.0.1:8080/api/products/${encodeURIComponent(product.sku)}`)
+        const lookup = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(product.sku)}`)
         if (!lookup.ok) throw new Error('Товар недоступен. Обновите приёмку.')
         id = Number((await lookup.json() as { id: string }).id)
       }
-      const payload = JSON.stringify({ quantity: Number(quantity), expectedQuantity: product.quantity ?? 0 })
+      const data = { quantity: Number(quantity), expectedQuantity: product.quantity ?? 0 }
+      const payload = JSON.stringify(data)
       if (operation.current?.payload !== payload) operation.current = { payload, token: crypto.randomUUID() }
-      const response = await fetch(`http://127.0.0.1:8080/api/receiving/sessions/${sessionId}/quantities/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/receiving/sessions/${sessionId}/quantities/${id}`, {
         method: product.quantity === undefined ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...JSON.parse(payload), requestId: operation.current.token }),
+        body: JSON.stringify({ ...data, requestId: operation.current.token }),
       })
       if (!response.ok) throw new Error((await response.json() as { error: string }).error)
       await onSaved(); onClose()

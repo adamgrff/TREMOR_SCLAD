@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/jackc/pgx/v5"
-	"github.com/joho/godotenv"
 	"log"
 	"os"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/joho/godotenv"
 )
 
 func main() {

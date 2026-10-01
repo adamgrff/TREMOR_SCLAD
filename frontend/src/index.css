@@ -24,12 +24,10 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --font-interface:
-    'Palui SP Demo',
+  --font-interface: 'Palui SP Demo',
     'Bauhaus 93 Remastered',
     sans-serif;
-  --font-symbols:
-    'Bauhaus 93 Remastered',
+  --font-symbols: 'Bauhaus 93 Remastered',
     sans-serif;
   background-image: url('./assets/home/background.png');
   background-size: cover;
@@ -45,22 +43,17 @@
 html,
 body,
 button,
-
 a {
   font: inherit;
 }
 
 #root {
   width: 100%;
-  min-height: 100%;
+  min-height: 100vh;
 }
 
 body {
   margin: 0;
   overflow-x: hidden;
   background: transparent;
-}
-
-#root {
-  min-height: 100vh;
 }

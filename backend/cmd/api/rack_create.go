@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"log"
 	"net/http"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func createRackHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request) {
@@ -91,5 +93,7 @@ func createRackHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(rack)
+	if err := json.NewEncoder(w).Encode(rack); err != nil {
+		log.Printf("encode created rack: %v", err)
+	}
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './ReceivingHistory.css'
+import { API_BASE_URL as API } from '../../config/api'
 
 type Summary = {
   id: number
@@ -18,7 +19,6 @@ type HistoryItem = {
   quantity: number
 }
 
-const API = 'http://127.0.0.1:8080/api'
 const HISTORY_ORDER_STORAGE_KEY = 'tremor.receiving.historyTimeOrder'
 const dateFormat = new Intl.DateTimeFormat('ru-RU', {
   day: '2-digit', month: '2-digit', year: 'numeric',
@@ -232,22 +232,22 @@ function HistoryList({ onDeleted }: { onDeleted: (id: number) => void }) {
       {error && <p role="alert">{error}. <button className="receivingHistory__button" disabled={loading} onClick={() => { resetView(); setAttempt((value) => value + 1) }}>Повторить</button></p>}
       {page === null ? (!error && <p role="status">Загружаю историю…</p>)
         : page.sessions.length === 0 ? <p>Завершённых приёмок пока нет.</p>
-        : <>
-          <div className="receivingHistory__tableScroll" aria-busy={loading}>
-            <table className="receivingHistory__table receivingHistory__summaryTable">
-              <colgroup><col className="receivingHistory__receiptCol" /><col /><col className="receivingHistory__cellCol" /><col className="receivingHistory__quantityCol" /><col className="receivingHistory__dateCol" /><col className="receivingHistory__actionsCol" /></colgroup>
-              <thead><tr><th>Приёмка</th><th>Позиций</th><th>Ячейки</th><th>Кол-во</th><th aria-sort={order === 'asc' ? 'ascending' : 'descending'}><span className="receivingHistory__columnHeading">Завершена <button type="button" disabled={loading} className="receivingHistory__button receivingHistory__sort" aria-label={`Сортировка по времени завершения: ${order === 'asc' ? 'от старых к новым' : 'от новых к старым'}. Нажмите, чтобы изменить`} title={order === 'asc' ? 'От старых к новым' : 'От новых к старым'} onClick={toggleOrder}>{order === 'asc' ? '↑' : '↓'}</button></span></th><th>Действия</th></tr></thead>
-              <tbody>{page.sessions.map((session) => (
-                <HistoryRow key={session.id} session={session} loading={loading} onDelete={() => setPendingDelete(session)} />
-              ))}</tbody>
-            </table>
-          </div>
-          <nav className="receivingHistory__pagination" aria-label="Страницы истории приёмок">
-            <button className="receivingHistory__button" disabled={loading || cursors.length === 1} onClick={() => { resetView(); setCursors(cursors.slice(0, -1)) }}>Предыдущая</button>
-            <span>Страница {cursors.length}</span>
-            <button className="receivingHistory__button" disabled={loading || page.nextCursor === null} onClick={() => { if (page.nextCursor !== null) { resetView(); setCursors([...cursors, page.nextCursor]) } }}>Следующая</button>
-          </nav>
-        </>}
+          : <>
+            <div className="receivingHistory__tableScroll" aria-busy={loading}>
+              <table className="receivingHistory__table receivingHistory__summaryTable">
+                <colgroup><col className="receivingHistory__receiptCol" /><col /><col className="receivingHistory__cellCol" /><col className="receivingHistory__quantityCol" /><col className="receivingHistory__dateCol" /><col className="receivingHistory__actionsCol" /></colgroup>
+                <thead><tr><th>Приёмка</th><th>Позиций</th><th>Ячейки</th><th>Кол-во</th><th aria-sort={order === 'asc' ? 'ascending' : 'descending'}><span className="receivingHistory__columnHeading">Завершена <button type="button" disabled={loading} className="receivingHistory__button receivingHistory__sort" aria-label={`Сортировка по времени завершения: ${order === 'asc' ? 'от старых к новым' : 'от новых к старым'}. Нажмите, чтобы изменить`} title={order === 'asc' ? 'От старых к новым' : 'От новых к старым'} onClick={toggleOrder}>{order === 'asc' ? '↑' : '↓'}</button></span></th><th>Действия</th></tr></thead>
+                <tbody>{page.sessions.map((session) => (
+                  <HistoryRow key={session.id} session={session} loading={loading} onDelete={() => setPendingDelete(session)} />
+                ))}</tbody>
+              </table>
+            </div>
+            <nav className="receivingHistory__pagination" aria-label="Страницы истории приёмок">
+              <button className="receivingHistory__button" disabled={loading || cursors.length === 1} onClick={() => { resetView(); setCursors(cursors.slice(0, -1)) }}>Предыдущая</button>
+              <span>Страница {cursors.length}</span>
+              <button className="receivingHistory__button" disabled={loading || page.nextCursor === null} onClick={() => { if (page.nextCursor !== null) { resetView(); setCursors([...cursors, page.nextCursor]) } }}>Следующая</button>
+            </nav>
+          </>}
     </>
   )
 }

@@ -45,11 +45,10 @@ func issueCount(t *testing.T, db *pgxpool.Pool) int {
 
 func TestIssuingLifecycleAndRetries(t *testing.T) {
 	db := issuingTestDB(t)
-	w := receivingRequest(db, productStockHandler, "", "sku", 0)
 	// Use the actual SKU path value rather than a session ID.
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.SetPathValue("sku", " test-sku ")
-	w = httptest.NewRecorder()
+	w := httptest.NewRecorder()
 	productStockHandler(db, w, r)
 	requireReceivingStatus(t, w, http.StatusOK)
 	var stock productStockResponse

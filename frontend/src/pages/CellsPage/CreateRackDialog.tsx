@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { API_BASE_URL } from '../../config/api'
 
 type Rack = { id: number; name: string; rows: string[][] }
 
@@ -26,7 +27,7 @@ export default function CreateRackDialog({ onClose, onCreated }: { onClose: () =
     setSaving(true)
     setError('')
     try {
-      const response = await fetch('http://127.0.0.1:8080/api/racks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim(), counts: quantities }) })
+      const response = await fetch(`${API_BASE_URL}/racks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim(), counts: quantities }) })
       if (!response.ok) {
         const data = await response.json() as { error?: string }
         throw new Error(data.error || 'Не удалось создать стеллаж')
