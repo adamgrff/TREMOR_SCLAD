@@ -29,6 +29,7 @@ const mainActions: MainAction[] = [
     description: 'Добавление товара на склад',
     icon: iconReceiving,
     lightIcon: iconReceivingBlack,
+    path: '/receiving',
   },
   {
     title: 'ЯЧЕЙКИ',
@@ -36,7 +37,7 @@ const mainActions: MainAction[] = [
     icon: iconCells,
     lightIcon: iconCellsBlack,
     path: '/cells',
-},
+  },
   {
     title: 'СБОРКА',
     description: 'Страница с выдачей и сборкой заказов',
@@ -94,6 +95,9 @@ function HomePage() {
           ))}
         </div>
 
+      </section>
+
+      <div className="homePage__bottom">
         <button
           className="manualModeButton"
           type="button"
@@ -106,38 +110,37 @@ function HomePage() {
             aria-hidden="true"
           />
         </button>
-      </section>
+        <footer className="statsPanel" aria-label="Статистика склада">
+          <span className="statsPanel__today">
+            СЕГОДНЯ<span className="statsPanel__colon">:</span>
+          </span>
 
-      <footer className="statsPanel" aria-label="Статистика склада">
-        <span className="statsPanel__today">
-          СЕГОДНЯ<span className="statsPanel__colon">:</span>
-        </span>
+          <span>
+            <span className="statsPanel__value">
+              {warehouseStats.operations}
+            </span>{' '}
+            ОПЕРАЦИЙ
+          </span>
 
-        <span>
-          <span className="statsPanel__value">
-            {warehouseStats.operations}
-          </span>{' '}
-          ОПЕРАЦИЙ
-        </span>
+          <span className="statsPanel__separator">•</span>
 
-        <span className="statsPanel__separator">•</span>
+          <span>
+            <span className="statsPanel__value">
+              {warehouseStats.collector}
+            </span>{' '}
+            В КОЛЛЕКТОРЕ
+          </span>
 
-        <span>
-          <span className="statsPanel__value">
-            {warehouseStats.collector}
-          </span>{' '}
-          В КОЛЛЕКТОРЕ
-        </span>
+          <span className="statsPanel__separator">•</span>
 
-        <span className="statsPanel__separator">•</span>
-
-        <span>
-          <span className="statsPanel__value">
-            {warehouseStats.products}
-          </span>{' '}
-          ТОВАРОВ НА СКЛАДЕ
-        </span>
-      </footer>
+          <span>
+            <span className="statsPanel__value">
+              {warehouseStats.products}
+            </span>{' '}
+            ТОВАРОВ НА СКЛАДЕ
+          </span>
+        </footer>
+      </div>
     </main>
   )
 }

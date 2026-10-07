@@ -15,6 +15,8 @@
 }
 
 :root {
+  --site-scale: 0.7;
+  zoom: var(--site-scale);
   font-family: var(--font-interface);
   color: #ffffff;
   background: #050505;
@@ -22,34 +24,36 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --font-interface:
-    'Palui SP Demo',
+  --font-interface: 'Palui SP Demo',
     'Bauhaus 93 Remastered',
     sans-serif;
-  --font-symbols:
-    'Bauhaus 93 Remastered',
+  --font-symbols: 'Bauhaus 93 Remastered',
     sans-serif;
+  background-image: url('./assets/home/background.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+:root[data-theme='light'] {
+  background-image: url('./assets/home/background-light.png');
 }
 
 html,
 body,
 button,
-
 a {
   font: inherit;
 }
 
 #root {
   width: 100%;
-  min-height: 100%;
+  min-height: 100vh;
 }
 
 body {
   margin: 0;
   overflow-x: hidden;
-  background: #050505;
-}
-
-#root {
-  min-height: 100vh;
+  background: transparent;
 }

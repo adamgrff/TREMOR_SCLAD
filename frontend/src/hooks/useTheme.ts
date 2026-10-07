@@ -17,6 +17,7 @@ export function useTheme(defaultTheme: Theme) {
 
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, theme)
+    document.documentElement.dataset.theme = theme
   }, [theme])
 
   function toggleTheme() {

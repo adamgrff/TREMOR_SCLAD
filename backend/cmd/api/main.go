@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
@@ -18,8 +19,15 @@ type healthResponse struct {
 
 type cellItem struct {
 	ID       string `json:"id"`
+	SKU      string `json:"sku"`
 	Name     string `json:"name"`
 	Quantity int    `json:"quantity"`
+}
+
+type productItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	SKU  string `json:"sku"`
 }
 
 type errorResponse struct {
@@ -60,6 +68,15 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("POST /api/racks", func(w http.ResponseWriter, r *http.Request) { createRackHandler(database, w, r) })
+	mux.HandleFunc("GET /api/racks", func(w http.ResponseWriter, r *http.Request) { racksHandler(database, w, r) })
+	mux.HandleFunc("POST /api/receiving/sessions/{sessionID}/quantities/{productID}", func(w http.ResponseWriter, r *http.Request) { receivingQuantityHandler(database, w, r) })
+	mux.HandleFunc("PUT /api/receiving/sessions/{sessionID}/quantities/{productID}", func(w http.ResponseWriter, r *http.Request) { receivingQuantityHandler(database, w, r) })
+	mux.HandleFunc("POST /api/product-catalog", func(w http.ResponseWriter, r *http.Request) { saveCatalogProductHandler(database, w, r) })
+	mux.HandleFunc("PUT /api/product-catalog/{productID}", func(w http.ResponseWriter, r *http.Request) { saveCatalogProductHandler(database, w, r) })
+	mux.HandleFunc("GET /api/product-catalog", func(w http.ResponseWriter, r *http.Request) {
+		productCatalogHandler(database, w, r)
+	})
 
 	mux.HandleFunc(
 		"GET /api/cells/{cellName}",
@@ -67,6 +84,87 @@ func main() {
 			cellHandler(database, w, r)
 		},
 	)
+
+	mux.HandleFunc(
+		"GET /api/products/{sku}",
+		func(w http.ResponseWriter, r *http.Request) {
+			productHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/placements",
+		func(w http.ResponseWriter, r *http.Request) {
+			createReceivingPlacementHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/placements/{placementID}/undo",
+		func(w http.ResponseWriter, r *http.Request) {
+			undoReceivingPlacementHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/finish",
+		func(w http.ResponseWriter, r *http.Request) {
+			finishReceivingHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"GET /api/receiving/sessions/latest",
+		func(w http.ResponseWriter, r *http.Request) {
+			latestReceivingHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"GET /api/receiving/sessions",
+		func(w http.ResponseWriter, r *http.Request) {
+			completedReceivingHistoryHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/sessions",
+		func(w http.ResponseWriter, r *http.Request) {
+			createReceivingSessionHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"GET /api/receiving/sessions/{sessionID}",
+		func(w http.ResponseWriter, r *http.Request) {
+			getReceivingSessionHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"DELETE /api/receiving/sessions/{sessionID}",
+		func(w http.ResponseWriter, r *http.Request) {
+			deleteReceivingHistoryHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"POST /api/receiving/sessions/{sessionID}/items",
+		func(w http.ResponseWriter, r *http.Request) {
+			addReceivingSessionItemHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc(
+		"DELETE /api/receiving/sessions/{sessionID}/items/{sku}",
+		func(w http.ResponseWriter, r *http.Request) {
+			deleteReceivingSessionItemHandler(database, w, r)
+		},
+	)
+
+	mux.HandleFunc("GET /api/products/{sku}/stock", func(w http.ResponseWriter, r *http.Request) {
+		productStockHandler(database, w, r)
+	})
 
 	server := &http.Server{
 		Addr:              "127.0.0.1:8080",
@@ -113,6 +211,7 @@ func cellHandler(
 	)
 
 	cellName := r.PathValue("cellName")
+	categoryID := r.URL.Query().Get("categoryId")
 
 	var cellExists bool
 
@@ -122,10 +221,11 @@ func cellHandler(
 			SELECT EXISTS (
 				SELECT 1
 				FROM cells
-				WHERE code = $1
+				WHERE code = $1 AND ($2 = '' OR category_id::text = $2)
 			)
 		`,
 		cellName,
+		categoryID,
 	).Scan(&cellExists)
 
 	if err != nil {
@@ -158,16 +258,19 @@ func cellHandler(
 			SELECT
 				products.id::text,
 				products.name,
+				products.sku,
 				cell_stock.quantity
 			FROM cells
 			JOIN cell_stock
 				ON cell_stock.cell_id = cells.id
 			JOIN products
 				ON products.id = cell_stock.product_id
-			WHERE cells.code = $1
+			WHERE cells.code = $1 AND ($2 = '' OR cells.category_id::text = $2)
+			AND NOT products.archived AND cell_stock.quantity > 0
 			ORDER BY products.name
 		`,
 		cellName,
+		categoryID,
 	)
 	if err != nil {
 		log.Printf(
@@ -193,6 +296,7 @@ func cellHandler(
 		if err := rows.Scan(
 			&item.ID,
 			&item.Name,
+			&item.SKU,
 			&item.Quantity,
 		); err != nil {
 			log.Printf(
@@ -232,6 +336,62 @@ func cellHandler(
 			"failed to encode cell response: %v",
 			err,
 		)
+	}
+}
+
+func productHandler(
+	database *pgxpool.Pool,
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	w.Header().Set(
+		"Content-Type",
+		"application/json; charset=utf-8",
+	)
+
+	sku := r.PathValue("sku")
+
+	var item productItem
+
+	err := database.QueryRow(
+		r.Context(),
+		`
+			SELECT
+				id::text,
+				name,
+				sku
+			FROM products
+			WHERE sku = $1 AND NOT archived
+		`,
+		sku,
+	).Scan(
+		&item.ID,
+		&item.Name,
+		&item.SKU,
+	)
+
+	if err == pgx.ErrNoRows {
+		writeErrorResponse(
+			w,
+			http.StatusNotFound,
+			"product not found",
+		)
+		return
+	}
+
+	if err != nil {
+		log.Printf("failed to load product %s: %v", sku, err)
+
+		writeErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"failed to load product",
+		)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(item); err != nil {
+		log.Printf("failed to encode product response: %v", err)
 	}
 }
 

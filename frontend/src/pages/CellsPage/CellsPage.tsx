@@ -1,18 +1,23 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
+import { API_BASE_URL } from '../../config/api'
 
 import Header from '../../components/Header/Header'
+import CreateRackDialog from './CreateRackDialog'
 import { useTheme } from '../../hooks/useTheme'
 import './CellsPage.css'
 
-type ProductCategory = 'TREMOR' | 'КОТЛЕТКИ' | 'ВАЗЫ'
+type ProductCategory = string
 
 type RackConfig = {
+  id: number
+  name: string
   rows: string[][]
 }
 
 type CellItem = {
   id: string
+  sku: string
   name: string
   quantity: number
 }
@@ -23,30 +28,12 @@ type CellLoadStatus =
   | 'success'
   | 'error'
 
-const productCategories: ProductCategory[] = [
-  'TREMOR',
-  'КОТЛЕТКИ',
-  'ВАЗЫ',
-]
-
-const rackConfigs: Record<ProductCategory, RackConfig | null> = {
-  TREMOR: {
-    rows: [
-      ['A1', 'A2', 'A3'],
-      ['B1', 'B2', 'B3'],
-      ['C1', 'C2', 'C3'],
-    ],
-  },
-
-  КОТЛЕТКИ: null,
-  ВАЗЫ: null,
-}
-
 async function getCellContents(
   cellName: string,
+  categoryId: number,
 ): Promise<CellItem[]> {
   const response = await fetch(
-    `http://127.0.0.1:8080/api/cells/${encodeURIComponent(cellName)}`,
+    `${API_BASE_URL}/cells/${encodeURIComponent(cellName)}?categoryId=${categoryId}`,
   )
 
   if (!response.ok) {
@@ -60,11 +47,33 @@ async function getCellContents(
 
 function CellsPage() {
   const { theme, toggleTheme } = useTheme('light')
+  const [racks, setRacks] = useState<RackConfig[]>([])
+  const [rackError, setRackError] = useState('')
+  const [rackReloadKey, setRackReloadKey] = useState(0)
+  const productCategories = racks.map((rack) => rack.name)
 
   const [selectedCategory, setSelectedCategory] =
     useState<ProductCategory>('TREMOR')
+  const currentRack = racks.find((rack) => rack.name === selectedCategory)
+  const categoryId = currentRack?.id
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetch(`${API_BASE_URL}/racks`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Не удалось загрузить стеллажи')
+        const data = await response.json() as RackConfig[]
+        if (controller.signal.aborted) return
+        setRacks(data)
+        setRackError('')
+        setSelectedCategory((value) => data.some((rack) => rack.name === value) ? value : data[0]?.name ?? '')
+      })
+      .catch(() => { if (!controller.signal.aborted) setRackError('Не удалось загрузить стеллажи') })
+    return () => controller.abort()
+  }, [rackReloadKey])
 
   const [isProductsOpen, setIsProductsOpen] = useState(false)
+  const [isCreateRackOpen, setIsCreateRackOpen] = useState(false)
 
   const [selectedCell, setSelectedCell] =
     useState<string | null>(null)
@@ -76,6 +85,22 @@ function CellsPage() {
     useState<CellLoadStatus>('idle')
 
   const [cellReloadKey, setCellReloadKey] = useState(0)
+  const cellTableRef = useRef<HTMLTableElement>(null)
+
+  useEffect(() => {
+    const table = cellTableRef.current
+    if (!table) return
+    function limitListHeight() {
+      if (!table) return
+      const rows = Array.from(table.tBodies[0]?.rows ?? []).slice(0, 5)
+      const height = (table.tHead?.offsetHeight ?? 0) + rows.reduce((sum, row) => sum + row.offsetHeight, 0) + 1
+      table.parentElement?.style.setProperty('--cell-list-height', `${height}px`)
+    }
+    const observer = new ResizeObserver(limitListHeight)
+    observer.observe(table)
+    limitListHeight()
+    return () => observer.disconnect()
+  }, [selectedCellItems, cellLoadStatus])
 
   useEffect(() => {
     if (!selectedCell) {
@@ -100,13 +125,14 @@ function CellsPage() {
   }, [selectedCell])
 
   useEffect(() => {
-    if (!selectedCell) {
+    if (!selectedCell || categoryId === undefined) {
       setSelectedCellItems([])
       setCellLoadStatus('idle')
       return
     }
 
     const cellName = selectedCell
+    const rackId = categoryId
 
     let isCancelled = false
 
@@ -115,7 +141,7 @@ function CellsPage() {
       setCellLoadStatus('loading')
 
       try {
-        const items = await getCellContents(cellName)
+        const items = await getCellContents(cellName, rackId)
 
         if (isCancelled) {
           return
@@ -137,9 +163,7 @@ function CellsPage() {
     return () => {
       isCancelled = true
     }
-  }, [selectedCell, cellReloadKey])
-
-  const currentRack = rackConfigs[selectedCategory]
+  }, [selectedCell, cellReloadKey, categoryId])
 
   function selectCategory(category: ProductCategory) {
     setSelectedCategory(category)
@@ -186,11 +210,10 @@ function CellsPage() {
               <span>{selectedCategory}</span>
 
               <span
-                className={`cellsPage__productsArrow ${
-                  isProductsOpen
+                className={`cellsPage__productsArrow ${isProductsOpen
                     ? 'cellsPage__productsArrow--open'
                     : ''
-                }`}
+                  }`}
                 aria-hidden="true"
               >
                 ▼
@@ -205,11 +228,10 @@ function CellsPage() {
               >
                 {productCategories.map((category) => (
                   <button
-                    className={`cellsPage__productsItem ${
-                      selectedCategory === category
+                    className={`cellsPage__productsItem ${selectedCategory === category
                         ? 'cellsPage__productsItem--active'
                         : ''
-                    }`}
+                      }`}
                     type="button"
                     role="menuitem"
                     key={category}
@@ -218,13 +240,15 @@ function CellsPage() {
                     {category}
                   </button>
                 ))}
+                <button className="cellsPage__productsItem cellsPage__addRack" type="button" role="menuitem" onClick={() => { setIsProductsOpen(false); setIsCreateRackOpen(true) }}>ДОБАВИТЬ +</button>
               </div>
             )}
           </div>
         </div>
 
         <div className="cellsPage__workspace">
-          {currentRack ? (
+          {rackError && <p role="alert">{rackError} <button type="button" onClick={() => setRackReloadKey((value) => value + 1)}>Повторить</button></p>}
+          {currentRack && currentRack.rows.length > 0 ? (
             <div
               className="cellsPage__rack"
               aria-label={`Стеллаж категории ${selectedCategory}`}
@@ -265,6 +289,8 @@ function CellsPage() {
         </div>
       </section>
 
+      {isCreateRackOpen && <CreateRackDialog onClose={() => setIsCreateRackOpen(false)} onCreated={(rack) => { setRacks((values) => [...values, rack]); setSelectedCategory(rack.name); setSelectedCell(null); setIsCreateRackOpen(false) }} />}
+
       {selectedCell && (
         <div
           className="cellsPage__modalOverlay"
@@ -286,34 +312,18 @@ function CellsPage() {
                 type="button"
                 onClick={closeCellModal}
               >
-                <span className="cellsPage__symbolText">‹</span>
-                {' '}
-                НАЗАД
+                ‹ НАЗАД
               </button>
 
               <h2
                 className="cellsPage__cellModalTitle"
                 id="cell-modal-title"
               >
-                ЯЧЕЙКА{' '}
-
-                <span className="cellsPage__cellModalCode">
-                  <span className="cellsPage__cellModalLetter">
-                    {selectedCell.slice(0, 1)}
-                  </span>
-
-                  <span className="cellsPage__cellModalNumber">
-                    {selectedCell.slice(1)}
-                  </span>
-                </span>
+                ЯЧЕЙКА {selectedCell}
               </h2>
             </header>
 
             <div className="cellsPage__cellModalContent">
-              <h3 className="cellsPage__cellModalSubtitle">
-                ТОВАР<span className="cellsPage__symbolText">:</span>
-              </h3>
-
               {cellLoadStatus === 'loading' && (
                 <p className="cellsPage__cellModalEmpty">
                   Загрузка содержимого
@@ -339,30 +349,22 @@ function CellsPage() {
 
               {cellLoadStatus === 'success' &&
                 (selectedCellItems.length > 0 ? (
-                  <ul className="cellsPage__cellItems">
-                    {selectedCellItems.map((item) => (
-                      <li
-                        className="cellsPage__cellItem"
-                        key={item.id}
-                      >
-                        <span className="cellsPage__cellItemName">
-                          {item.name}
-                        </span>
-
-                        <span
-                          className="cellsPage__cellItemDots"
-                          aria-hidden="true"
-                        />
-
-                        <span className="cellsPage__cellItemQuantity">
-                          <span className="cellsPage__cellItemNumber">
-                            {item.quantity}
-                          </span>{' '}
-                          ШТ<span className="cellsPage__symbolText">.</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="cellsPage__cellTableScroll">
+                    <table className="cellsPage__cellTable" ref={cellTableRef}>
+                      <thead><tr><th scope="col">ТОВАР/АРТИКУЛ</th><th scope="col">КОЛ-ВО</th></tr></thead>
+                      <tbody>
+                        {selectedCellItems.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              {item.name}
+                              <small className="cellsPage__cellTableSku">{item.sku}</small>
+                            </td>
+                            <td>{item.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
                   <p className="cellsPage__cellModalEmpty">
                     Ячейка пуста
