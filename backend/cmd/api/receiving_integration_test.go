@@ -52,7 +52,7 @@ func receivingTestDB(t *testing.T) *pgxpool.Pool {
 		t.Fatal(err)
 	}
 	t.Cleanup(db.Close)
-	for _, name := range []string{"001_init.sql", "003_receiving_placements.sql", "004_receiving_sessions.sql", "005_receiving_drafts.sql", "006_stock_issues.sql", "007_receiving_history_deletion.sql", "008_product_catalog.sql", "009_receiving_quantity_requests.sql"} {
+	for _, name := range []string{"001_init.sql", "003_receiving_placements.sql", "004_receiving_sessions.sql", "005_receiving_drafts.sql", "007_receiving_history_deletion.sql", "008_product_catalog.sql", "009_receiving_quantity_requests.sql"} {
 		migration, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
 		if err != nil {
 			t.Fatal(err)
