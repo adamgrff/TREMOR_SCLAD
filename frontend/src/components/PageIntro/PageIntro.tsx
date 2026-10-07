@@ -2,11 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import './PageIntro.css'
 
-const INTRO_DELAY_MS = 1000
+const INTRO_DELAY_MS = 500
+const TRANSITION_DELAY_MS = 150
 const REDUCED_MOTION_DELAY_MS = 300
-const LOGO_MOVE_MS = 900
-const REVEAL_MS = 1400
-const CLOSE_MS = 700
+const LOGO_MOVE_MS = 500
+const REVEAL_MS = 500
+const CLOSE_MS = 500
 const SOFT_EDGE_MARGIN = 320
 
 function setOpeningRect(rect: SVGRectElement, centerX: number, centerY: number, width: number, height: number) {
@@ -14,6 +15,8 @@ function setOpeningRect(rect: SVGRectElement, centerX: number, centerY: number, 
   rect.setAttribute('y', String(centerY - height / 2))
   rect.setAttribute('width', String(width))
   rect.setAttribute('height', String(height))
+  rect.setAttribute('rx', String(width / 2))
+  rect.setAttribute('ry', String(height / 2))
 }
 
 export default function PageIntro({ closing, onClosed }: { closing: boolean; onClosed: () => void }) {
@@ -80,22 +83,21 @@ export default function PageIntro({ closing, onClosed }: { closing: boolean; onC
         svgRef.current?.setAttribute('viewBox', `0 0 ${width} ${height}`)
         const centerX = bounds ? bounds.left + bounds.width / 2 : width / 2
         const centerY = bounds ? bounds.top + bounds.height / 2 : height / 2
-        const maxWidth = Math.max(centerX, width - centerX) * 2 + SOFT_EDGE_MARGIN
-        const maxHeight = Math.max(centerY, height - centerY) * 2 + SOFT_EDGE_MARGIN
+        const diameter = 2 * Math.hypot(Math.max(centerX, width - centerX), Math.max(centerY, height - centerY)) + SOFT_EDGE_MARGIN
         const start = performance.now()
         function reveal(now: number) {
           if(cancelled || !opening) return
           const progress = Math.min((now - start) / REVEAL_MS, 1)
           const eased = progress * progress * (3 - 2 * progress)
-          const rectWidth = maxWidth * eased
-          const rectHeight = maxHeight * eased
+          const rectWidth = diameter * eased
+          const rectHeight = diameter * eased
           setOpeningRect(opening, centerX, centerY, rectWidth, rectHeight)
           logo.style.opacity = String(1 - Math.min(progress * 3, 1))
           if(progress < 1) frame = requestAnimationFrame(reveal)
           else setFinished(true)
         }
         frame = requestAnimationFrame(reveal)
-      }, reducedMotion ? REDUCED_MOTION_DELAY_MS : INTRO_DELAY_MS)
+      }, reducedMotion ? REDUCED_MOTION_DELAY_MS : initialTransition.current.closing ? TRANSITION_DELAY_MS : INTRO_DELAY_MS)
     }
     if(initialTransition.current.closing && !reducedMotion) {
       logo.style.opacity = '0'
@@ -106,8 +108,9 @@ export default function PageIntro({ closing, onClosed }: { closing: boolean; onC
         if(cancelled || !opening) return
         const progress = Math.min((now - start) / CLOSE_MS, 1)
         const remaining = 1 - (progress * progress * (3 - 2 * progress))
-        const rectWidth = (width + SOFT_EDGE_MARGIN) * remaining
-        const rectHeight = (height + SOFT_EDGE_MARGIN) * remaining
+        const diameter = Math.hypot(width, height) + SOFT_EDGE_MARGIN
+        const rectWidth = diameter * remaining
+        const rectHeight = diameter * remaining
         setOpeningRect(opening, width / 2, height / 2, rectWidth, rectHeight)
         logo.style.opacity = String(Math.max(0, (progress - .5) * 2))
         if(progress < 1) frame = requestAnimationFrame(closePage)
