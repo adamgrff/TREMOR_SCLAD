@@ -1,6 +1,8 @@
+import { emptyAssemblyState } from './assemblyState'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Header from '../../components/Header/Header'
-import ActiveAssembly, { type AssemblyProblemSnapshot, type AssemblyPreviewOrder } from './ActiveAssembly'
+import ActiveAssembly, { type ActiveAssemblyState, type AssemblyProblemSnapshot, type AssemblyPreviewOrder } from './ActiveAssembly'
+import useAssemblyDraft from './useAssemblyDraft'
 import OrderProblemDialog, { type OrderProblemDetails, type SavedOrderProblem } from './OrderProblemDialog'
 import { useTheme } from '../../hooks/useTheme'
 import '../ReceivingPage/ReceivingPage.css'
@@ -22,12 +24,21 @@ const previewOrders: Array<AssemblyPreviewOrder & { time: string; createdAt: str
   ] },
 ]
 
+type PreviewOrder = typeof previewOrders[number]
+type AssemblyWorkspace = {
+  schemaVersion: 1
+  activeOrder: PreviewOrder | null
+  activeState: ActiveAssemblyState
+  problemOrders: Array<{ order: PreviewOrder; problem: SavedOrderProblem; status: 'problem'; assembly?: AssemblyProblemSnapshot }>
+  completedOrders: PreviewOrder[]
+}
+const initialWorkspace: AssemblyWorkspace = { schemaVersion: 1, activeOrder: null, activeState: emptyAssemblyState, problemOrders: [], completedOrders: [] }
+
 export default function AssemblyPage() {
   const { theme, toggleTheme } = useTheme('dark')
   const [selectedNumber, setSelectedNumber] = useState(previewOrders[0].number)
-  const [problemOrders, setProblemOrders] = useState<Array<{ order: typeof previewOrders[number]; problem: SavedOrderProblem; status: 'problem'; assembly?: AssemblyProblemSnapshot }>>([])
-  const [activeOrder, setActiveOrder] = useState<typeof previewOrders[number] | null>(null)
-  const [completedOrders, setCompletedOrders] = useState<Array<typeof previewOrders[number]>>([])
+  const draft = useAssemblyDraft(initialWorkspace)
+  const { activeOrder, activeState, problemOrders, completedOrders } = draft.state
   const [problemDialogOpen, setProblemDialogOpen] = useState(false)
   const queueOrders = previewOrders.filter((order) => order.number !== activeOrder?.number && !completedOrders.some((completed) => completed.number === order.number) && !problemOrders.some((problemOrder) => problemOrder.order.number === order.number))
   const [currentTime, setCurrentTime] = useState(() => Date.now())
@@ -84,22 +95,28 @@ export default function AssemblyPage() {
   const total = selected?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0
   const shortageItems = selected?.items.filter((item) => item.stock < item.quantity) ?? []
   const firstShortage = shortageItems[0]
-  function confirmProblem(problem: OrderProblemDetails) {
-    if (!selected) return
+  async function confirmProblem(problem: OrderProblemDetails) {
+    if (!selected || draft.blocked) return
     const savedProblem: SavedOrderProblem = {
       ...problem,
       createdAt: new Date().toISOString(),
       shortages: shortageItems.map((item) => ({ sku: item.sku, name: item.name, required: item.quantity, available: item.stock, missing: item.quantity - item.stock, cells: item.cells })),
     }
-    setProblemOrders((previous) => [...previous, { order: selected, problem: savedProblem, status: 'problem' }])
-    setSelectedNumber(queueOrders.find((order) => order.number !== selected.number)?.number ?? '')
-    setProblemDialogOpen(false)
+    const saved = await draft.save({ ...draft.state, problemOrders: [...problemOrders, { order: selected, problem: savedProblem, status: 'problem' }] })
+    if (saved) {
+      setSelectedNumber(queueOrders.find((order) => order.number !== selected.number)?.number ?? '')
+      setProblemDialogOpen(false)
+    }
   }
 
   return (
     <main className={`receivingPage receivingPage--${theme} assemblyPage`}>
       <Header theme={theme} onToggleTheme={toggleTheme} />
       <div className="receivingPage__content">
+        {(!draft.ready || draft.saving || draft.error) && <div className="assemblyPersistenceStatus" role="status">
+          {draft.error || (draft.saving ? 'Сохранение сборки…' : 'Восстановление сборки…')}
+          {draft.error && <button type="button" className="receivingHistory__button" onClick={() => void draft.retry()}>Повторить</button>}
+        </div>}
         <section className="receivingPage__panel assemblyQueue" aria-label="Очередь заказов">
           <div className="assemblyQueue__list">
             <div className="assemblyQueue__heading">
@@ -173,20 +190,19 @@ export default function AssemblyPage() {
                 {firstShortage && <><p>Недостаточно товара для начала сборки.</p><p>{firstShortage.name}: требуется {firstShortage.quantity}, доступно {firstShortage.stock}.{shortageItems.length > 1 && ` И ещё ${shortageItems.length - 1} проблемных позиций.`}</p></>}
               </div>
               <div className="assemblyQueue__footerActions">
-                <button className="assemblyQueue__problem" type="button" onClick={() => setProblemDialogOpen(true)}>Проблема</button>
-                <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={shortageItems.length > 0 || activeOrder !== null} aria-describedby={firstShortage ? 'assembly-shortage' : undefined} onClick={() => { if (selected && !activeOrder && shortageItems.length === 0) setActiveOrder(selected) }}>Начать сборку</button>
+                <button className="assemblyQueue__problem" type="button" disabled={draft.blocked} onClick={() => setProblemDialogOpen(true)}>Проблема</button>
+                <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={shortageItems.length > 0 || activeOrder !== null || draft.blocked} aria-describedby={firstShortage ? 'assembly-shortage' : undefined} onClick={() => { if (selected && !activeOrder && shortageItems.length === 0) void draft.save({ ...draft.state, activeOrder: selected, activeState: emptyAssemblyState }) }}>Начать сборку</button>
               </div>
             </div>
             </> : <p className="assemblyQueue__subtitle">Выберите заказ из очереди</p>}
           </div>
         </section>
-        <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} onComplete={() => { if (activeOrder) { setCompletedOrders((previous) => [...previous, activeOrder]); setActiveOrder(null) } }} onProblem={(assembly) => {
+        <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked} onChange={(next) => draft.save({ ...draft.state, activeState: next })} onComplete={() => { if (activeOrder && !draft.blocked) void draft.save({ ...draft.state, completedOrders: [...completedOrders, activeOrder], activeOrder: null, activeState: emptyAssemblyState }) }} onProblem={(assembly) => {
           if (!activeOrder) return
-          setProblemOrders((previous) => [...previous, { order: activeOrder, status: 'problem', assembly, problem: { ...assembly.details, shortages: [], createdAt: new Date().toISOString() } }])
-          setActiveOrder(null)
+          void draft.save({ ...draft.state, problemOrders: [...problemOrders, { order: activeOrder, status: 'problem', assembly, problem: { ...assembly.details, shortages: [], createdAt: new Date().toISOString() } }], activeOrder: null, activeState: emptyAssemblyState })
         }} />
       </div>
-      {problemDialogOpen && selected && <OrderProblemDialog initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={confirmProblem} />}
+      {problemDialogOpen && selected && <OrderProblemDialog initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={(problem) => void confirmProblem(problem)} />}
     </main>
   )
 }

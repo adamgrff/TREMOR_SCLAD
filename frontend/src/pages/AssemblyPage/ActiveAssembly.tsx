@@ -1,25 +1,26 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import OrderProblemDialog, { type OrderProblemDetails } from './OrderProblemDialog'
 import useScanErrorFeedback from './useScanErrorFeedback'
 
 export type AssemblyPreviewOrder = { number: string; items: Array<{ name: string; sku: string; quantity: number; stock: number; cells: string; cellStocks: Record<string, number> }> }
 export type PreviewPick = { sku: string; cell: string }
 export type AssemblyProblemSnapshot = { details: OrderProblemDetails; picks: PreviewPick[]; cell: string | null; shipmentConfirmed: boolean }
+export type ActiveAssemblyState = { picks: PreviewPick[]; confirmedCell: string | null; shipmentConfirmed: boolean; lastScan: string; log: string; error: boolean }
 
-export default function ActiveAssembly({ order, onComplete, onProblem }: {
+
+export default function ActiveAssembly({ order, state, onChange, onComplete, onProblem, blocked }: {
   order: AssemblyPreviewOrder | null
+  state: ActiveAssemblyState
+  onChange: (state: ActiveAssemblyState) => Promise<boolean>
+  blocked: boolean
   onComplete: () => void
   onProblem: (snapshot: AssemblyProblemSnapshot) => void
 }) {
-  const [picks, setPicks] = useState<PreviewPick[]>([])
-  const [confirmedCell, setConfirmedCell] = useState<string | null>(null)
-  const [shipmentConfirmed, setShipmentConfirmed] = useState(false)
+  const { picks, confirmedCell, shipmentConfirmed, lastScan, log, error } = state
   const [scan, setScan] = useState('')
-  const [lastScan, setLastScan] = useState('—')
-  const [log, setLog] = useState('')
-  const [error, setError] = useState(false)
   const [problemOpen, setProblemOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (!blocked && order && !shipmentConfirmed) inputRef.current?.focus() }, [blocked, order, shipmentConfirmed])
   const { signalError, overlay } = useScanErrorFeedback()
   const plans = order?.items.flatMap((item) => item.cells.split('·').flatMap((entry) => {
     const match = entry.trim().match(/^(.+?)\s*×\s*(\d+)$/)
@@ -37,42 +38,38 @@ export default function ActiveAssembly({ order, onComplete, onProblem }: {
   const progress = required ? collected / required * 100 : 0
   const heading = step === 'cell' ? 'СКАНИРУЙТЕ ЯЧЕЙКУ' : step === 'product' ? 'СКАНИРУЙТЕ ТОВАР' : 'СКАНИРУЙТЕ ОТПРАВЛЕНИЕ'
 
-  function submitScan(event: FormEvent<HTMLFormElement>) {
+  async function submitScan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!order) return
+    if (!order || blocked) return
     const code = scan.trim()
     setScan('')
-    const fail = (message: string) => { setError(true); setLog(message); signalError(); inputRef.current?.focus() }
+    const next = { ...state, lastScan: code, error: false }
+    const fail = async (message: string) => { signalError(); await onChange({ ...state, error: true, log: message }); inputRef.current?.focus() }
     if (step === 'cell') {
       if (code !== expectedCell) return fail(`Неверная ячейка. Ожидается ${expectedCell}.`)
-      setConfirmedCell(code)
-      setLog(`Ячейка ${code} подтверждена. Сканируйте любой товар из списка.`)
+      next.confirmedCell = code
+      next.log = `Ячейка ${code} подтверждена. Сканируйте любой товар из списка.`
     } else if (step === 'product') {
       const item = cellItems.find((position) => position.sku === code.toUpperCase() && count(position.sku, position.cell) < position.required)
       if (!item) return fail('Товар не требуется из этой ячейки или уже полностью собран.')
       const nextPicks = [...picks, { sku: item.sku, cell: item.cell }]
-      setPicks(nextPicks)
+      next.picks = nextPicks
       const cellComplete = cellItems.every((position) => nextPicks.filter((pick) => pick.sku === position.sku && pick.cell === position.cell).length >= position.required)
-      if (cellComplete) setConfirmedCell(null)
-      setLog(`${item.name}: подтверждена 1 шт. из ${item.cell}.${cellComplete ? ' Подбор из ячейки завершён.' : ''}`)
+      if (cellComplete) next.confirmedCell = null
+      next.log = `${item.name}: подтверждена 1 шт. из ${item.cell}.${cellComplete ? ' Подбор из ячейки завершён.' : ''}`
     } else {
       if (code !== order.number) return fail('Неверный код отправления. Проверьте этикетку Ozon.')
-      setShipmentConfirmed(true)
-      setLog('Коробка подтверждена. Можно завершить сборку.')
+      next.shipmentConfirmed = true
+      next.log = 'Коробка подтверждена. Можно завершить сборку.'
     }
-    setLastScan(code)
-    setError(false)
+    await onChange(next)
     inputRef.current?.focus()
   }
-  function undoPick() {
+  async function undoPick() {
     const last = picks[picks.length - 1]
-    if (!last) return
-    setPicks(picks.slice(0, -1))
-    setConfirmedCell(last.cell)
-    setShipmentConfirmed(false)
+    if (!last || blocked) return
     setScan('')
-    setError(false)
-    setLog(`Отменён последний отбор: ${last.sku}, 1 шт. из ${last.cell}.`)
+    await onChange({ ...state, picks: picks.slice(0, -1), confirmedCell: last.cell, shipmentConfirmed: false, error: false, log: `Отменён последний отбор: ${last.sku}, 1 шт. из ${last.cell}.` })
     inputRef.current?.focus()
   }
 
@@ -104,8 +101,8 @@ export default function ActiveAssembly({ order, onComplete, onProblem }: {
             <label className="receivingPage__panelTitle" htmlFor="active-assembly-scan">{heading}</label>
             {step === 'cell' && <span className="activeAssembly__cellBadge">{expectedCell}</span>}
           </div>
-          <form onSubmit={submitScan}>
-            <input ref={inputRef} value={scan} onChange={(event) => setScan(event.target.value)} id="active-assembly-scan" className="receivingPage__scanInput activeAssembly__scanInput" placeholder={step === 'cell' ? 'Код ячейки' : step === 'product' ? 'Код товара' : 'Код отправления'} autoComplete="off" disabled={shipmentConfirmed} />
+          <form onSubmit={(event) => void submitScan(event)}>
+            <input ref={inputRef} value={scan} onChange={(event) => setScan(event.target.value)} id="active-assembly-scan" className="receivingPage__scanInput activeAssembly__scanInput" placeholder={step === 'cell' ? 'Код ячейки' : step === 'product' ? 'Код товара' : 'Код отправления'} autoComplete="off" disabled={shipmentConfirmed || blocked} />
           </form>
           {step === 'product' && <ul className="activeAssembly__cellItems" aria-label={`Товары из ячейки ${confirmedCell}`}>
             {cellItems.map((item) => {
@@ -126,9 +123,9 @@ export default function ActiveAssembly({ order, onComplete, onProblem }: {
       <div className="activeAssembly__footer">
         <div className={`activeAssembly__scanLog${error ? ' activeAssembly__scanLog--error' : ''}`} role="status">{log}</div>
         <div className="activeAssembly__actions">
-          <button className="receivingPage__undoButton" type="button" disabled={picks.length === 0} onClick={undoPick}>Отмена</button>
-          <button className="assemblyQueue__problem" type="button" onClick={() => setProblemOpen(true)}>Проблема</button>
-          <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={!shipmentConfirmed || !allCollected} onClick={onComplete}>Завершить сборку</button>
+          <button className="receivingPage__undoButton" type="button" disabled={picks.length === 0 || blocked} onClick={() => void undoPick()}>Отмена</button>
+          <button className="assemblyQueue__problem" type="button" disabled={blocked} onClick={() => setProblemOpen(true)}>Проблема</button>
+          <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={!shipmentConfirmed || !allCollected || blocked} onClick={onComplete}>Завершить сборку</button>
         </div>
       </div>
       {problemOpen && <OrderProblemDialog positions={order.items} initialPositionSku={activeSku} onCancel={() => setProblemOpen(false)} onConfirm={(details) => { setProblemOpen(false); onProblem({ details, picks, cell: confirmedCell, shipmentConfirmed }) }} />}

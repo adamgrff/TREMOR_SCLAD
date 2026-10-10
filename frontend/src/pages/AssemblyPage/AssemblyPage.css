@@ -1,4 +1,6 @@
 .assemblyPage { min-height: 100svh; }
+.assemblyPersistenceStatus { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; margin-bottom: 15px; border-radius: 12px; background: rgba(0, 0, 0, .75); color: #ffb6b6; font-size: 16px; }
+.assemblyQueue__problem:disabled { opacity: .4; cursor: not-allowed; }
 .assemblyScanErrorFlash { position: fixed; inset: 0; zoom: calc(1 / var(--site-scale)); z-index: 10000; pointer-events: none; border-radius: 0; box-shadow: inset 0 0 12px 5px #ff2424, inset 0 0 60px 20px rgba(255, 20, 20, .8); animation: assemblyScanErrorFade 650ms ease-out both; }
 @keyframes assemblyScanErrorFade { 0%, 20% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .assemblyScanErrorFlash { animation: none; } }

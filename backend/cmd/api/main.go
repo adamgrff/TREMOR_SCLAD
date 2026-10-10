@@ -68,6 +68,8 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("GET /api/assembly-preview/draft", func(w http.ResponseWriter, r *http.Request) { getAssemblyDraftHandler(database, w, r) })
+	mux.HandleFunc("PUT /api/assembly-preview/draft", func(w http.ResponseWriter, r *http.Request) { saveAssemblyDraftHandler(database, w, r) })
 	mux.HandleFunc("POST /api/racks", func(w http.ResponseWriter, r *http.Request) { createRackHandler(database, w, r) })
 	mux.HandleFunc("GET /api/racks", func(w http.ResponseWriter, r *http.Request) { racksHandler(database, w, r) })
 	mux.HandleFunc("POST /api/receiving/sessions/{sessionID}/quantities/{productID}", func(w http.ResponseWriter, r *http.Request) { receivingQuantityHandler(database, w, r) })
