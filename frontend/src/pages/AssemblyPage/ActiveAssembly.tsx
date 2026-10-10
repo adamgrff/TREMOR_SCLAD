@@ -20,7 +20,16 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
   const [scan, setScan] = useState('')
   const [problemOpen, setProblemOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  useEffect(() => { if (!blocked && order && !shipmentConfirmed) inputRef.current?.focus() }, [blocked, order, shipmentConfirmed])
+  const restoreScanFocus = useRef(false)
+  useEffect(() => {
+    if (blocked || !restoreScanFocus.current) return
+    restoreScanFocus.current = false
+    if (!shipmentConfirmed && (document.activeElement === document.body || document.activeElement === inputRef.current)) inputRef.current?.focus({ preventScroll: true })
+  }, [blocked, shipmentConfirmed])
+  async function saveScanState(next: ActiveAssemblyState) {
+    restoreScanFocus.current = true
+    await onChange(next)
+  }
   const { signalError, overlay } = useScanErrorFeedback()
   const plans = order?.items.flatMap((item) => item.cells.split('·').flatMap((entry) => {
     const match = entry.trim().match(/^(.+?)\s*×\s*(\d+)$/)
@@ -44,7 +53,7 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
     const code = scan.trim()
     setScan('')
     const next = { ...state, lastScan: code, error: false }
-    const fail = async (message: string) => { signalError(); await onChange({ ...state, error: true, log: message }); inputRef.current?.focus() }
+    const fail = async (message: string) => { signalError(); await saveScanState({ ...state, error: true, log: message }) }
     if (step === 'cell') {
       if (code !== expectedCell) return fail(`Неверная ячейка. Ожидается ${expectedCell}.`)
       next.confirmedCell = code
@@ -62,15 +71,13 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
       next.shipmentConfirmed = true
       next.log = 'Коробка подтверждена. Можно завершить сборку.'
     }
-    await onChange(next)
-    inputRef.current?.focus()
+    await saveScanState(next)
   }
   async function undoPick() {
     const last = picks[picks.length - 1]
     if (!last || blocked) return
     setScan('')
-    await onChange({ ...state, picks: picks.slice(0, -1), confirmedCell: last.cell, shipmentConfirmed: false, error: false, log: `Отменён последний отбор: ${last.sku}, 1 шт. из ${last.cell}.` })
-    inputRef.current?.focus()
+    await saveScanState({ ...state, picks: picks.slice(0, -1), confirmedCell: last.cell, shipmentConfirmed: false, error: false, log: `Отменён последний отбор: ${last.sku}, 1 шт. из ${last.cell}.` })
   }
 
   return <section className="receivingPage__panel activeAssembly" aria-labelledby="active-assembly-title">
@@ -98,11 +105,11 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
         </div>
         <div className="activeAssembly__scanPanel">
           <div className="activeAssembly__scanHeading">
-            <label className="receivingPage__panelTitle" htmlFor="active-assembly-scan">{heading}</label>
+            <h3 className="receivingPage__panelTitle" id="active-assembly-scan-heading">{heading}</h3>
             {step === 'cell' && <span className="activeAssembly__cellBadge">{expectedCell}</span>}
           </div>
           <form onSubmit={(event) => void submitScan(event)}>
-            <input ref={inputRef} value={scan} onChange={(event) => setScan(event.target.value)} id="active-assembly-scan" className="receivingPage__scanInput activeAssembly__scanInput" placeholder={step === 'cell' ? 'Код ячейки' : step === 'product' ? 'Код товара' : 'Код отправления'} autoComplete="off" disabled={shipmentConfirmed || blocked} />
+            <input ref={inputRef} value={scan} onChange={(event) => setScan(event.target.value)} id="active-assembly-scan" aria-labelledby="active-assembly-scan-heading" className="receivingPage__scanInput activeAssembly__scanInput" placeholder={step === 'cell' ? 'Код ячейки' : step === 'product' ? 'Код товара' : 'Код отправления'} autoComplete="off" disabled={shipmentConfirmed || blocked} />
           </form>
           {step === 'product' && <ul className="activeAssembly__cellItems" aria-label={`Товары из ячейки ${confirmedCell}`}>
             {cellItems.map((item) => {
