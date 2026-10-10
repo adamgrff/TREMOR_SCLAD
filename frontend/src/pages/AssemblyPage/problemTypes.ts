@@ -6,3 +6,9 @@ export const problemTypes = [
   ['invalid_order', 'Ошибка данных заказа'],
   ['other', 'Другая проблема'],
 ] as const
+
+export const allProblemTypes = [
+  ...problemTypes,
+  ['cancelled_order', 'Отменённый заказ'],
+  ['ozon_error', 'Ошибка Ozon'],
+] as const

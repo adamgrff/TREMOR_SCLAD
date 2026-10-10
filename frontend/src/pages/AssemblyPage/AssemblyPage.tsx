@@ -117,7 +117,7 @@ export default function AssemblyPage() {
   async function returnToAssembly(number: string) {
     if (draft.blocked || activeOrder || stockCheckRef.current) return false
     const entry = problemOrders.find((item) => item.order.number === number && item.problem.resolutionStatus === 'resolved')
-    if (!entry || completedOrders.some((order) => order.number === number)) return false
+    if (!entry || ['cancelled_order', 'ozon_error'].includes(entry.problem.type) || completedOrders.some((order) => order.number === number)) return false
     const restored: ActiveAssemblyState = entry.assembly ? {
       picks: entry.assembly.picks,
       confirmedCell: entry.assembly.cell,

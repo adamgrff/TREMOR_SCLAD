@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import type { AssemblyPreviewOrder, AssemblyProblemSnapshot } from './ActiveAssembly'
 import type { SavedOrderProblem } from './OrderProblemDialog'
-import { problemTypes } from './problemTypes'
+import { allProblemTypes } from './problemTypes'
 import groupProblemHistory from './groupProblemHistory'
 import arrowDown from '../../assets/home/arrow-down.svg'
 import arrowUp from '../../assets/home/arrow-up.svg'
@@ -32,7 +32,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
       <div><div className="problemOrders__title"><h2 className="receivingPage__panelTitle" id="problem-orders-title">ПРОБЛЕМНЫЕ ЗАКАЗЫ</h2><span className="problemOrders__count">{pendingOrders.length}</span></div><p className="assemblyQueue__subtitle">Разберите причину и продолжите работу с заказом</p></div>
       <div className="problemOrders__tools">
         <label className="problemOrders__search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg><input type="search" aria-label="Поиск проблемного заказа, SKU или товара" placeholder="Заказ, SKU или товар" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }}/></label>
-        <select aria-label="Фильтр типа проблемы" value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1) }}><option value="">Все причины</option>{problemTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <select aria-label="Фильтр типа проблемы" value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1) }}><option value="">Все причины</option>{allProblemTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       </div>
     </div>
     <div className="problemOrders__columns" aria-hidden="true"><span>Заказ / статус</span><span>Причина</span><span>Затронутый товар</span><span>Решение</span><span>Время</span><span/></div>
@@ -54,7 +54,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           position.cells.set(pick.cell, (position.cells.get(pick.cell) ?? 0) + 1)
           return result
         }, [])
-        const reason = problemTypes.find(([type]) => type === problem.type)?.[1] ?? 'Другая проблема'
+        const reason = allProblemTypes.find(([type]) => type === problem.type)?.[1] ?? 'Другая проблема'
         const resolved = problem.resolutionStatus === 'resolved'
         const returnHint = !resolved ? 'Сначала устраните причину проблемы' : assemblyBusy ? 'Сначала завершите текущую сборку' : blocked ? 'Дождитесь сохранения и восстановления связи' : 'Продолжить сборку с сохранённым прогрессом'
         const position = order.items.find((item) => item.sku === problem.positionSku)
@@ -69,13 +69,19 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           damaged_product: { happened: `Для ${product} отмечено повреждение: товар нельзя использовать для сборки.`, todo: 'Отделите повреждённый товар, проверьте количество пригодных единиц и обеспечьте необходимый остаток.' },
           invalid_order: { happened: 'В составе, количестве или других данных заказа отмечена ошибка.', todo: 'Сверьте заказ с данными Ozon и устраните расхождения перед продолжением сборки.' },
           other: { happened: problem.comment || 'Заказ остановлен по причине, указанной как «Другая проблема».', todo: 'Уточните причину по комментарию и проверьте заказ. После устранения причины можно продолжить сборку.' },
+          cancelled_order: { happened: 'Заказ отменён. Продолжать сборку этого заказа нельзя.', todo: picks.length > 0 ? 'Передайте уже отобранные товары в разбор для возврата в исходные ячейки.' : 'Отобранных товаров нет. Физический разбор не требуется.' },
+          ozon_error: { happened: 'Запрос к Ozon завершился ошибкой. Успешное подтверждение не получено.', todo: 'Повторите запрос Ozon и дождитесь подтверждённого ответа.' },
         }[problem.type]
-        const actions = [
-          ...(['insufficient_stock', 'missing_in_cell', 'damaged_product'].includes(problem.type) ? ['Обновить остатки'] : []),
-          ...(problem.type === 'unknown_sku' ? ['Сопоставить SKU'] : []),
-          ...(problem.type === 'invalid_order' || assembly?.shipmentConfirmed ? ['Повторить подтверждение Ozon'] : []),
-          'Вернуть в сборку', 'Передать в разбор',
-        ]
+        const actions: string[] = {
+          insufficient_stock: ['Перейти в приёмку', 'Обновить остатки', 'Вернуть в сборку'],
+          unknown_sku: resolved ? ['Вернуть в сборку'] : ['Сопоставить товар'],
+          cancelled_order: picks.length > 0 ? ['Передать в разбор'] : [],
+          ozon_error: ['Повторить запрос Ozon'],
+          missing_in_cell: ['Вернуть в сборку'],
+          damaged_product: ['Вернуть в сборку'],
+          invalid_order: ['Вернуть в сборку'],
+          other: ['Вернуть в сборку'],
+        }[problem.type]
         return <details className="problemOrders__order" key={order.number}>
           <summary className="problemOrders__row">
             <span><strong className="problemOrders__number">{order.number}</strong><small>{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>
@@ -121,7 +127,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                 </span>}
               </li>)}</ol>}
             </div>
-            <div className="problemOrders__actions">{actions.map((action) => <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Вернуть в сборку' && (!resolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
+            <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Вернуть в сборку' && (!resolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
               if (action === 'Вернуть в сборку') void onReturn(order.number).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
               else if (action === 'Обновить остатки' && problem.type === 'insufficient_stock') { setNotice(`${order.number}: проверка остатков…`); void onStockCheck(order.number).then(setNotice).catch(() => setNotice('Не удалось выполнить проверку остатков. Повторите попытку.')) }
               else setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)

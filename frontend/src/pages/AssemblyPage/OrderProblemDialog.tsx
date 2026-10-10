@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { problemTypes } from './problemTypes'
+import { problemTypes, allProblemTypes } from './problemTypes'
 
-export type OrderProblemType = typeof problemTypes[number][0]
+export type OrderProblemType = typeof allProblemTypes[number][0]
 export type OrderProblemDetails = { type: OrderProblemType; comment: string; positionSku?: string }
 export type OrderShortage = { sku: string; name: string; required: number; available: number; missing: number; cells: string }
 export type ProblemResolutionStatus = 'awaiting' | 'resolved' | 'returned'
