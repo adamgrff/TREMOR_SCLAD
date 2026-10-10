@@ -45,6 +45,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           return sum + (shortage ? shortage.missing : Math.max(0, item.quantity - picked))
         }, 0)
         const picks = assembly?.picks ?? []
+        const needsDisassembly = picks.length > 0 && (problem.requiresDisassembly ?? problem.type === 'cancelled_order')
         const required = order.items.reduce((sum, item) => sum + item.quantity, 0)
         const groups = picks.reduce<Array<{ sku: string; quantity: number; cells: Map<string, number> }>>((result, pick) => {
           const group = result.find((item) => item.sku === pick.sku)
@@ -69,19 +70,20 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           damaged_product: { happened: `Для ${product} отмечено повреждение: товар нельзя использовать для сборки.`, todo: 'Отделите повреждённый товар, проверьте количество пригодных единиц и обеспечьте необходимый остаток.' },
           invalid_order: { happened: 'В составе, количестве или других данных заказа отмечена ошибка.', todo: 'Сверьте заказ с данными Ozon и устраните расхождения перед продолжением сборки.' },
           other: { happened: problem.comment || 'Заказ остановлен по причине, указанной как «Другая проблема».', todo: 'Уточните причину по комментарию и проверьте заказ. После устранения причины можно продолжить сборку.' },
-          cancelled_order: { happened: 'Заказ отменён. Продолжать сборку этого заказа нельзя.', todo: picks.length > 0 ? 'Передайте уже отобранные товары в разбор для возврата в исходные ячейки.' : 'Отобранных товаров нет. Физический разбор не требуется.' },
+          cancelled_order: { happened: 'Заказ отменён. Продолжать сборку этого заказа нельзя.', todo: needsDisassembly ? 'Передайте уже отобранные товары в разбор для возврата в исходные ячейки.' : picks.length > 0 ? 'Для этого заказа физический разбор не требуется.' : 'Отобранных товаров нет. Физический разбор не требуется.' },
           ozon_error: { happened: 'Запрос к Ozon завершился ошибкой. Успешное подтверждение не получено.', todo: 'Повторите запрос Ozon и дождитесь подтверждённого ответа.' },
         }[problem.type]
         const actions: string[] = {
           insufficient_stock: ['Обновить остатки', 'Вернуть в сборку'],
           unknown_sku: resolved ? ['Вернуть в сборку'] : ['Сопоставить товар'],
-          cancelled_order: picks.length > 0 ? ['Передать в разбор'] : [],
+          cancelled_order: [],
           ozon_error: ['Повторить запрос Ozon'],
           missing_in_cell: ['Вернуть в сборку'],
           damaged_product: ['Вернуть в сборку'],
           invalid_order: ['Вернуть в сборку'],
           other: ['Вернуть в сборку'],
         }[problem.type]
+        if (needsDisassembly) actions.push('Передать в разбор')
         return <details className="problemOrders__order" key={order.number}>
           <summary className="problemOrders__row">
             <span><strong className="problemOrders__number">{order.number}</strong><small>{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>

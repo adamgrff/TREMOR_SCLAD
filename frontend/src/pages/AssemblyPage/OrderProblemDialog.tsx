@@ -6,7 +6,7 @@ export type OrderProblemDetails = { type: OrderProblemType; comment: string; pos
 export type OrderShortage = { sku: string; name: string; required: number; available: number; missing: number; cells: string }
 export type ProblemResolutionStatus = 'awaiting' | 'resolved' | 'returned'
 export type ProblemHistoryEvent = { createdAt: string; title: string; message: string; outcome: 'success' | 'failure' | 'error' }
-export type SavedOrderProblem = OrderProblemDetails & { shortages: OrderShortage[]; createdAt: string; resolutionStatus?: ProblemResolutionStatus; returnedAt?: string; history?: ProblemHistoryEvent[] }
+export type SavedOrderProblem = OrderProblemDetails & { shortages: OrderShortage[]; createdAt: string; resolutionStatus?: ProblemResolutionStatus; returnedAt?: string; history?: ProblemHistoryEvent[]; requiresDisassembly?: boolean }
 
 export default function OrderProblemDialog({ initialType = '', positions = [], initialPositionSku = '', onCancel, onConfirm }: {
   initialType?: OrderProblemType | ''
