@@ -49,6 +49,9 @@
 .problemOrders td strong { font-size: 18px; }
 .problemOrders__tableScroll { overflow: auto; margin-bottom: 20px; }
 .problemOrders__shortages { min-width: 570px; }
+.problemOrders__scanned { margin-top: 18px; }
+.problemOrders__scanned th:last-child, .problemOrders__scanned td:last-child { text-align: center; }
+.problemOrders__scanned td:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .problemOrders__shortages th:not(:first-child), .problemOrders__shortages td:not(:first-child) { white-space: nowrap; }
 .problemOrders__missing { color: #ffc1c1; }
 .problemOrders__cell { padding: 4px 8px; border-radius: 6px; background: #619bd918; color: #8bb9e8; }

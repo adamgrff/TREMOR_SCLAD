@@ -41,10 +41,12 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
         const affected = order.items.filter((item) => item.sku === problem.positionSku || problem.shortages.some((shortage) => shortage.sku === item.sku))
         const picks = assembly?.picks ?? []
         const required = order.items.reduce((sum, item) => sum + item.quantity, 0)
-        const groups = picks.reduce<Array<{ sku: string; cell: string; quantity: number }>>((result, pick) => {
-          const group = result.find((item) => item.sku === pick.sku && item.cell === pick.cell)
+        const groups = picks.reduce<Array<{ sku: string; quantity: number; cells: Map<string, number> }>>((result, pick) => {
+          const group = result.find((item) => item.sku === pick.sku)
           if (group) group.quantity += 1
-          else result.push({ ...pick, quantity: 1 })
+          else result.push({ sku: pick.sku, quantity: 1, cells: new Map() })
+          const position = result.find((item) => item.sku === pick.sku)!
+          position.cells.set(pick.cell, (position.cells.get(pick.cell) ?? 0) + 1)
           return result
         }, [])
         const reason = problemTypes.find(([type]) => type === problem.type)?.[1] ?? 'Другая проблема'
@@ -81,8 +83,10 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
             <div className="problemOrders__picked">
               <div className="problemOrders__sectionTitle"><h3>Сохранённый прогресс</h3><span>{picks.length} / {required} шт.</span></div>
               <progress value={picks.length} max={required || 1} aria-label="Сохранённый прогресс сборки"/>
-              <p className="problemOrders__muted">{assembly ? (assembly.shipmentConfirmed ? 'Отправление подтверждено' : assembly.cell ? `Подтверждена ячейка ${assembly.cell}` : 'Ожидается сканирование ячейки или отправления') : 'Сборка ещё не начата'}</p>
-              {groups.length ? <table><thead><tr><th>Уже собрано</th><th>Исходная ячейка</th><th>Шт.</th></tr></thead><tbody>{groups.map((item) => <tr key={`${item.sku}-${item.cell}`}><td><strong>{order.items.find((product) => product.sku === item.sku)?.name ?? item.sku}</strong><small>{item.sku}</small></td><td><span className="problemOrders__cell">{item.cell}</span></td><td>{item.quantity}</td></tr>)}</tbody></table> : <p className="problemOrders__muted">Отобранных товаров нет</p>}
+              {groups.length ? <table className="problemOrders__scanned"><thead><tr><th>Товар</th><th>Отсканировано / Нужно</th></tr></thead><tbody>{groups.map((item) => {
+                const product = order.items.find((position) => position.sku === item.sku)
+                return <tr key={item.sku}><td><strong>{product?.name ?? item.sku}</strong><small>{item.sku}</small><small>Из ячеек: {[...item.cells].map(([cell, quantity]) => `${cell} ×${quantity}`).join(' · ')}</small></td><td>{item.quantity} / {product?.quantity ?? '—'}</td></tr>
+              })}</tbody></table> : <p className="problemOrders__muted">Сборка ещё не начата</p>}
               <h3 className="problemOrders__problemTitle">Проблема и комментарий</h3>
               {problem.shortages.length > 0 && <div className="problemOrders__tableScroll"><table className="problemOrders__shortages"><thead><tr><th>Товар</th><th>Нужно</th><th>В наличии</th><th>Не хватает</th></tr></thead><tbody>{problem.shortages.map((item) => <tr key={item.sku}><td><strong>{item.name}</strong><small>{item.sku}</small></td><td>{item.required} шт.</td><td>{item.available} шт.</td><td className="problemOrders__missing">{item.missing} шт.</td></tr>)}</tbody></table></div>}
               <p className="problemOrders__comment">{problem.comment || 'Комментарий не добавлен'}</p>
