@@ -47,8 +47,15 @@
 .problemOrders th, .problemOrders td { padding: 16px 10px; }
 .problemOrders td { font-size: 16px; border-bottom: 1px solid #ffffff33; }
 .problemOrders td strong { font-size: 18px; }
-.problemOrders__tableScroll { overflow: auto; margin-bottom: 20px; }
-.problemOrders__shortages { min-width: 570px; }
+.problemOrders__tableScroll { max-height: 330px; overflow: auto; margin-bottom: 20px; scrollbar-width: thin; scrollbar-color: #ffffff80 #ffffff0c; }
+.problemOrders__tableScroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.problemOrders__tableScroll::-webkit-scrollbar-track { background: #ffffff0c; border-radius: 4px; }
+.problemOrders__tableScroll::-webkit-scrollbar-thumb { background: #ffffff80; border-radius: 4px; }
+.problemOrders__shortages { min-width: 700px; table-layout: fixed; }
+.problemOrders__shortages th { height: 66px; box-sizing: border-box; position: sticky; top: 0; background: #202226; z-index: 1; }
+.problemOrders__shortages th:first-child { width: 40%; }
+.problemOrders__shortages tbody tr { height: 88px; }
+.problemOrders__shortages td:first-child strong, .problemOrders__shortages td:first-child small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .problemOrders__scanned { margin-top: 18px; }
 .problemOrders__scanned th:last-child, .problemOrders__scanned td:last-child { text-align: center; }
 .problemOrders__scanned td:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }

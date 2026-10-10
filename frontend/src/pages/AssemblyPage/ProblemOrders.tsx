@@ -39,6 +39,11 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
     <div className="problemOrders__list" key={`${currentPage}:${query}:${filter}`}>
       {pageOrders.map(({ order, problem, assembly }) => {
         const affected = order.items.filter((item) => item.sku === problem.positionSku || problem.shortages.some((shortage) => shortage.sku === item.sku))
+        const problemQuantity = affected.reduce((sum, item) => {
+          const shortage = problem.shortages.find((position) => position.sku === item.sku)
+          const picked = assembly?.picks.filter((pick) => pick.sku === item.sku).length ?? 0
+          return sum + (shortage ? shortage.missing : Math.max(0, item.quantity - picked))
+        }, 0)
         const picks = assembly?.picks ?? []
         const required = order.items.reduce((sum, item) => sum + item.quantity, 0)
         const groups = picks.reduce<Array<{ sku: string; quantity: number; cells: Map<string, number> }>>((result, pick) => {
@@ -75,7 +80,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           <summary className="problemOrders__row">
             <span><strong className="problemOrders__number">{order.number}</strong><small>{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>
             <span className="problemOrders__reason">{reason}</span>
-            <span>{affected.length ? <><strong>{affected[0].name}</strong><small>{affected[0].sku}{affected.length > 1 && ` · ещё ${affected.length - 1}`}</small></> : <><strong>Заказ целиком</strong><small>{order.items.length} поз. · {required} шт.</small></>}</span>
+            <span>{affected.length > 1 ? <><strong>{affected.length} {({ one: 'позиция', few: 'позиции', many: 'позиций', other: 'позиции', zero: 'позиций', two: 'позиции' })[new Intl.PluralRules('ru').select(affected.length)]}</strong><small>{problemQuantity} шт.</small></> : affected.length === 1 ? <><strong>{affected[0].name}</strong><small>{affected[0].sku}</small></> : <><strong>Заказ целиком</strong><small>{order.items.length} поз. · {required} шт.</small></>}</span>
             <span><span className={`problemOrders__status${resolved ? ' problemOrders__status--resolved' : ''}`}>{resolved ? 'Решена' : 'Ожидает решения'}</span></span>
             <ProblemTime value={problem.createdAt}/><span className="problemOrders__chevron" aria-hidden="true"><img className="problemOrders__arrowDown" src={arrowDown} alt=""/><img className="problemOrders__arrowUp" src={arrowUp} alt=""/></span>
           </summary>
