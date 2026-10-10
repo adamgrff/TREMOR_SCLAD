@@ -73,7 +73,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           ozon_error: { happened: 'Запрос к Ozon завершился ошибкой. Успешное подтверждение не получено.', todo: 'Повторите запрос Ozon и дождитесь подтверждённого ответа.' },
         }[problem.type]
         const actions: string[] = {
-          insufficient_stock: ['Перейти в приёмку', 'Обновить остатки', 'Вернуть в сборку'],
+          insufficient_stock: ['Обновить остатки', 'Вернуть в сборку'],
           unknown_sku: resolved ? ['Вернуть в сборку'] : ['Сопоставить товар'],
           cancelled_order: picks.length > 0 ? ['Передать в разбор'] : [],
           ozon_error: ['Повторить запрос Ozon'],
