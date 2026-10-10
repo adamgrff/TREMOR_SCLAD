@@ -1,33 +1,35 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Header from '../../components/Header/Header'
-import ActiveAssembly from './ActiveAssembly'
+import ActiveAssembly, { type AssemblyProblemSnapshot, type AssemblyPreviewOrder } from './ActiveAssembly'
 import OrderProblemDialog, { type OrderProblemDetails, type SavedOrderProblem } from './OrderProblemDialog'
 import { useTheme } from '../../hooks/useTheme'
 import '../ReceivingPage/ReceivingPage.css'
 import '../ReceivingPage/ReceivingHistory.css'
 import './AssemblyPage.css'
 
-const previewOrders = [
+const previewOrders: Array<AssemblyPreviewOrder & { time: string; createdAt: string; status: string }> = [
   { number: '024831-0001', time: '10:24', createdAt: '2026-10-07T10:24:00+07:00', status: 'Готов к сборке', items: [
-    { name: 'TREMOR Classic', sku: 'TR-CLASSIC', quantity: 3, stock: 18, cells: 'A1 ×1 · C2 ×2' },
-    { name: 'TREMOR Black', sku: 'TR-BLACK', quantity: 2, stock: 12, cells: 'B3 ×2' },
-    { name: 'TREMOR White', sku: 'TR-WHITE', quantity: 1, stock: 8, cells: 'A4 ×1' },
+    { name: 'TREMOR Classic', sku: 'TR-CLASSIC', quantity: 3, stock: 18, cellStocks: { A1: 1, C2: 17 }, cells: 'A1 ×1 · C2 ×2' },
+    { name: 'TREMOR Black', sku: 'TR-BLACK', quantity: 2, stock: 12, cellStocks: { A1: 4, B3: 8 }, cells: 'A1 ×1 · B3 ×1' },
+    { name: 'TREMOR White', sku: 'TR-WHITE', quantity: 1, stock: 8, cellStocks: { A4: 8 }, cells: 'A4 ×1' },
   ] },
   { number: '024832-0001', time: '10:31', createdAt: '2026-10-07T10:31:00+07:00', status: 'Готов к сборке', items: [
-    { name: 'TREMOR Black', sku: 'TR-BLACK', quantity: 2, stock: 12, cells: 'B3 ×2' },
-    { name: 'TREMOR Classic', sku: 'TR-CLASSIC', quantity: 1, stock: 18, cells: 'A1 ×1' },
+    { name: 'TREMOR Black', sku: 'TR-BLACK', quantity: 2, stock: 12, cellStocks: { A1: 4, B3: 8 }, cells: 'A1 ×1 · B3 ×1' },
+    { name: 'TREMOR Classic', sku: 'TR-CLASSIC', quantity: 1, stock: 18, cellStocks: { A1: 1, C2: 17 }, cells: 'A1 ×1' },
   ] },
   { number: '024833-0001', time: '10:45', createdAt: '2026-10-07T10:45:00+07:00', status: 'Готов к сборке', items: [
-    { name: 'TREMOR White', sku: 'TR-WHITE', quantity: 4, stock: 2, cells: 'A4 ×2' },
+    { name: 'TREMOR White', sku: 'TR-WHITE', quantity: 4, stock: 2, cellStocks: { A4: 2 }, cells: 'A4 ×2' },
   ] },
 ]
 
 export default function AssemblyPage() {
   const { theme, toggleTheme } = useTheme('dark')
   const [selectedNumber, setSelectedNumber] = useState(previewOrders[0].number)
-  const [problemOrders, setProblemOrders] = useState<Array<{ order: typeof previewOrders[number]; problem: SavedOrderProblem; status: 'problem' }>>([])
+  const [problemOrders, setProblemOrders] = useState<Array<{ order: typeof previewOrders[number]; problem: SavedOrderProblem; status: 'problem'; assembly?: AssemblyProblemSnapshot }>>([])
+  const [activeOrder, setActiveOrder] = useState<typeof previewOrders[number] | null>(null)
+  const [completedOrders, setCompletedOrders] = useState<Array<typeof previewOrders[number]>>([])
   const [problemDialogOpen, setProblemDialogOpen] = useState(false)
-  const queueOrders = previewOrders.filter((order) => !problemOrders.some((problemOrder) => problemOrder.order.number === order.number))
+  const queueOrders = previewOrders.filter((order) => order.number !== activeOrder?.number && !completedOrders.some((completed) => completed.number === order.number) && !problemOrders.some((problemOrder) => problemOrder.order.number === order.number))
   const [currentTime, setCurrentTime] = useState(() => Date.now())
   useEffect(() => {
     const updateTime = () => setCurrentTime(Date.now())
@@ -172,13 +174,17 @@ export default function AssemblyPage() {
               </div>
               <div className="assemblyQueue__footerActions">
                 <button className="assemblyQueue__problem" type="button" onClick={() => setProblemDialogOpen(true)}>Проблема</button>
-                <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={shortageItems.length > 0} aria-describedby={firstShortage ? 'assembly-shortage' : undefined}>Начать сборку</button>
+                <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={shortageItems.length > 0 || activeOrder !== null} aria-describedby={firstShortage ? 'assembly-shortage' : undefined} onClick={() => { if (selected && !activeOrder && shortageItems.length === 0) setActiveOrder(selected) }}>Начать сборку</button>
               </div>
             </div>
             </> : <p className="assemblyQueue__subtitle">Выберите заказ из очереди</p>}
           </div>
         </section>
-        <ActiveAssembly />
+        <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} onComplete={() => { if (activeOrder) { setCompletedOrders((previous) => [...previous, activeOrder]); setActiveOrder(null) } }} onProblem={(assembly) => {
+          if (!activeOrder) return
+          setProblemOrders((previous) => [...previous, { order: activeOrder, status: 'problem', assembly, problem: { ...assembly.details, shortages: [], createdAt: new Date().toISOString() } }])
+          setActiveOrder(null)
+        }} />
       </div>
       {problemDialogOpen && selected && <OrderProblemDialog initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={confirmProblem} />}
     </main>
