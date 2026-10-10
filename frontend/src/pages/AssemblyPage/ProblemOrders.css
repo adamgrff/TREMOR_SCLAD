@@ -1,4 +1,4 @@
-.problemOrders { --problem-muted: #a7a7a7; margin-top: 15px; padding: 24px 40px; }
+.problemOrders { --problem-muted: #a7a7a7; --problem-row-height: 113px; margin-top: 15px; padding: 24px 40px; }
 .problemOrders__header, .problemOrders__tools, .problemOrders__sectionTitle { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .problemOrders__header { margin-bottom: 24px; flex-wrap: wrap; }
 .problemOrders__title { display: flex; align-items: center; gap: 12px; }
@@ -12,9 +12,9 @@
 .problemOrders__tools option { background: #252525; color: #fff; }
 .problemOrders__columns, .problemOrders__row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.2fr) minmax(180px, 1.3fr) minmax(140px, .9fr) 100px 18px; gap: 16px; align-items: center; padding: 16px; }
 .problemOrders__columns { font-size: 24px; font-weight: 700; border-bottom: 2px solid #ffffff59; }
-.problemOrders__list { max-height: 620px; overflow: auto; }
+.problemOrders__list { min-height: calc(5 * var(--problem-row-height)); }
 .problemOrders__order { border-bottom: 1px solid #ffffff18; }
-.problemOrders__row { cursor: pointer; list-style: none; transition: background .18s; min-height: 80px; }
+.problemOrders__row { box-sizing: border-box; cursor: pointer; list-style: none; transition: background .18s; min-height: calc(var(--problem-row-height) - 1px); }
 .problemOrders__row::-webkit-details-marker { display: none; }
 .problemOrders__row:hover { background: #ffffff06; }
 .problemOrders__order[open] > .problemOrders__row { background: rgba(0, 111, 255, .18); box-shadow: inset 3px 0 rgba(0, 111, 255, .85); }

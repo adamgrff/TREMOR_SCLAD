@@ -16,20 +16,25 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
   const [notice, setNotice] = useState('')
+  const [page, setPage] = useState(1)
   const search = query.trim().toLocaleLowerCase('ru-RU')
   const visible = orders.filter(({ order, problem }) => (!filter || problem.type === filter) && (!search || [order.number, ...order.items.flatMap((item) => [item.name, item.sku])].some((value) => value.toLocaleLowerCase('ru-RU').includes(search))))
+  const pageSize = 5
+  const pageCount = Math.max(1, Math.ceil(visible.length / pageSize))
+  const currentPage = Math.min(page, pageCount)
+  const pageOrders = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return <section className="receivingPage__panel problemOrders" aria-labelledby="problem-orders-title">
     <div className="problemOrders__header">
       <div><div className="problemOrders__title"><h2 className="receivingPage__panelTitle" id="problem-orders-title">ПРОБЛЕМНЫЕ ЗАКАЗЫ</h2><span className="problemOrders__count">{orders.length}</span></div><p className="assemblyQueue__subtitle">Разберите причину и продолжите работу с заказом</p></div>
       <div className="problemOrders__tools">
-        <label className="problemOrders__search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg><input type="search" aria-label="Поиск проблемного заказа, SKU или товара" placeholder="Заказ, SKU или товар" value={query} onChange={(event) => setQuery(event.target.value)}/></label>
-        <select aria-label="Фильтр типа проблемы" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="">Все причины</option>{problemTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <label className="problemOrders__search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg><input type="search" aria-label="Поиск проблемного заказа, SKU или товара" placeholder="Заказ, SKU или товар" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }}/></label>
+        <select aria-label="Фильтр типа проблемы" value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1) }}><option value="">Все причины</option>{problemTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       </div>
     </div>
     <div className="problemOrders__columns" aria-hidden="true"><span>Заказ / статус</span><span>Причина</span><span>Затронутый товар</span><span>Решение</span><span>Время</span><span/></div>
-    <div className="problemOrders__list">
-      {visible.map(({ order, problem, assembly }) => {
+    <div className="problemOrders__list" key={`${currentPage}:${query}:${filter}`}>
+      {pageOrders.map(({ order, problem, assembly }) => {
         const affected = order.items.filter((item) => item.sku === problem.positionSku || problem.shortages.some((shortage) => shortage.sku === item.sku))
         const picks = assembly?.picks ?? []
         const required = order.items.reduce((sum, item) => sum + item.quantity, 0)
@@ -72,8 +77,14 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
           </div>
         </details>
       })}
-      {!visible.length && <div className="problemOrders__empty"><strong>{orders.length ? 'Ничего не найдено' : 'Проблемных заказов пока нет'}</strong><p>{orders.length ? 'Измените поисковый запрос или тип проблемы.' : 'Здесь появятся заказы, отправленные из очереди или активной сборки.'}</p>{orders.length > 0 && <button className="receivingHistory__button" type="button" onClick={() => { setQuery(''); setFilter('') }}>Сбросить фильтры</button>}</div>}
+      {pageOrders.length > 0 && pageOrders.length < pageSize && <div aria-hidden="true" style={{ minHeight: `calc(${pageSize - pageOrders.length} * var(--problem-row-height))` }} />}
+      {!visible.length && <div className="problemOrders__empty"><strong>{orders.length ? 'Ничего не найдено' : 'Проблемных заказов пока нет'}</strong><p>{orders.length ? 'Измените поисковый запрос или тип проблемы.' : 'Здесь появятся заказы, отправленные из очереди или активной сборки.'}</p>{orders.length > 0 && <button className="receivingHistory__button" type="button" onClick={() => { setQuery(''); setFilter(''); setPage(1) }}>Сбросить фильтры</button>}</div>}
     </div>
+    <nav className="receivingHistory__pagination" aria-label="Страницы проблемных заказов">
+      <button type="button" className="receivingHistory__button" disabled={currentPage === 1} onClick={() => { setPage(currentPage - 1); setNotice('') }}>Предыдущая</button>
+      <span aria-live="polite">Страница {currentPage} из {pageCount}</span>
+      <button type="button" className="receivingHistory__button" disabled={currentPage === pageCount} onClick={() => { setPage(currentPage + 1); setNotice('') }}>Следующая</button>
+    </nav>
     {notice && <p className="problemOrders__notice" role="status">{notice}</p>}
   </section>
 }
