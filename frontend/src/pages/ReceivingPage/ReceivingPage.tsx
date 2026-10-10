@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router'
 import Header from '../../components/Header/Header'
 import ReceivingHistory from './ReceivingHistory'
 import ProductCatalog from './ProductCatalog'
@@ -167,6 +168,10 @@ async function loadInitialReceivingData(): Promise<InitialReceivingData> {
 }
 
 function ReceivingPage() {
+  const location = useLocation()
+  useEffect(() => {
+    if (location.hash === '#receiving-scan') document.getElementById('receiving-scan')?.scrollIntoView({ block: 'start' })
+  }, [location.hash])
   const { theme, toggleTheme } = useTheme('light')
   const initialDataPromise = useRef<Promise<InitialReceivingData> | null>(null)
 

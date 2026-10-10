@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import type { AssemblyPreviewOrder, AssemblyProblemSnapshot } from './ActiveAssembly'
 import type { SavedOrderProblem } from './OrderProblemDialog'
 import { problemTypes } from './problemTypes'
@@ -45,6 +46,19 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
           return result
         }, [])
         const reason = problemTypes.find(([type]) => type === problem.type)?.[1] ?? 'Другая проблема'
+        const position = order.items.find((item) => item.sku === problem.positionSku)
+        const product = position ? `${position.name} (${position.sku})` : 'товар заказа'
+        const explanation = {
+          insufficient_stock: {
+            happened: problem.shortages.length ? problem.shortages.map((item) => `Для ${item.name} требуется ${item.required} шт., на складе доступно ${item.available} шт.`).join(' ') : `Для ${product} указан недостаточный остаток. Проверьте доступное количество.`,
+            todo: problem.shortages.length ? `Перейдите в «Приёмку» и добавьте недостающее количество: ${problem.shortages.map((item) => `${item.name} — минимум ${item.missing} шт.`).join('; ')} После этого нажмите «Обновить остатки».` : 'Проверьте недостающее количество, добавьте товар через «Приёмку», затем нажмите «Обновить остатки».',
+          },
+          missing_in_cell: { happened: `Отмечено отсутствие ${product} в ячейке при наличии по данным склада.`, todo: 'Проверьте указанную ячейку и фактическое наличие товара. Уточните размещение и остатки перед продолжением сборки.' },
+          unknown_sku: { happened: `Код ${position?.sku ?? 'товара заказа'} не сопоставлен с товаром склада.`, todo: 'Сопоставьте SKU с правильным товаром склада и проверьте состав заказа.' },
+          damaged_product: { happened: `Для ${product} отмечено повреждение: товар нельзя использовать для сборки.`, todo: 'Отделите повреждённый товар, проверьте количество пригодных единиц и обеспечьте необходимый остаток.' },
+          invalid_order: { happened: 'В составе, количестве или других данных заказа отмечена ошибка.', todo: 'Сверьте заказ с данными Ozon и устраните расхождения перед продолжением сборки.' },
+          other: { happened: problem.comment || 'Заказ остановлен по причине, указанной как «Другая проблема».', todo: 'Уточните причину по комментарию и проверьте заказ. После устранения причины можно продолжить сборку.' },
+        }[problem.type]
         const actions = [
           ...(['insufficient_stock', 'missing_in_cell', 'damaged_product'].includes(problem.type) ? ['Обновить остатки'] : []),
           ...(problem.type === 'unknown_sku' ? ['Сопоставить SKU'] : []),
@@ -65,11 +79,18 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
               <progress value={picks.length} max={required || 1} aria-label="Сохранённый прогресс сборки"/>
               <p className="problemOrders__muted">{assembly ? (assembly.shipmentConfirmed ? 'Отправление подтверждено' : assembly.cell ? `Подтверждена ячейка ${assembly.cell}` : 'Ожидается сканирование ячейки или отправления') : 'Сборка ещё не начата'}</p>
               {groups.length ? <table><thead><tr><th>Уже собрано</th><th>Исходная ячейка</th><th>Шт.</th></tr></thead><tbody>{groups.map((item) => <tr key={`${item.sku}-${item.cell}`}><td><strong>{order.items.find((product) => product.sku === item.sku)?.name ?? item.sku}</strong><small>{item.sku}</small></td><td><span className="problemOrders__cell">{item.cell}</span></td><td>{item.quantity}</td></tr>)}</tbody></table> : <p className="problemOrders__muted">Отобранных товаров нет</p>}
-            </div>
-            <div className="problemOrders__context">
-              <h3>Проблема и комментарий</h3>
+              <h3 className="problemOrders__problemTitle">Проблема и комментарий</h3>
               {problem.shortages.length > 0 && <div className="problemOrders__tableScroll"><table className="problemOrders__shortages"><thead><tr><th>Товар</th><th>Нужно</th><th>В наличии</th><th>Не хватает</th></tr></thead><tbody>{problem.shortages.map((item) => <tr key={item.sku}><td><strong>{item.name}</strong><small>{item.sku}</small></td><td>{item.required} шт.</td><td>{item.available} шт.</td><td className="problemOrders__missing">{item.missing} шт.</td></tr>)}</tbody></table></div>}
               <p className="problemOrders__comment">{problem.comment || 'Комментарий не добавлен'}</p>
+            </div>
+            <div className="problemOrders__context">
+              <div className="problemOrders__guidance">
+                <h3>Что произошло</h3>
+                <p>{explanation.happened}</p>
+                <h3>Что делать</h3>
+                <p>{explanation.todo}</p>
+                {problem.type === 'insufficient_stock' && <Link className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">В Приёмку</Link>}
+              </div>
               <h3>История проблемы</h3>
               <ol className="problemOrders__history"><li><ProblemTime value={problem.createdAt}/><span>Заказ передан из {assembly ? 'сборки' : 'очереди'}.<br/>{reason}{problem.positionSku && ` · ${problem.positionSku}`}</span></li></ol>
             </div>

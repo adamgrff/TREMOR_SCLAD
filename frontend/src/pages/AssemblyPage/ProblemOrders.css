@@ -52,6 +52,12 @@
 .problemOrders__cell { padding: 4px 8px; border-radius: 6px; background: #619bd918; color: #8bb9e8; }
 .problemOrders__context, .problemOrders__picked { min-width: 0; }
 .problemOrders__context { border-left: 1px solid #ffffff18; padding-left: 24px; }
+.problemOrders h3.problemOrders__problemTitle { margin-top: 28px; }
+.problemOrders__guidance { padding: 18px 20px; margin-bottom: 28px; background: #619bd90c; border: 1px solid #619bd930; border-radius: 12px; }
+.problemOrders__guidance h3 { font-size: 20px; margin-bottom: 10px; }
+.problemOrders__guidance p { margin: 0 0 20px; font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; }
+.problemOrders__guidance p:last-child { margin-bottom: 0; }
+.problemOrders__receivingLink { display: inline-flex; text-decoration: none; align-items: center; justify-content: center; }
 .problemOrders__comment { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; margin: 0 0 24px; color: var(--problem-muted); }
 .problemOrders__history { list-style: none; padding: 0 0 0 14px; margin: 0; border-left: 2px solid #619bd950; }
 .problemOrders__history li { display: flex; align-items: center; gap: 18px; font-size: 16px; }
