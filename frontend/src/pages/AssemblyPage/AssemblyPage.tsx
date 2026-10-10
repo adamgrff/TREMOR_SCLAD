@@ -4,6 +4,7 @@ import Header from '../../components/Header/Header'
 import ActiveAssembly, { type ActiveAssemblyState, type AssemblyProblemSnapshot, type AssemblyPreviewOrder } from './ActiveAssembly'
 import useAssemblyDraft from './useAssemblyDraft'
 import checkProblemStock from './checkProblemStock'
+import createProblemHistory from './createProblemHistory'
 import ProblemOrders from './ProblemOrders'
 import OrderProblemDialog, { type OrderProblemDetails, type SavedOrderProblem } from './OrderProblemDialog'
 import { useTheme } from '../../hooks/useTheme'
@@ -101,9 +102,11 @@ export default function AssemblyPage() {
   const firstShortage = shortageItems[0]
   async function confirmProblem(problem: OrderProblemDetails) {
     if (!selected || draft.blocked) return
+    const createdAt = new Date().toISOString()
     const savedProblem: SavedOrderProblem = {
       ...problem,
-      createdAt: new Date().toISOString(),
+      createdAt,
+      history: createProblemHistory(selected, problem, createdAt),
       resolutionStatus: 'awaiting',
       shortages: shortageItems.map((item) => ({ sku: item.sku, name: item.name, required: item.quantity, available: item.stock, missing: item.quantity - item.stock, cells: item.cells })),
     }
@@ -126,11 +129,12 @@ export default function AssemblyPage() {
       log: 'Заказ возвращён в сборку после решения проблемы. Сохранённый прогресс восстановлен.',
       error: false,
     } : { ...emptyAssemblyState }
+    const returnedAt = new Date().toISOString()
     return draft.save({
       ...draft.state,
       activeOrder: entry.order,
       activeState: restored,
-      problemOrders: problemOrders.map((item) => item === entry ? { ...item, problem: { ...item.problem, resolutionStatus: 'returned', returnedAt: new Date().toISOString() } } : item),
+      problemOrders: problemOrders.map((item) => item === entry ? { ...item, problem: { ...item.problem, resolutionStatus: 'returned', returnedAt, history: [...(item.problem.history ?? createProblemHistory(item.order, item.problem, item.problem.createdAt, item.assembly)), { createdAt: returnedAt, kind: 'return', title: 'Заказ возвращён в сборку', message: 'Сохранённый прогресс восстановлен.', outcome: 'success' }] } } : item),
     })
   }
 
@@ -141,7 +145,8 @@ export default function AssemblyPage() {
     stockCheckRef.current = true
     setCheckingStock(true)
     try {
-      const result = await checkProblemStock(entry.order, entry.problem, entry.assembly)
+      const history = entry.problem.history?.some((event) => event.kind === 'creation') ? entry.problem.history : [...createProblemHistory(entry.order, entry.problem, entry.problem.createdAt, entry.assembly), ...(entry.problem.history ?? [])]
+      const result = await checkProblemStock(entry.order, { ...entry.problem, history }, entry.assembly)
       const saved = await draft.save({ ...draft.state, problemOrders: problemOrders.map((item) => item === entry ? {
         ...item,
         order: { ...entry.order, items: result.order.items },
@@ -245,7 +250,8 @@ export default function AssemblyPage() {
         </section>
         <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked || checkingStock} onChange={(next) => draft.save({ ...draft.state, activeState: next })} onComplete={() => { if (activeOrder && !draft.blocked) void draft.save({ ...draft.state, completedOrders: [...completedOrders, activeOrder], activeOrder: null, activeState: emptyAssemblyState }) }} onProblem={(assembly) => {
           if (!activeOrder) return
-          void draft.save({ ...draft.state, problemOrders: [...problemOrders, { order: activeOrder, status: 'problem', assembly, problem: { ...assembly.details, shortages: [], createdAt: new Date().toISOString(), resolutionStatus: 'awaiting' } }], activeOrder: null, activeState: emptyAssemblyState })
+          const createdAt = new Date().toISOString()
+          void draft.save({ ...draft.state, problemOrders: [...problemOrders, { order: activeOrder, status: 'problem', assembly, problem: { ...assembly.details, shortages: [], createdAt, resolutionStatus: 'awaiting', history: createProblemHistory(activeOrder, assembly.details, createdAt, assembly) } }], activeOrder: null, activeState: emptyAssemblyState })
         }} />
         <ProblemOrders orders={problemOrders} blocked={draft.blocked || checkingStock} assemblyBusy={activeOrder !== null} onReturn={returnToAssembly} onStockCheck={refreshProblemStock} />
       </div>

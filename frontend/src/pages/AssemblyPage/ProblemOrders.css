@@ -76,6 +76,8 @@
 .problemOrders__checks { padding-top: 18px; }
 .problemOrders__checks li + li { margin-top: 18px; }
 .problemOrders__checkResult { display: flex; flex-direction: column; gap: 6px; }
+.problemOrders__checkResult > span { white-space: pre-line; }
+.problemOrders__checkResult--neutral { color: #d4d4d4; }
 .problemOrders__checkResult strong { font-weight: 600; }
 .problemOrders__checkResult--success { color: #b9f1cb; }
 .problemOrders__checkResult--failure, .problemOrders__checkResult--error { color: #ffc1c1; }

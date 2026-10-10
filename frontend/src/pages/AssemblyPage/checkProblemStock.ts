@@ -3,6 +3,7 @@ import type { AssemblyPreviewOrder, AssemblyProblemSnapshot } from './ActiveAsse
 import type { SavedOrderProblem, ProblemHistoryEvent } from './OrderProblemDialog'
 
 export default async function checkProblemStock(order: AssemblyPreviewOrder, problem: SavedOrderProblem, assembly?: AssemblyProblemSnapshot) {
+  const checkEvent: ProblemHistoryEvent = { createdAt: new Date().toISOString(), kind: 'check', title: 'Выполнена проверка остатков', message: 'Проверка доступного количества по всем позициям заказа.', outcome: 'neutral' }
   const results = await Promise.allSettled(order.items.map(async (item) => {
     const response = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(item.sku)}/stock`, { cache: 'no-store', signal: AbortSignal.timeout(15000) })
     if (!response.ok) throw new Error(response.status === 404 ? `SKU ${item.sku} не найден на складе. Проверьте сопоставление товара.` : `Не удалось проверить остаток ${item.name}.`)
@@ -29,20 +30,21 @@ export default async function checkProblemStock(order: AssemblyPreviewOrder, pro
   if (failed?.status === 'rejected') {
     const message = failed.reason instanceof Error ? failed.reason.message : 'Проверка остатков не выполнена. Повторите попытку.'
     const event: ProblemHistoryEvent = { createdAt: timestamp, title: 'Ошибка проверки остатков', message, outcome: 'error' }
-    return { order, problem: { ...problem, resolutionStatus: 'awaiting' as const, history: [...(problem.history ?? []), event] }, message }
+    return { order, problem: { ...problem, resolutionStatus: 'awaiting' as const, history: [...(problem.history ?? []), checkEvent, event] }, message }
   }
   const stocks = results.flatMap((result) => result.status === 'fulfilled' ? [result.value] : [])
   const shortages = stocks.filter((stock) => stock.missing > 0).map(({ item, available, required, missing }) => ({ sku: item.sku, name: item.name, cells: item.cells, required, available, missing }))
   const enough = shortages.length === 0
   const missing = shortages.reduce((sum, item) => sum + item.missing, 0)
   const message = enough ? '✓ Остатков достаточно. Проблема устранена!' : `Товара всё ещё недостаточно. Не хватает: ${missing} шт.`
-  const event: ProblemHistoryEvent = { createdAt: timestamp, title: enough ? '✓ Остатков достаточно.' : 'Товара всё ещё недостаточно', message: enough ? 'Проблема устранена!' : `Не хватает: ${missing} шт. ${shortages.map((item) => `${item.name}: ${item.missing} шт.`).join('; ')}`, outcome: enough ? 'success' : 'failure' }
+  const event: ProblemHistoryEvent = { createdAt: timestamp, kind: 'result', title: enough ? '✓ Остатков достаточно.' : 'Товара всё ещё недостаточно', message: enough ? `Проблема устранена! Доступно: ${stocks.map(({ item, available }) => `${item.name} — ${available} шт.`).join('; ')}` : `Не хватает: ${missing} шт. ${shortages.map((item) => `${item.name}: ${item.missing} шт.`).join('; ')}`, outcome: enough ? 'success' : 'failure' }
+  const resolution: ProblemHistoryEvent[] = enough && problem.resolutionStatus !== 'resolved' ? [{ createdAt: timestamp, kind: 'resolution', title: 'Проблема решена', message: 'Остатков достаточно для продолжения сборки.', outcome: 'success' }] : []
   return {
     order: { ...order, items: order.items.map((item) => {
       const stock = stocks.find((stock) => stock.item.sku === item.sku)!
       return { ...item, stock: stock.available, ...(enough ? { cells: stock.cells, cellStocks: stock.cellStocks } : {}) }
     }) },
-    problem: { ...problem, shortages, resolutionStatus: enough ? 'resolved' as const : 'awaiting' as const, history: [...(problem.history ?? []), event] },
+    problem: { ...problem, shortages, resolutionStatus: enough ? 'resolved' as const : 'awaiting' as const, history: [...(problem.history ?? []), checkEvent, event, ...resolution] },
     message,
   }
 }

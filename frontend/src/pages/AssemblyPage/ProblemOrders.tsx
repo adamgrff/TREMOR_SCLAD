@@ -4,6 +4,7 @@ import type { AssemblyPreviewOrder, AssemblyProblemSnapshot } from './ActiveAsse
 import type { SavedOrderProblem } from './OrderProblemDialog'
 import { allProblemTypes } from './problemTypes'
 import groupProblemHistory from './groupProblemHistory'
+import createProblemHistory from './createProblemHistory'
 import arrowDown from '../../assets/home/arrow-down.svg'
 import arrowUp from '../../assets/home/arrow-up.svg'
 import './ProblemOrders.css'
@@ -46,6 +47,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
         }, 0)
         const picks = assembly?.picks ?? []
         const needsDisassembly = picks.length > 0 && (problem.requiresDisassembly ?? problem.type === 'cancelled_order')
+        const history = problem.history?.some((event) => event.kind === 'creation') ? problem.history : [...createProblemHistory(order, problem, problem.createdAt, assembly), ...(problem.history ?? [])]
         const required = order.items.reduce((sum, item) => sum + item.quantity, 0)
         const groups = picks.reduce<Array<{ sku: string; quantity: number; cells: Map<string, number> }>>((result, pick) => {
           const group = result.find((item) => item.sku === pick.sku)
@@ -113,8 +115,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                 {problem.type === 'insufficient_stock' && <Link className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">В Приёмку</Link>}
               </div>
               <h3>История проблемы</h3>
-              <ol className="problemOrders__history"><li><ProblemTime value={problem.createdAt}/><span>Заказ передан из {assembly ? 'сборки' : 'очереди'}.<br/>{reason}{problem.positionSku && ` · ${problem.positionSku}`}</span></li></ol>
-              {(problem.history?.length ?? 0) > 0 && <ol className="problemOrders__history problemOrders__checks" aria-label="История проверок остатков" aria-live="polite">{groupProblemHistory(problem.history ?? []).map(({ key, latest: event, previous }) => <li key={key}>
+              <ol className="problemOrders__history problemOrders__checks" aria-label="История создания и решения проблемы" aria-live="polite">{groupProblemHistory(history).map(({ key, latest: event, previous }) => <li key={key}>
                 <ProblemTime value={event.createdAt}/>
                 <span className={`problemOrders__checkResult problemOrders__checkResult--${event.outcome}`}><strong>{event.title}</strong><span>{event.message}</span></span>
                 {previous.length > 0 && <span className="problemOrders__repeats">
@@ -127,7 +128,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                     </span>)}</span>
                   </span>
                 </span>}
-              </li>)}</ol>}
+              </li>)}</ol>
             </div>
             <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Вернуть в сборку' && (!resolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
               if (action === 'Вернуть в сборку') void onReturn(order.number).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
