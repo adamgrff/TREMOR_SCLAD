@@ -13,7 +13,7 @@ function ProblemTime({ value }: { value: string }) {
   return <time className="problemOrders__time" dateTime={value}><span className="assemblyQueue__time">{timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><span className="assemblyQueue__date">{timestamp.toLocaleDateString('ru-RU')}</span></time>
 }
 
-export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string) => Promise<boolean> }) {
+export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string) => Promise<boolean>; onStockCheck: (number: string) => Promise<string> }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
   const [notice, setNotice] = useState('')
@@ -96,9 +96,11 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn 
               </div>
               <h3>История проблемы</h3>
               <ol className="problemOrders__history"><li><ProblemTime value={problem.createdAt}/><span>Заказ передан из {assembly ? 'сборки' : 'очереди'}.<br/>{reason}{problem.positionSku && ` · ${problem.positionSku}`}</span></li></ol>
+              {(problem.history?.length ?? 0) > 0 && <ol className="problemOrders__history problemOrders__checks" aria-label="История проверок остатков" aria-live="polite">{problem.history?.map((event, index) => <li key={`${event.createdAt}-${index}`}><ProblemTime value={event.createdAt}/><span className={`problemOrders__checkResult problemOrders__checkResult--${event.outcome}`}><strong>{event.title}</strong><span>{event.message}</span></span></li>)}</ol>}
             </div>
-            <div className="problemOrders__actions">{actions.map((action) => <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={action === 'Вернуть в сборку' && (!resolved || assemblyBusy || blocked)} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
+            <div className="problemOrders__actions">{actions.map((action) => <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Вернуть в сборку' && (!resolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
               if (action === 'Вернуть в сборку') void onReturn(order.number).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
+              else if (action === 'Обновить остатки' && problem.type === 'insufficient_stock') { setNotice(`${order.number}: проверка остатков…`); void onStockCheck(order.number).then(setNotice).catch(() => setNotice('Не удалось выполнить проверку остатков. Повторите попытку.')) }
               else setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)
             }}>{action}</button>)}</div>
           </div>

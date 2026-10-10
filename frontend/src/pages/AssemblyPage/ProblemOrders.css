@@ -63,6 +63,12 @@
 .problemOrders__comment { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; margin: 0 0 24px; color: var(--problem-muted); }
 .problemOrders__history { list-style: none; padding: 0 0 0 14px; margin: 0; border-left: 2px solid #619bd950; }
 .problemOrders__history li { display: flex; align-items: center; gap: 18px; font-size: 16px; }
+.problemOrders__checks { padding-top: 18px; }
+.problemOrders__checks li + li { margin-top: 18px; }
+.problemOrders__checkResult { display: flex; flex-direction: column; gap: 6px; }
+.problemOrders__checkResult strong { font-weight: 600; }
+.problemOrders__checkResult--success { color: #b9f1cb; }
+.problemOrders__checkResult--failure, .problemOrders__checkResult--error { color: #ffc1c1; }
 .problemOrders__actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding-top: 8px; }
 .problemOrders__resume { color: #a6cbed; background: #619bd922; border-color: #619bd960; }
 .problemOrders__empty { text-align: center; padding: 40px 16px; }

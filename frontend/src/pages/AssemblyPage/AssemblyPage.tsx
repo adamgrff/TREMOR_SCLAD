@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Header from '../../components/Header/Header'
 import ActiveAssembly, { type ActiveAssemblyState, type AssemblyProblemSnapshot, type AssemblyPreviewOrder } from './ActiveAssembly'
 import useAssemblyDraft from './useAssemblyDraft'
+import checkProblemStock from './checkProblemStock'
 import ProblemOrders from './ProblemOrders'
 import OrderProblemDialog, { type OrderProblemDetails, type SavedOrderProblem } from './OrderProblemDialog'
 import { useTheme } from '../../hooks/useTheme'
@@ -41,6 +42,8 @@ export default function AssemblyPage() {
   const draft = useAssemblyDraft(initialWorkspace)
   const { activeOrder, activeState, problemOrders, completedOrders } = draft.state
   const [problemDialogOpen, setProblemDialogOpen] = useState(false)
+  const [checkingStock, setCheckingStock] = useState(false)
+  const stockCheckRef = useRef(false)
   const queueOrders = previewOrders.filter((order) => order.number !== activeOrder?.number && !completedOrders.some((completed) => completed.number === order.number) && !problemOrders.some((problemOrder) => problemOrder.order.number === order.number && problemOrder.problem.resolutionStatus !== 'returned'))
   const [currentTime, setCurrentTime] = useState(() => Date.now())
   useEffect(() => {
@@ -112,7 +115,7 @@ export default function AssemblyPage() {
   }
 
   async function returnToAssembly(number: string) {
-    if (draft.blocked || activeOrder) return false
+    if (draft.blocked || activeOrder || stockCheckRef.current) return false
     const entry = problemOrders.find((item) => item.order.number === number && item.problem.resolutionStatus === 'resolved')
     if (!entry || completedOrders.some((order) => order.number === number)) return false
     const restored: ActiveAssemblyState = entry.assembly ? {
@@ -129,6 +132,27 @@ export default function AssemblyPage() {
       activeState: restored,
       problemOrders: problemOrders.map((item) => item === entry ? { ...item, problem: { ...item.problem, resolutionStatus: 'returned', returnedAt: new Date().toISOString() } } : item),
     })
+  }
+
+  async function refreshProblemStock(number: string): Promise<string> {
+    if (draft.blocked || stockCheckRef.current) return 'Дождитесь завершения сохранения.'
+    const entry = problemOrders.find((item) => item.order.number === number && item.problem.resolutionStatus !== 'returned')
+    if (!entry || entry.problem.type !== 'insufficient_stock') return 'Проверка остатков не устраняет этот тип проблемы.'
+    stockCheckRef.current = true
+    setCheckingStock(true)
+    try {
+      const result = await checkProblemStock(entry.order, entry.problem, entry.assembly)
+      const saved = await draft.save({ ...draft.state, problemOrders: problemOrders.map((item) => item === entry ? {
+        ...item,
+        order: { ...entry.order, items: result.order.items },
+        problem: result.problem,
+        ...(entry.assembly && result.problem.resolutionStatus === 'resolved' ? { assembly: { ...entry.assembly, cell: null } } : {}),
+      } : item) })
+      return saved ? `${number}: ${result.message}` : 'Результат проверки не сохранён. Нажмите «Повторить» в сообщении сохранения.'
+    } finally {
+      stockCheckRef.current = false
+      setCheckingStock(false)
+    }
   }
 
   return (
@@ -212,18 +236,18 @@ export default function AssemblyPage() {
                 {firstShortage && <><p>Недостаточно товара для начала сборки.</p><p>{firstShortage.name}: требуется {firstShortage.quantity}, доступно {firstShortage.stock}.{shortageItems.length > 1 && ` И ещё ${shortageItems.length - 1} проблемных позиций.`}</p></>}
               </div>
               <div className="assemblyQueue__footerActions">
-                <button className="assemblyQueue__problem" type="button" disabled={draft.blocked} onClick={() => setProblemDialogOpen(true)}>Проблема</button>
-                <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={shortageItems.length > 0 || activeOrder !== null || draft.blocked} aria-describedby={firstShortage ? 'assembly-shortage' : undefined} onClick={() => { if (selected && !activeOrder && shortageItems.length === 0) void draft.save({ ...draft.state, activeOrder: selected, activeState: emptyAssemblyState }) }}>Начать сборку</button>
+                <button className="assemblyQueue__problem" type="button" disabled={draft.blocked || checkingStock} onClick={() => setProblemDialogOpen(true)}>Проблема</button>
+                <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={shortageItems.length > 0 || activeOrder !== null || draft.blocked || checkingStock} aria-describedby={firstShortage ? 'assembly-shortage' : undefined} onClick={() => { if (selected && !activeOrder && shortageItems.length === 0) void draft.save({ ...draft.state, activeOrder: selected, activeState: emptyAssemblyState }) }}>Начать сборку</button>
               </div>
             </div>
             </> : <p className="assemblyQueue__subtitle">Выберите заказ из очереди</p>}
           </div>
         </section>
-        <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked} onChange={(next) => draft.save({ ...draft.state, activeState: next })} onComplete={() => { if (activeOrder && !draft.blocked) void draft.save({ ...draft.state, completedOrders: [...completedOrders, activeOrder], activeOrder: null, activeState: emptyAssemblyState }) }} onProblem={(assembly) => {
+        <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked || checkingStock} onChange={(next) => draft.save({ ...draft.state, activeState: next })} onComplete={() => { if (activeOrder && !draft.blocked) void draft.save({ ...draft.state, completedOrders: [...completedOrders, activeOrder], activeOrder: null, activeState: emptyAssemblyState }) }} onProblem={(assembly) => {
           if (!activeOrder) return
           void draft.save({ ...draft.state, problemOrders: [...problemOrders, { order: activeOrder, status: 'problem', assembly, problem: { ...assembly.details, shortages: [], createdAt: new Date().toISOString(), resolutionStatus: 'awaiting' } }], activeOrder: null, activeState: emptyAssemblyState })
         }} />
-        <ProblemOrders orders={problemOrders} blocked={draft.blocked} assemblyBusy={activeOrder !== null} onReturn={returnToAssembly} />
+        <ProblemOrders orders={problemOrders} blocked={draft.blocked || checkingStock} assemblyBusy={activeOrder !== null} onReturn={returnToAssembly} onStockCheck={refreshProblemStock} />
       </div>
       {problemDialogOpen && selected && <OrderProblemDialog initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={(problem) => void confirmProblem(problem)} />}
     </main>
