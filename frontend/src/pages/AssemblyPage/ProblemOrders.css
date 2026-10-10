@@ -25,6 +25,8 @@
 .problemOrders small { display: block; color: var(--problem-muted); font-size: 14px; margin-top: 5px; }
 .problemOrders__reason { color: #e5b896; }
 .problemOrders__status { display: inline-block; font-size: 14px; color: #e6c88e; background: #caa45017; border-radius: 6px; padding: 6px 9px; }
+.problemOrders__status--resolved { color: #b9f1cb; background: #28964b26; }
+.problemOrders__resume:disabled { opacity: .4; cursor: not-allowed; }
 .problemOrders__time { font-size: 16px; font-variant-numeric: tabular-nums; color: inherit; white-space: nowrap; }
 .problemOrders__chevron { display: flex; align-items: center; justify-content: center; }
 .problemOrders__chevron img { width: 1em; height: 1em; object-fit: contain; }

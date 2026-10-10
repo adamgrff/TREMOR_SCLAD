@@ -13,13 +13,14 @@ function ProblemTime({ value }: { value: string }) {
   return <time className="problemOrders__time" dateTime={value}><span className="assemblyQueue__time">{timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><span className="assemblyQueue__date">{timestamp.toLocaleDateString('ru-RU')}</span></time>
 }
 
-export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
+export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string) => Promise<boolean> }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
   const [notice, setNotice] = useState('')
   const [page, setPage] = useState(1)
   const search = query.trim().toLocaleLowerCase('ru-RU')
-  const visible = orders.filter(({ order, problem }) => (!filter || problem.type === filter) && (!search || [order.number, ...order.items.flatMap((item) => [item.name, item.sku])].some((value) => value.toLocaleLowerCase('ru-RU').includes(search))))
+  const pendingOrders = orders.filter(({ problem }) => problem.resolutionStatus !== 'returned')
+  const visible = pendingOrders.filter(({ order, problem }) => (!filter || problem.type === filter) && (!search || [order.number, ...order.items.flatMap((item) => [item.name, item.sku])].some((value) => value.toLocaleLowerCase('ru-RU').includes(search))))
   const pageSize = 5
   const pageCount = Math.max(1, Math.ceil(visible.length / pageSize))
   const currentPage = Math.min(page, pageCount)
@@ -27,7 +28,7 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
 
   return <section className="receivingPage__panel problemOrders" aria-labelledby="problem-orders-title">
     <div className="problemOrders__header">
-      <div><div className="problemOrders__title"><h2 className="receivingPage__panelTitle" id="problem-orders-title">ПРОБЛЕМНЫЕ ЗАКАЗЫ</h2><span className="problemOrders__count">{orders.length}</span></div><p className="assemblyQueue__subtitle">Разберите причину и продолжите работу с заказом</p></div>
+      <div><div className="problemOrders__title"><h2 className="receivingPage__panelTitle" id="problem-orders-title">ПРОБЛЕМНЫЕ ЗАКАЗЫ</h2><span className="problemOrders__count">{pendingOrders.length}</span></div><p className="assemblyQueue__subtitle">Разберите причину и продолжите работу с заказом</p></div>
       <div className="problemOrders__tools">
         <label className="problemOrders__search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg><input type="search" aria-label="Поиск проблемного заказа, SKU или товара" placeholder="Заказ, SKU или товар" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }}/></label>
         <select aria-label="Фильтр типа проблемы" value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1) }}><option value="">Все причины</option>{problemTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
@@ -46,6 +47,8 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
           return result
         }, [])
         const reason = problemTypes.find(([type]) => type === problem.type)?.[1] ?? 'Другая проблема'
+        const resolved = problem.resolutionStatus === 'resolved'
+        const returnHint = !resolved ? 'Сначала устраните причину проблемы' : assemblyBusy ? 'Сначала завершите текущую сборку' : blocked ? 'Дождитесь сохранения и восстановления связи' : 'Продолжить сборку с сохранённым прогрессом'
         const position = order.items.find((item) => item.sku === problem.positionSku)
         const product = position ? `${position.name} (${position.sku})` : 'товар заказа'
         const explanation = {
@@ -70,7 +73,7 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
             <span><strong className="problemOrders__number">{order.number}</strong><small>{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>
             <span className="problemOrders__reason">{reason}</span>
             <span>{affected.length ? <><strong>{affected[0].name}</strong><small>{affected[0].sku}{affected.length > 1 && ` · ещё ${affected.length - 1}`}</small></> : <><strong>Заказ целиком</strong><small>{order.items.length} поз. · {required} шт.</small></>}</span>
-            <span><span className="problemOrders__status">Ожидает решения</span></span>
+            <span><span className={`problemOrders__status${resolved ? ' problemOrders__status--resolved' : ''}`}>{resolved ? 'Решена' : 'Ожидает решения'}</span></span>
             <ProblemTime value={problem.createdAt}/><span className="problemOrders__chevron" aria-hidden="true"><img className="problemOrders__arrowDown" src={arrowDown} alt=""/><img className="problemOrders__arrowUp" src={arrowUp} alt=""/></span>
           </summary>
           <div className="problemOrders__details">
@@ -94,12 +97,15 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
               <h3>История проблемы</h3>
               <ol className="problemOrders__history"><li><ProblemTime value={problem.createdAt}/><span>Заказ передан из {assembly ? 'сборки' : 'очереди'}.<br/>{reason}{problem.positionSku && ` · ${problem.positionSku}`}</span></li></ol>
             </div>
-            <div className="problemOrders__actions">{actions.map((action) => <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} onClick={() => setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)}>{action}</button>)}</div>
+            <div className="problemOrders__actions">{actions.map((action) => <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={action === 'Вернуть в сборку' && (!resolved || assemblyBusy || blocked)} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
+              if (action === 'Вернуть в сборку') void onReturn(order.number).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
+              else setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)
+            }}>{action}</button>)}</div>
           </div>
         </details>
       })}
       {pageOrders.length > 0 && pageOrders.length < pageSize && <div aria-hidden="true" style={{ minHeight: `calc(${pageSize - pageOrders.length} * var(--problem-row-height))` }} />}
-      {!visible.length && <div className="problemOrders__empty"><strong>{orders.length ? 'Ничего не найдено' : 'Проблемных заказов пока нет'}</strong><p>{orders.length ? 'Измените поисковый запрос или тип проблемы.' : 'Здесь появятся заказы, отправленные из очереди или активной сборки.'}</p>{orders.length > 0 && <button className="receivingHistory__button" type="button" onClick={() => { setQuery(''); setFilter(''); setPage(1) }}>Сбросить фильтры</button>}</div>}
+      {!visible.length && <div className="problemOrders__empty"><strong>{pendingOrders.length ? 'Ничего не найдено' : 'Проблемных заказов пока нет'}</strong><p>{pendingOrders.length ? 'Измените поисковый запрос или тип проблемы.' : 'Здесь появятся заказы, отправленные из очереди или активной сборки.'}</p>{pendingOrders.length > 0 && <button className="receivingHistory__button" type="button" onClick={() => { setQuery(''); setFilter(''); setPage(1) }}>Сбросить фильтры</button>}</div>}
     </div>
     <nav className="receivingHistory__pagination" aria-label="Страницы проблемных заказов">
       <button type="button" className="receivingHistory__button" disabled={currentPage === 1} onClick={() => { setPage(currentPage - 1); setNotice('') }}>Предыдущая</button>

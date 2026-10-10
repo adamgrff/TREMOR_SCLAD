@@ -4,7 +4,8 @@ import { problemTypes } from './problemTypes'
 export type OrderProblemType = typeof problemTypes[number][0]
 export type OrderProblemDetails = { type: OrderProblemType; comment: string; positionSku?: string }
 export type OrderShortage = { sku: string; name: string; required: number; available: number; missing: number; cells: string }
-export type SavedOrderProblem = OrderProblemDetails & { shortages: OrderShortage[]; createdAt: string }
+export type ProblemResolutionStatus = 'awaiting' | 'resolved' | 'returned'
+export type SavedOrderProblem = OrderProblemDetails & { shortages: OrderShortage[]; createdAt: string; resolutionStatus?: ProblemResolutionStatus; returnedAt?: string }
 
 export default function OrderProblemDialog({ initialType = '', positions = [], initialPositionSku = '', onCancel, onConfirm }: {
   initialType?: OrderProblemType | ''
