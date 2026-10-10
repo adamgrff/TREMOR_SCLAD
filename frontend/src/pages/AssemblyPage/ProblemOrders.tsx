@@ -2,10 +2,15 @@ import { useState } from 'react'
 import type { AssemblyPreviewOrder, AssemblyProblemSnapshot } from './ActiveAssembly'
 import type { SavedOrderProblem } from './OrderProblemDialog'
 import { problemTypes } from './problemTypes'
+import arrowDown from '../../assets/home/arrow-down.svg'
+import arrowUp from '../../assets/home/arrow-up.svg'
 import './ProblemOrders.css'
 
 type ProblemOrder = { order: AssemblyPreviewOrder; problem: SavedOrderProblem; status: 'problem'; assembly?: AssemblyProblemSnapshot }
-const date = (value: string) => new Date(value).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+function ProblemTime({ value }: { value: string }) {
+  const timestamp = new Date(value)
+  return <time className="problemOrders__time" dateTime={value}><span className="assemblyQueue__time">{timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><span className="assemblyQueue__date">{timestamp.toLocaleDateString('ru-RU')}</span></time>
+}
 
 export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
   const [query, setQuery] = useState('')
@@ -16,13 +21,13 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
 
   return <section className="receivingPage__panel problemOrders" aria-labelledby="problem-orders-title">
     <div className="problemOrders__header">
-      <div><h2 className="receivingPage__panelTitle" id="problem-orders-title">ПРОБЛЕМНЫЕ ЗАКАЗЫ <span className="problemOrders__count">{orders.length}</span></h2><p className="assemblyQueue__subtitle">Разберите причину и продолжите работу с заказом</p></div>
+      <div><div className="problemOrders__title"><h2 className="receivingPage__panelTitle" id="problem-orders-title">ПРОБЛЕМНЫЕ ЗАКАЗЫ</h2><span className="problemOrders__count">{orders.length}</span></div><p className="assemblyQueue__subtitle">Разберите причину и продолжите работу с заказом</p></div>
       <div className="problemOrders__tools">
         <label className="problemOrders__search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg><input type="search" aria-label="Поиск проблемного заказа, SKU или товара" placeholder="Заказ, SKU или товар" value={query} onChange={(event) => setQuery(event.target.value)}/></label>
         <select aria-label="Фильтр типа проблемы" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="">Все причины</option>{problemTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       </div>
     </div>
-    <div className="problemOrders__columns" aria-hidden="true"><span>Заказ</span><span>Причина</span><span>Затронутый товар</span><span>Решение</span><span>Время</span><span/></div>
+    <div className="problemOrders__columns" aria-hidden="true"><span>Заказ / статус</span><span>Причина</span><span>Затронутый товар</span><span>Решение</span><span>Время</span><span/></div>
     <div className="problemOrders__list">
       {visible.map(({ order, problem, assembly }) => {
         const affected = order.items.filter((item) => item.sku === problem.positionSku || problem.shortages.some((shortage) => shortage.sku === item.sku))
@@ -43,11 +48,11 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
         ]
         return <details className="problemOrders__order" key={order.number}>
           <summary className="problemOrders__row">
-            <span><strong>{order.number}</strong><small>{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>
+            <span><strong className="problemOrders__number">{order.number}</strong><small>{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>
             <span className="problemOrders__reason">{reason}</span>
             <span>{affected.length ? <><strong>{affected[0].name}</strong><small>{affected[0].sku}{affected.length > 1 && ` · ещё ${affected.length - 1}`}</small></> : <><strong>Заказ целиком</strong><small>{order.items.length} поз. · {required} шт.</small></>}</span>
             <span><span className="problemOrders__status">Ожидает решения</span></span>
-            <time dateTime={problem.createdAt}>{date(problem.createdAt)}</time><span className="problemOrders__chevron" aria-hidden="true">⌄</span>
+            <ProblemTime value={problem.createdAt}/><span className="problemOrders__chevron" aria-hidden="true"><img className="problemOrders__arrowDown" src={arrowDown} alt=""/><img className="problemOrders__arrowUp" src={arrowUp} alt=""/></span>
           </summary>
           <div className="problemOrders__details">
             <div className="problemOrders__picked">
@@ -58,10 +63,10 @@ export default function ProblemOrders({ orders }: { orders: ProblemOrder[] }) {
             </div>
             <div className="problemOrders__context">
               <h3>Проблема и комментарий</h3>
-              {problem.shortages.map((item) => <p className="problemOrders__shortage" key={item.sku}>{item.name}: нужно {item.required}, доступно {item.available}, не хватает {item.missing} шт.</p>)}
+              {problem.shortages.length > 0 && <div className="problemOrders__tableScroll"><table className="problemOrders__shortages"><thead><tr><th>Товар</th><th>Нужно</th><th>В наличии</th><th>Не хватает</th></tr></thead><tbody>{problem.shortages.map((item) => <tr key={item.sku}><td><strong>{item.name}</strong><small>{item.sku}</small></td><td>{item.required} шт.</td><td>{item.available} шт.</td><td className="problemOrders__missing">{item.missing} шт.</td></tr>)}</tbody></table></div>}
               <p className="problemOrders__comment">{problem.comment || 'Комментарий не добавлен'}</p>
               <h3>История проблемы</h3>
-              <ol className="problemOrders__history"><li><time dateTime={problem.createdAt}>{date(problem.createdAt)}</time><span>Заказ передан из {assembly ? 'сборки' : 'очереди'}.<br/>{reason}{problem.positionSku && ` · ${problem.positionSku}`}</span></li></ol>
+              <ol className="problemOrders__history"><li><ProblemTime value={problem.createdAt}/><span>Заказ передан из {assembly ? 'сборки' : 'очереди'}.<br/>{reason}{problem.positionSku && ` · ${problem.positionSku}`}</span></li></ol>
             </div>
             <div className="problemOrders__actions">{actions.map((action) => <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} onClick={() => setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)}>{action}</button>)}</div>
           </div>
