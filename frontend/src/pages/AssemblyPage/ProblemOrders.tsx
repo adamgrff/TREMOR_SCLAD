@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import type { AssemblyPreviewOrder, AssemblyProblemSnapshot } from './ActiveAssembly'
 import type { SavedOrderProblem } from './OrderProblemDialog'
 import { problemTypes } from './problemTypes'
+import groupProblemHistory from './groupProblemHistory'
 import arrowDown from '../../assets/home/arrow-down.svg'
 import arrowUp from '../../assets/home/arrow-up.svg'
 import './ProblemOrders.css'
@@ -96,7 +97,20 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
               </div>
               <h3>История проблемы</h3>
               <ol className="problemOrders__history"><li><ProblemTime value={problem.createdAt}/><span>Заказ передан из {assembly ? 'сборки' : 'очереди'}.<br/>{reason}{problem.positionSku && ` · ${problem.positionSku}`}</span></li></ol>
-              {(problem.history?.length ?? 0) > 0 && <ol className="problemOrders__history problemOrders__checks" aria-label="История проверок остатков" aria-live="polite">{problem.history?.map((event, index) => <li key={`${event.createdAt}-${index}`}><ProblemTime value={event.createdAt}/><span className={`problemOrders__checkResult problemOrders__checkResult--${event.outcome}`}><strong>{event.title}</strong><span>{event.message}</span></span></li>)}</ol>}
+              {(problem.history?.length ?? 0) > 0 && <ol className="problemOrders__history problemOrders__checks" aria-label="История проверок остатков" aria-live="polite">{groupProblemHistory(problem.history ?? []).map(({ key, latest: event, previous }) => <li key={key}>
+                <ProblemTime value={event.createdAt}/>
+                <span className={`problemOrders__checkResult problemOrders__checkResult--${event.outcome}`}><strong>{event.title}</strong><span>{event.message}</span></span>
+                {previous.length > 0 && <span className="problemOrders__repeats">
+                  <button type="button" className="problemOrders__repeatBadge" aria-label={`Предыдущие одинаковые сообщения: ${previous.length}`}>+{previous.length}</button>
+                  <span className="problemOrders__repeatPopup" role="tooltip">
+                    <strong className="problemOrders__repeatTitle">Предыдущие сообщения · {previous.length}</strong>
+                    <span className="problemOrders__repeatList">{[...previous].reverse().map((repeat, index) => <span className="problemOrders__repeatEntry" key={`${repeat.createdAt}-${index}`}>
+                      <ProblemTime value={repeat.createdAt}/>
+                      <span className={`problemOrders__checkResult problemOrders__checkResult--${repeat.outcome}`}><strong>{repeat.title}</strong><span>{repeat.message}</span></span>
+                    </span>)}</span>
+                  </span>
+                </span>}
+              </li>)}</ol>}
             </div>
             <div className="problemOrders__actions">{actions.map((action) => <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Вернуть в сборку' && (!resolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
               if (action === 'Вернуть в сборку') void onReturn(order.number).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
