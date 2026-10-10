@@ -69,8 +69,8 @@
 .problemOrders__checkResult strong { font-weight: 600; }
 .problemOrders__checkResult--success { color: #b9f1cb; }
 .problemOrders__checkResult--failure, .problemOrders__checkResult--error { color: #ffc1c1; }
-.problemOrders__checks > li > .problemOrders__checkResult { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.problemOrders__repeats { position: relative; flex-shrink: 0; margin-left: auto; }
+.problemOrders__checks > li > .problemOrders__checkResult { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.problemOrders__repeats { position: relative; flex-shrink: 0; align-self: center; margin-left: -8px; }
 .problemOrders__repeatBadge { padding: 3px 7px; border: 1px solid #619bd950; border-radius: 5px; background: #619bd91a; color: #a6cbed; font: inherit; font-size: 13px; cursor: default; }
 .problemOrders__repeatBadge:focus-visible { outline: 2px solid #619bd9; outline-offset: 3px; }
 .problemOrders__repeatPopup { display: none; position: absolute; z-index: 20; right: 0; bottom: calc(100% + 8px); width: min(420px, calc(100vw - 80px)); padding: 16px; box-sizing: border-box; border: 1px solid #ffffff30; border-radius: 10px; background: #202226; color: #fff; box-shadow: 0 8px 28px #0009; }

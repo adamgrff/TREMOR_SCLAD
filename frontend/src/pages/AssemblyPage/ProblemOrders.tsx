@@ -104,7 +104,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                   <button type="button" className="problemOrders__repeatBadge" aria-label={`Предыдущие одинаковые сообщения: ${previous.length}`}>+{previous.length}</button>
                   <span className="problemOrders__repeatPopup" role="tooltip">
                     <strong className="problemOrders__repeatTitle">Предыдущие сообщения · {previous.length}</strong>
-                    <span className="problemOrders__repeatList">{[...previous].reverse().map((repeat, index) => <span className="problemOrders__repeatEntry" key={`${repeat.createdAt}-${index}`}>
+                    <span className="problemOrders__repeatList">{previous.map((repeat, index) => <span className="problemOrders__repeatEntry" key={`${repeat.createdAt}-${index}`}>
                       <ProblemTime value={repeat.createdAt}/>
                       <span className={`problemOrders__checkResult problemOrders__checkResult--${repeat.outcome}`}><strong>{repeat.title}</strong><span>{repeat.message}</span></span>
                     </span>)}</span>
