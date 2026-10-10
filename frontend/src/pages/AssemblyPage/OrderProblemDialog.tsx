@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-
-const problemTypes = [
-  ['insufficient_stock', 'Недостаточно товара'],
-  ['missing_in_cell', 'Товар отсутствует в ячейке'],
-  ['unknown_sku', 'Неизвестный товар / SKU'],
-  ['damaged_product', 'Повреждённый товар'],
-  ['invalid_order', 'Ошибка данных заказа'],
-  ['other', 'Другая проблема'],
-] as const
+import { problemTypes } from './problemTypes'
 
 export type OrderProblemType = typeof problemTypes[number][0]
 export type OrderProblemDetails = { type: OrderProblemType; comment: string; positionSku?: string }

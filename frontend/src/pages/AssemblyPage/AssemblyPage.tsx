@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Header from '../../components/Header/Header'
 import ActiveAssembly, { type ActiveAssemblyState, type AssemblyProblemSnapshot, type AssemblyPreviewOrder } from './ActiveAssembly'
 import useAssemblyDraft from './useAssemblyDraft'
+import ProblemOrders from './ProblemOrders'
 import OrderProblemDialog, { type OrderProblemDetails, type SavedOrderProblem } from './OrderProblemDialog'
 import { useTheme } from '../../hooks/useTheme'
 import '../ReceivingPage/ReceivingPage.css'
@@ -201,6 +202,7 @@ export default function AssemblyPage() {
           if (!activeOrder) return
           void draft.save({ ...draft.state, problemOrders: [...problemOrders, { order: activeOrder, status: 'problem', assembly, problem: { ...assembly.details, shortages: [], createdAt: new Date().toISOString() } }], activeOrder: null, activeState: emptyAssemblyState })
         }} />
+        <ProblemOrders orders={problemOrders} />
       </div>
       {problemDialogOpen && selected && <OrderProblemDialog initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={(problem) => void confirmProblem(problem)} />}
     </main>
