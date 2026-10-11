@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { API_BASE_URL } from '../../config/api'
+import type { AssemblyPreviewOrder } from './ActiveAssembly'
+import type { OrderProblemDetails } from './OrderProblemDialog'
 
 type Response<T> = { version: number; state: T | null }
 export default function useAssemblyDraft<T>(initialState: T) {
@@ -9,11 +11,11 @@ export default function useAssemblyDraft<T>(initialState: T) {
   const [error, setError] = useState('')
   const version = useRef(0)
   const inFlight = useRef(false)
-  const pending = useRef<{ requestId: string; version: number; state: T } | null>(null)
+  const pending = useRef<{ path: string; method: string; body: object } | null>(null)
 
   async function load(signal?: AbortSignal) {
     const response = await fetch(`${API_BASE_URL}/assembly-preview/draft`, { signal, cache: 'no-store' })
-    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–012.')
+    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–013.')
     const data = await response.json() as Response<T>
     if (signal?.aborted) return
     version.current = data.version
@@ -32,7 +34,12 @@ export default function useAssemblyDraft<T>(initialState: T) {
 
   async function save(next: T): Promise<boolean> {
     if (!ready || inFlight.current || pending.current) return false
-    pending.current = { requestId: crypto.randomUUID(), version: version.current, state: next }
+    pending.current = { path: '/assembly-preview/draft', method: 'PUT', body: { requestId: crypto.randomUUID(), version: version.current, state: next } }
+    return retry()
+  }
+  async function createProblem(intent: { source: 'queue' | 'assembly'; orderNumber: string; order?: AssemblyPreviewOrder; details: OrderProblemDetails }): Promise<boolean> {
+    if (!ready || inFlight.current || pending.current) return false
+    pending.current = { path: '/assembly/problems', method: 'POST', body: { ...intent, requestId: crypto.randomUUID(), version: version.current } }
     return retry()
   }
   async function retry(): Promise<boolean> {
@@ -45,12 +52,17 @@ export default function useAssemblyDraft<T>(initialState: T) {
     setSaving(true)
     setError('')
     try {
-      const response = await fetch(`${API_BASE_URL}/assembly-preview/draft`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending.current) })
+      const response = await fetch(`${API_BASE_URL}${pending.current.path}`, { method: pending.current.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending.current.body) })
       if (response.status === 409) {
         const conflict = await response.json() as { error?: string }
         pending.current = null
         await load()
         throw new Error(conflict.error ?? 'Сборка изменена в другом окне. Загружено актуальное состояние; повторите действие.')
+      }
+      if (response.status === 400) {
+        const rejected = await response.json() as { error?: string }
+        pending.current = null
+        throw new Error(rejected.error ?? 'Проверьте параметры проблемы.')
       }
       if (!response.ok) throw new Error('Сборка не сохранена. Проверьте backend и нажмите «Повторить».')
       const data = await response.json() as Response<T>
@@ -63,5 +75,5 @@ export default function useAssemblyDraft<T>(initialState: T) {
       return false
     } finally { inFlight.current = false; setSaving(false) }
   }
-  return { state, save, ready, saving, error, retry, blocked: !ready || saving || error !== '' }
+  return { state, save, createProblem, ready, saving, error, retry, blocked: !ready || saving || error !== '' }
 }

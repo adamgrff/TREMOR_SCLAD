@@ -39,7 +39,8 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
     <div className="problemOrders__columns" aria-hidden="true"><span>Заказ / статус</span><span>Причина</span><span>Затронутый товар</span><span>Решение</span><span>Время</span><span/></div>
     <div className="problemOrders__list" key={`${currentPage}:${query}:${filter}`}>
       {pageOrders.map(({ problemId, order, problem, assembly }) => {
-        const affected = order.items.filter((item) => item.sku === problem.positionSku || problem.shortages.some((shortage) => shortage.sku === item.sku))
+        const affected = order.items.filter((item) => item.sku === problem.positionSku || problem.shortages.some((shortage) => shortage.sku === item.sku) || problem.creationContext?.affectedPositions.some((position) => position.sku === item.sku))
+        const problemPositions = problem.shortages.length ? problem.shortages : problem.resolutionStatus !== 'resolved' && problem.creationContext?.complete ? problem.creationContext.positions.filter((position) => affected.some((item) => item.sku === position.sku)).map((position) => ({ sku: position.sku, name: position.name ?? position.sku, required: position.remaining ?? 0, available: position.available ?? 0, missing: position.missing ?? 0 })) : []
         const problemQuantity = affected.reduce((sum, item) => {
           const shortage = problem.shortages.find((position) => position.sku === item.sku)
           const picked = assembly?.picks.filter((pick) => pick.sku === item.sku).length ?? 0
@@ -104,7 +105,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                 return <tr key={item.sku}><td><strong>{product?.name ?? item.sku}</strong><small>{item.sku}</small><small>Из ячеек: {[...item.cells].map(([cell, quantity]) => `${cell} ×${quantity}`).join(' · ')}</small></td><td>{item.quantity} / {product?.quantity ?? '—'}</td></tr>
               })}</tbody></table> : <p className="problemOrders__muted">Сборка ещё не начата</p>}
               <h3 className="problemOrders__problemTitle">Проблема и комментарий</h3>
-              {problem.shortages.length > 0 && <div className="problemOrders__tableScroll"><table className="problemOrders__shortages"><thead><tr><th>Товар</th><th>Нужно</th><th>В наличии</th><th>Не хватает</th></tr></thead><tbody>{problem.shortages.map((item) => <tr key={item.sku}><td><strong>{item.name}</strong><small>{item.sku}</small></td><td>{item.required} шт.</td><td>{item.available} шт.</td><td className="problemOrders__missing">{item.missing} шт.</td></tr>)}</tbody></table></div>}
+              {problemPositions.length > 0 && <div className="problemOrders__tableScroll"><table className="problemOrders__shortages"><thead><tr><th>Товар</th><th>Нужно</th><th>В наличии</th><th>Не хватает</th></tr></thead><tbody>{problemPositions.map((item) => <tr key={item.sku}><td><strong>{item.name}</strong><small>{item.sku}</small></td><td>{item.required} шт.</td><td>{item.available} шт.</td><td className={item.missing > 0 ? 'problemOrders__missing' : undefined}>{item.missing} шт.</td></tr>)}</tbody></table></div>}
               <p className="problemOrders__comment">{problem.comment || 'Комментарий не добавлен'}</p>
             </div>
             <div className="problemOrders__context">

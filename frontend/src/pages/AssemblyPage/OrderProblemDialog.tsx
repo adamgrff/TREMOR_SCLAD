@@ -5,13 +5,15 @@ export type OrderProblemType = typeof allProblemTypes[number][0]
 export type OrderProblemDetails = { type: OrderProblemType; comment: string; positionSku?: string }
 export type OrderShortage = { sku: string; name: string; required: number; available: number; missing: number; cells: string }
 export type ProblemResolutionStatus = 'awaiting' | 'resolved' | 'returned'
+export type ProblemCreationContext = { schemaVersion: 1; complete: boolean; source: 'queue' | 'assembly'; positions: Array<{ sku: string; name?: string; required?: number; picked?: number; remaining?: number; available?: number; missing?: number; orderPositionId: string }>; affectedPositions: Array<{ sku: string }>; confirmedCell?: string | null; suggestedCell?: string | null; scanStep?: 'cell' | 'product' | 'shipment'; picked?: number; required?: number }
 export type ProblemHistoryEvent = { createdAt: string; title: string; message: string; outcome: 'success' | 'failure' | 'error' | 'neutral'; kind?: 'creation' | 'transfer' | 'check' | 'result' | 'resolution' | 'return' }
-export type SavedOrderProblem = OrderProblemDetails & { shortages: OrderShortage[]; createdAt: string; resolutionStatus?: ProblemResolutionStatus; returnedAt?: string; history?: ProblemHistoryEvent[]; requiresDisassembly?: boolean }
+export type SavedOrderProblem = OrderProblemDetails & { shortages: OrderShortage[]; createdAt: string; resolutionStatus?: ProblemResolutionStatus; returnedAt?: string; history?: ProblemHistoryEvent[]; requiresDisassembly?: boolean; creationContext?: ProblemCreationContext }
 
-export default function OrderProblemDialog({ initialType = '', positions = [], initialPositionSku = '', onCancel, onConfirm }: {
+export default function OrderProblemDialog({ initialType = '', positions = [], initialPositionSku = '', blocked = false, onCancel, onConfirm }: {
   initialType?: OrderProblemType | ''
   positions?: Array<{ sku: string; name: string }>
   initialPositionSku?: string
+  blocked?: boolean
   onCancel: () => void
   onConfirm: (details: OrderProblemDetails) => void
 }) {
@@ -27,7 +29,7 @@ export default function OrderProblemDialog({ initialType = '', positions = [], i
   }, [])
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!type) return
+    if (!type || blocked || (type === 'other' && !comment.trim())) return
     if (positions.length > 0 && positionRequired && !positionSku) return
     onConfirm({ type, comment: type === 'other' ? comment.trim() : '', ...(positions.length > 0 && positionSku ? { positionSku } : {}) })
   }
@@ -36,23 +38,23 @@ export default function OrderProblemDialog({ initialType = '', positions = [], i
       <h2 id="order-problem-title">Отправить заказ в проблемные?</h2>
       <p id="order-problem-description">Данный заказ будет отправлен в раздел «Проблемные».</p>
       <label className="assemblyProblemDialog__field">Тип проблемы
-        <select value={type} required autoFocus onChange={(event) => setType(event.target.value as OrderProblemType | '')}>
+        <select value={type} required autoFocus disabled={blocked} onChange={(event) => setType(event.target.value as OrderProblemType | '')}>
           <option value="" disabled>Выбрать</option>
           {problemTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
       </label>
       {type === 'other' && <label className="assemblyProblemDialog__field">Комментарий
-        <textarea value={comment} rows={3} maxLength={2000} onChange={(event) => setComment(event.target.value)} />
+        <textarea value={comment} required disabled={blocked} rows={3} maxLength={2000} onChange={(event) => setComment(event.target.value)} />
       </label>}
       {positions.length > 0 && type && <label className="assemblyProblemDialog__field">Позиция{!positionRequired && ' (необязательно)'}
-        <select value={positionSku} required={positionRequired} onChange={(event) => setPositionSku(event.target.value)}>
+        <select value={positionSku} required={positionRequired} disabled={blocked} onChange={(event) => setPositionSku(event.target.value)}>
           <option value="">{positionRequired ? 'Выбрать позицию' : 'Заказ целиком'}</option>
           {positions.map((position) => <option key={position.sku} value={position.sku}>{position.name} · {position.sku}</option>)}
         </select>
       </label>}
       <div className="receivingHistory__dialogActions">
         <button className="receivingHistory__button" type="button" onClick={onCancel}>Отмена</button>
-        <button className="receivingHistory__button assemblyProblemDialog__confirm" type="submit" disabled={!type}>Отправить в проблемные</button>
+        <button className="receivingHistory__button assemblyProblemDialog__confirm" type="submit" disabled={blocked || !type || (positionRequired && !positionSku) || (type === 'other' && !comment.trim())}>Отправить в проблемные</button>
       </div>
     </form>
   </dialog>

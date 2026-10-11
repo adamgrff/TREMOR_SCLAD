@@ -14,7 +14,7 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
   onChange: (state: ActiveAssemblyState) => Promise<boolean>
   blocked: boolean
   onComplete: () => void
-  onProblem: (snapshot: AssemblyProblemSnapshot) => void
+  onProblem: (details: OrderProblemDetails) => Promise<boolean>
 }) {
   const { picks, confirmedCell, shipmentConfirmed, lastScan, log, error } = state
   const [scan, setScan] = useState('')
@@ -135,7 +135,7 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
           <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={!shipmentConfirmed || !allCollected || blocked} onClick={onComplete}>Завершить сборку</button>
         </div>
       </div>
-      {problemOpen && <OrderProblemDialog positions={order.items} initialPositionSku={activeSku} onCancel={() => setProblemOpen(false)} onConfirm={(details) => { setProblemOpen(false); onProblem({ details, picks, cell: confirmedCell, shipmentConfirmed }) }} />}
+      {problemOpen && <OrderProblemDialog blocked={blocked} positions={order.items} initialPositionSku={activeSku ?? order.items[0]?.sku} onCancel={() => setProblemOpen(false)} onConfirm={(details) => { void onProblem(details).then((saved) => { if (saved) setProblemOpen(false) }) }} />}
     </>}
   </section>
 }

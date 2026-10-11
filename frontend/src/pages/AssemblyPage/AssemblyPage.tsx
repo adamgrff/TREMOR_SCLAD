@@ -102,15 +102,7 @@ export default function AssemblyPage() {
   const firstShortage = shortageItems[0]
   async function confirmProblem(problem: OrderProblemDetails) {
     if (!selected || draft.blocked) return
-    const createdAt = new Date().toISOString()
-    const savedProblem: SavedOrderProblem = {
-      ...problem,
-      createdAt,
-      history: createProblemHistory(selected, problem, createdAt),
-      resolutionStatus: 'awaiting',
-      shortages: shortageItems.map((item) => ({ sku: item.sku, name: item.name, required: item.quantity, available: item.stock, missing: item.quantity - item.stock, cells: item.cells })),
-    }
-    const saved = await draft.save({ ...draft.state, problemOrders: [...problemOrders, { order: selected, problem: savedProblem, status: 'problem' }] })
+    const saved = await draft.createProblem({ source: 'queue', orderNumber: selected.number, order: selected, details: problem })
     if (saved) {
       setSelectedNumber(queueOrders.find((order) => order.number !== selected.number)?.number ?? '')
       setProblemDialogOpen(false)
@@ -249,14 +241,10 @@ export default function AssemblyPage() {
             </> : <p className="assemblyQueue__subtitle">Выберите заказ из очереди</p>}
           </div>
         </section>
-        <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked || checkingStock} onChange={(next) => draft.save({ ...draft.state, activeState: next })} onComplete={() => { if (activeOrder && !draft.blocked) void draft.save({ ...draft.state, completedOrders: [...completedOrders, activeOrder], activeOrder: null, activeState: emptyAssemblyState }) }} onProblem={(assembly) => {
-          if (!activeOrder) return
-          const createdAt = new Date().toISOString()
-          void draft.save({ ...draft.state, problemOrders: [...problemOrders, { order: activeOrder, status: 'problem', assembly, problem: { ...assembly.details, shortages: [], createdAt, resolutionStatus: 'awaiting', history: createProblemHistory(activeOrder, assembly.details, createdAt, assembly) } }], activeOrder: null, activeState: emptyAssemblyState })
-        }} />
+        <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked || checkingStock} onChange={(next) => draft.save({ ...draft.state, activeState: next })} onComplete={() => { if (activeOrder && !draft.blocked) void draft.save({ ...draft.state, completedOrders: [...completedOrders, activeOrder], activeOrder: null, activeState: emptyAssemblyState }) }} onProblem={(details) => activeOrder && !draft.blocked ? draft.createProblem({ source: 'assembly', orderNumber: activeOrder.number, details }) : Promise.resolve(false)} />
         <ProblemOrders orders={problemOrders} blocked={draft.blocked || checkingStock} assemblyBusy={activeOrder !== null} onReturn={returnToAssembly} onStockCheck={refreshProblemStock} />
       </div>
-      {problemDialogOpen && selected && <OrderProblemDialog initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={(problem) => void confirmProblem(problem)} />}
+      {problemDialogOpen && selected && <OrderProblemDialog blocked={draft.blocked || checkingStock} positions={selected.items} initialPositionSku={firstShortage?.sku ?? selected.items[0]?.sku} initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={(problem) => void confirmProblem(problem)} />}
     </main>
   )
 }

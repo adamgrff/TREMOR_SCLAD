@@ -70,6 +70,7 @@ func main() {
 	mux.HandleFunc("GET /health", healthHandler)
 	mux.HandleFunc("GET /api/assembly-preview/draft", func(w http.ResponseWriter, r *http.Request) { getAssemblyDraftHandler(database, w, r) })
 	mux.HandleFunc("GET /api/assembly/problems", func(w http.ResponseWriter, r *http.Request) { assemblyProblemsHandler(database, w, r) })
+	mux.HandleFunc("POST /api/assembly/problems", func(w http.ResponseWriter, r *http.Request) { createAssemblyProblemHandler(database, w, r) })
 	mux.HandleFunc("GET /api/assembly/problems/{problemID}", func(w http.ResponseWriter, r *http.Request) { assemblyProblemHandler(database, w, r) })
 	mux.HandleFunc("PUT /api/assembly-preview/draft", func(w http.ResponseWriter, r *http.Request) { saveAssemblyDraftHandler(database, w, r) })
 	mux.HandleFunc("POST /api/racks", func(w http.ResponseWriter, r *http.Request) { createRackHandler(database, w, r) })

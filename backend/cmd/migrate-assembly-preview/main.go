@@ -23,6 +23,7 @@ func main() {
 	for _, migration := range []struct{ table, file string }{
 		{"assembly_preview_drafts", "migrations/011_assembly_preview_drafts.sql"},
 		{"assembly_problem_records", "migrations/012_assembly_problem_storage.sql"},
+		{"assembly_problem_contexts", "migrations/013_assembly_problem_context.sql"},
 	} {
 		var applied bool
 		if err = conn.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, migration.table).Scan(&applied); err != nil {

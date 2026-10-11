@@ -110,6 +110,11 @@ func saveAssemblyDraftHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.R
 		assemblyDraftError(w, 400, "invalid_assembly_draft", "Некорректное состояние сборки.")
 		return
 	}
+	saveAssemblyWorkspace(db, w, r, request, nil)
+}
+
+// Both mutations share the same version lock and idempotency ledger.
+func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request, request assemblyDraftRequest, create *assemblyProblemCreationRequest) {
 	canonical, _ := json.Marshal(request)
 	hash := sha256.Sum256(canonical)
 	payloadHash := hex.EncodeToString(hash[:])
@@ -146,6 +151,46 @@ func saveAssemblyDraftHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.R
 	if request.Version != currentVersion {
 		assemblyDraftError(w, 409, "assembly_draft_conflict", "Сборка изменена в другом окне. Загрузите актуальное состояние.")
 		return
+	}
+	if create != nil {
+		var current json.RawMessage
+		if err = tx.QueryRow(r.Context(), `SELECT assembly_load_workspace(state) FROM assembly_preview_drafts WHERE id=true`).Scan(&current); err != nil {
+			assemblyDraftFailure(w, err)
+			return
+		}
+		var timestamp string
+		if err = tx.QueryRow(r.Context(), `SELECT to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`).Scan(&timestamp); err != nil {
+			assemblyDraftFailure(w, err)
+			return
+		}
+		request.State, err = buildAssemblyProblem(current, *create, timestamp)
+		if err != nil {
+			assemblyDraftError(w, 409, "invalid_problem_context", err.Error())
+			return
+		}
+	} else {
+		var contextualStorage bool
+		if err = tx.QueryRow(r.Context(), `SELECT to_regclass('assembly_problem_contexts') IS NOT NULL`).Scan(&contextualStorage); err != nil {
+			assemblyDraftFailure(w, err)
+			return
+		}
+		if contextualStorage {
+			var state struct {
+				Problems []struct {
+					ID string `json:"problemId"`
+				} `json:"problemOrders"`
+			}
+			if json.Unmarshal(request.State, &state) != nil {
+				assemblyDraftError(w, 400, "invalid_assembly_draft", "Некорректное состояние сборки.")
+				return
+			}
+			for _, problem := range state.Problems {
+				if problem.ID == "" {
+					assemblyDraftError(w, 409, "problem_creation_required", "Создайте проблему через действие «Проблема»; полный контекст сохраняет сервер.")
+					return
+				}
+			}
+		}
 	}
 	var compact, restored json.RawMessage
 	if err = tx.QueryRow(r.Context(), `SELECT assembly_store_workspace($1::jsonb)`, []byte(request.State)).Scan(&compact); err != nil {
