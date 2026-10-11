@@ -21,10 +21,12 @@ func (e *assemblyActionConflict) Error() string { return e.message }
 func stockConflict(message string) error        { return &assemblyActionConflict{message} }
 
 type assemblyProblemOperation struct {
-	RequestID string `json:"requestId"`
-	Version   int64  `json:"version"`
-	ProblemID string `json:"problemId"`
-	Action    string `json:"action"`
+	RequestID   string `json:"requestId"`
+	Version     int64  `json:"version"`
+	ProblemID   string `json:"problemId"`
+	Action      string `json:"action"`
+	OrderNumber string `json:"orderNumber,omitempty"`
+	Code        string `json:"code,omitempty"`
 }
 
 func assemblyProblemOperationHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request, action string) {
@@ -40,7 +42,7 @@ func assemblyProblemOperationHandler(db *pgxpool.Pool, w http.ResponseWriter, r 
 		assemblyDraftError(w, 400, "invalid_problem_action", "Некорректный запрос проверки или возврата.")
 		return
 	}
-	operation := assemblyProblemOperation{body.RequestID, body.Version, r.PathValue("problemID"), action}
+	operation := assemblyProblemOperation{RequestID: body.RequestID, Version: body.Version, ProblemID: r.PathValue("problemID"), Action: action}
 	intent, _ := json.Marshal(operation)
 	saveAssemblyWorkspace(db, w, r, assemblyDraftRequest{RequestID: body.RequestID, Version: body.Version, State: intent}, nil, &operation)
 }
@@ -87,10 +89,22 @@ func intValue(value any) int {
 		return int(n)
 	case int:
 		return n
+	case int64:
+		return int(n)
 	}
 	return 0
 }
 func encodeValue(value any) json.RawMessage { data, _ := json.Marshal(value); return data }
+func sameAssemblyOrder(a, b map[string]any) bool {
+	source := func(o map[string]any) string {
+		s := textValue(o["source"])
+		if s == "" {
+			s = "preview"
+		}
+		return s
+	}
+	return a["number"] == b["number"] && source(a) == source(b)
+}
 
 // Product locks serialize reservation writers; stock row locks also cover receiving undo.
 // New stock rows can increase availability during the transaction, never invalidate a passed check.
@@ -181,7 +195,7 @@ func readAssemblyStock(ctx context.Context, tx pgx.Tx, order map[string]any, pic
 		seen := map[string]bool{}
 		for _, cell := range position.Cells {
 			position.Physical += cell.Quantity
-			if seen[cell.CellCode] && position.Required > 0 {
+			if seen[cell.CellCode] && position.Required > 0 && order["source"] != "ozon" {
 				position.Error = fmt.Sprintf("Для %s найдены одинаковые коды ячеек. Уточните ячейки перед возвратом.", position.Name)
 			}
 			seen[cell.CellCode] = true
@@ -193,7 +207,9 @@ func readAssemblyStock(ctx context.Context, tx pgx.Tx, order map[string]any, pic
 			return result, err
 		}
 		// Current preview picks are still physically in cell_stock. Real picks will not use this adapter.
-		position.PreviewHeld += counts[sku]
+		if order["source"] != "ozon" {
+			position.PreviewHeld += counts[sku]
+		}
 		position.Available = max(0, position.Physical-position.OtherReserved-position.PreviewHeld)
 		position.Missing = max(0, position.Required-position.Available)
 		var physicalCheck bool
@@ -211,12 +227,19 @@ func readAssemblyStock(ctx context.Context, tx pgx.Tx, order map[string]any, pic
 	return result, nil
 }
 func reserveAssemblyStock(ctx context.Context, tx pgx.Tx, result assemblyStockResult) error {
+	var real bool
+	if err := tx.QueryRow(ctx, `SELECT source='ozon' FROM assembly_order_records WHERE id=$1::uuid`, result.OrderID).Scan(&real); err != nil {
+		return err
+	}
 	for _, p := range result.Positions {
 		if p.ProductID == 0 {
 			return stockConflict("Нельзя зарезервировать неизвестный товар.")
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO assembly_order_reservations(order_id,product_id,quantity,status) VALUES($1::uuid,$2,$3,'held') ON CONFLICT(order_id,product_id) DO UPDATE SET quantity=EXCLUDED.quantity,status='held',updated_at=now()`, result.OrderID, p.ProductID, p.Required); err != nil {
 			return err
+		}
+		if real {
+			continue
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO assembly_preview_stock_holds(order_id,product_id,quantity) VALUES($1::uuid,$2,$3) ON CONFLICT(order_id,product_id) DO UPDATE SET quantity=EXCLUDED.quantity,updated_at=now()`, result.OrderID, p.ProductID, p.Picked); err != nil {
 			return err
@@ -300,6 +323,10 @@ func findOrderItem(order map[string]any, sku string) map[string]any {
 	return map[string]any{}
 }
 func updateAssemblyPlan(order map[string]any, result assemblyStockResult, picks []any) {
+	if order["source"] == "ozon" {
+		updateWarehousePlan(order, result, picks)
+		return
+	}
 	for _, p := range result.Positions {
 		item := findOrderItem(order, p.SKU)
 		item["stock"] = p.Available
@@ -384,12 +411,19 @@ func applyAssemblyProblemOperation(ctx context.Context, tx pgx.Tx, current json.
 		return nil, "", false, stockConflict("Проверка остатков не устраняет этот тип проблемы.")
 	}
 	order := valueMap(selected["order"])
+	var realEnabled bool
+	if err = tx.QueryRow(ctx, `SELECT to_regclass('assembly_warehouse_operations') IS NOT NULL`).Scan(&realEnabled); err != nil {
+		return nil, "", false, err
+	}
+	if realEnabled && operation.Action == "return" && order["source"] != "ozon" {
+		return nil, "", false, stockConflict("Демонстрационный заказ сохранён для истории и не может списывать реальные товары.")
+	}
 	related := []map[string]any{}
 	snapshot := selected
 	for _, v := range valueArray(state["problemOrders"]) {
 		entry := valueMap(v)
 		problem := valueMap(entry["problem"])
-		if valueMap(entry["order"])["number"] == order["number"] && problem["resolutionStatus"] != "returned" {
+		if sameAssemblyOrder(valueMap(entry["order"]), order) && problem["resolutionStatus"] != "returned" {
 			related = append(related, entry)
 			created, _ := time.Parse(time.RFC3339Nano, textValue(problem["createdAt"]))
 			currentCreated, _ := time.Parse(time.RFC3339Nano, textValue(valueMap(snapshot["problem"])["createdAt"]))
@@ -407,12 +441,21 @@ func applyAssemblyProblemOperation(ctx context.Context, tx pgx.Tx, current json.
 	if picks == nil {
 		picks = []any{}
 	}
+	if realEnabled && order["source"] == "ozon" {
+		var oid string
+		if err = tx.QueryRow(ctx, `SELECT id::text FROM assembly_order_records WHERE source='ozon' AND order_number=$1`, textValue(order["number"])).Scan(&oid); err != nil {
+			return nil, "", false, err
+		}
+		if err = verifyWarehousePicks(ctx, tx, oid, picks); err != nil {
+			return nil, "", false, err
+		}
+	}
 	if operation.Action == "return" {
 		if state["activeOrder"] != nil {
 			return nil, "", false, stockConflict("Сначала завершите текущую сборку.")
 		}
 		for _, v := range valueArray(state["completedOrders"]) {
-			if valueMap(v)["number"] == order["number"] {
+			if sameAssemblyOrder(valueMap(v), order) {
 				return nil, "", false, stockConflict("Заказ уже завершён.")
 			}
 		}
@@ -491,6 +534,12 @@ func applyAssemblyProblemOperation(ctx context.Context, tx pgx.Tx, current json.
 			if buildErr != nil {
 				return nil, "", false, buildErr
 			}
+			if realEnabled && order["source"] == "ozon" {
+				newState, buildErr = enrichWarehouseProblemHistory(ctx, tx, newState)
+				if buildErr != nil {
+					return nil, "", false, buildErr
+				}
+			}
 			state, err = decodeWorkspace(newState)
 			if err != nil {
 				return nil, "", false, err
@@ -533,6 +582,13 @@ func applyAssemblyProblemOperation(ctx context.Context, tx pgx.Tx, current json.
 }
 
 func authorizeAssemblyDraft(ctx context.Context, tx pgx.Tx, current json.RawMessage, nextRaw *json.RawMessage, requestID, timestamp string) error {
+	var realEnabled bool
+	if err := tx.QueryRow(ctx, `SELECT to_regclass('assembly_warehouse_operations') IS NOT NULL`).Scan(&realEnabled); err != nil {
+		return err
+	}
+	if realEnabled {
+		return stockConflict("Используйте серверные действия сборки; изменение снимка клиентом отключено.")
+	}
 	previous, err := decodeWorkspace(current)
 	if err != nil {
 		return err

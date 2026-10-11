@@ -51,22 +51,39 @@ func createAssemblyProblemHandler(db *pgxpool.Pool, w http.ResponseWriter, r *ht
 }
 
 type contextOrder struct {
+	Source string `json:"source,omitempty"`
 	Number string `json:"number"`
 	Items  []struct {
-		SKU        string         `json:"sku"`
-		Name       string         `json:"name"`
-		Quantity   int            `json:"quantity"`
-		Stock      *int           `json:"stock"`
-		Cells      string         `json:"cells"`
-		CellStocks map[string]int `json:"cellStocks"`
+		SKU         string          `json:"sku"`
+		Name        string          `json:"name"`
+		Quantity    int             `json:"quantity"`
+		Stock       *int            `json:"stock"`
+		Cells       string          `json:"cells"`
+		CellStocks  map[string]int  `json:"cellStocks"`
+		ProductID   int64           `json:"productId,omitempty"`
+		PickingPlan json.RawMessage `json:"pickingPlan,omitempty"`
 	} `json:"items"`
 }
 type contextPick struct {
-	SKU  string `json:"sku"`
-	Cell string `json:"cell"`
+	SKU         string `json:"sku"`
+	Cell        string `json:"cell"`
+	CellID      int64  `json:"cellId,omitempty"`
+	OperationID string `json:"operationId,omitempty"`
+	PickID      string `json:"pickId,omitempty"`
+	OccurredAt  string `json:"occurredAt,omitempty"`
 }
 
 var contextCellPlan = regexp.MustCompile(`^(.+?)\s*×\s*(\d+)$`)
+
+func sameContextOrder(a, b contextOrder) bool {
+	source := func(s string) string {
+		if s == "" {
+			return "preview"
+		}
+		return s
+	}
+	return a.Number == b.Number && source(a.Source) == source(b.Source)
+}
 
 func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreationRequest, timestamp string) (json.RawMessage, error) {
 	state := map[string]json.RawMessage{}
@@ -80,6 +97,9 @@ func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreati
 		state = map[string]json.RawMessage{"schemaVersion": json.RawMessage(`1`), "activeOrder": json.RawMessage(`null`), "activeState": empty, "problemOrders": json.RawMessage(`[]`), "completedOrders": json.RawMessage(`[]`)}
 	}
 	orderRaw := request.Order
+	var sourceOrder struct {
+		Source string `json:"source"`
+	}
 	active := len(state["activeOrder"]) > 0 && string(state["activeOrder"]) != "null"
 	if request.Source == "assembly" {
 		if !active {
@@ -88,6 +108,7 @@ func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreati
 		orderRaw = state["activeOrder"]
 	}
 	var order contextOrder
+	json.Unmarshal(orderRaw, &sourceOrder)
 	if json.Unmarshal(orderRaw, &order) != nil || order.Number != request.OrderNumber || len(order.Items) == 0 {
 		return nil, errors.New("Некорректный состав заказа.")
 	}
@@ -96,13 +117,13 @@ func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreati
 	if request.Source == "queue" {
 		var activeOrder contextOrder
 		json.Unmarshal(state["activeOrder"], &activeOrder)
-		if activeOrder.Number == order.Number {
+		if sameContextOrder(activeOrder, order) {
 			return nil, errors.New("Заказ уже находится в сборке.")
 		}
 		var completed []contextOrder
 		json.Unmarshal(state["completedOrders"], &completed)
 		for _, entry := range completed {
-			if entry.Number == order.Number {
+			if sameContextOrder(entry, order) {
 				return nil, errors.New("Заказ уже завершён.")
 			}
 		}
@@ -113,7 +134,7 @@ func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreati
 				Status string `json:"resolutionStatus"`
 			}
 			json.Unmarshal(entry["problem"], &issue)
-			if existing.Number == order.Number && issue.Status != "returned" && !request.AllowExistingQueue {
+			if sameContextOrder(existing, order) && issue.Status != "returned" && !request.AllowExistingQueue {
 				return nil, errors.New("Заказ уже находится в проблемных.")
 			}
 		}
@@ -167,7 +188,7 @@ func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreati
 		// Preview cell stocks include the saved picks even after a stock refresh/replan.
 		// The scalar stock can then already exclude picks; never subtract from it twice.
 		basis := *item.Stock
-		if request.Source == "assembly" && len(item.CellStocks) > 0 {
+		if request.Source == "assembly" && len(item.CellStocks) > 0 && sourceOrder.Source != "ozon" {
 			basis = 0
 			for cell, quantity := range item.CellStocks {
 				if cell == "" || quantity < 0 {
@@ -177,8 +198,15 @@ func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreati
 			}
 		}
 		available := max(0, basis-picked)
+		if sourceOrder.Source == "ozon" {
+			available = basis
+		}
 		missing := max(0, remaining-available)
 		position := map[string]any{"sku": item.SKU, "name": item.Name, "required": item.Quantity, "picked": picked, "remaining": remaining, "available": available, "missing": missing, "cells": item.Cells, "cellStocks": item.CellStocks}
+		if sourceOrder.Source == "ozon" {
+			position["productId"] = item.ProductID
+			position["pickingPlan"] = item.PickingPlan
+		}
 		positions = append(positions, position)
 		isAffected := item.SKU == request.Details.PositionSKU || missing > 0 || (request.Details.PositionSKU == "" && request.Details.Type != "insufficient_stock")
 		if isAffected {
@@ -227,6 +255,16 @@ func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreati
 		step = "product"
 	}
 	context := map[string]any{"schemaVersion": 1, "complete": true, "source": request.Source, "availabilitySource": "preview_snapshot", "createdAt": timestamp, "positions": positions, "affectedPositions": affected, "required": total, "picked": len(scan.Picks), "remaining": total - len(scan.Picks), "scanStep": step, "confirmedCell": scan.ConfirmedCell, "suggestedCell": suggested, "shipmentConfirmed": scan.ShipmentConfirmed, "picks": scan.Picks, "activeState": json.RawMessage(scanState)}
+	if sourceOrder.Source == "ozon" {
+		var active map[string]any
+		json.Unmarshal(scanState, &active)
+		context["availabilitySource"] = "warehouse_operations"
+		context["confirmedCellId"] = active["confirmedCellId"]
+		if expected := nextWarehouseCell(valueMapFromRaw(orderRaw)); expected != nil {
+			context["suggestedCell"] = expected["cell"]
+			context["suggestedCellId"] = expected["cellId"]
+		}
+	}
 	title := "Обнаружена до начала сборки"
 	message := "Отбор товара ещё не выполнялся."
 	var assembly any
@@ -250,8 +288,18 @@ func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreati
 		}
 		message = fmt.Sprintf("Ячейка: %s\nПозиция: %s\nНа момент проблемы собрано: %d / %d", cell, position, picked, required)
 		assembly = map[string]any{"details": request.Details, "picks": scan.Picks, "cell": scan.ConfirmedCell, "shipmentConfirmed": scan.ShipmentConfirmed}
+		if sourceOrder.Source == "ozon" {
+			valueMap(assembly)["cellId"] = context["confirmedCellId"]
+		}
 	}
 	history := []map[string]any{{"createdAt": timestamp, "kind": "creation", "title": title, "message": message, "outcome": "neutral"}, {"createdAt": timestamp, "kind": "transfer", "title": "Заказ передан в проблемные", "message": manualProblemLabels[request.Details.Type], "outcome": "neutral"}}
+	if sourceOrder.Source == "ozon" {
+		prior := []map[string]any{}
+		for _, pick := range scan.Picks {
+			prior = append(prior, map[string]any{"createdAt": pick.OccurredAt, "kind": "pick", "title": "Подтверждён отбор", "message": fmt.Sprintf("Ячейка: %s [ID %d]\nПозиция: %s\nОтобрано: 1 шт.", pick.Cell, pick.CellID, pick.SKU), "outcome": "neutral", "operationId": pick.OperationID})
+		}
+		history = append(prior, history...)
+	}
 	problem := map[string]any{"type": request.Details.Type, "comment": strings.TrimSpace(request.Details.Comment), "createdAt": timestamp, "resolutionStatus": "awaiting", "shortages": shortages, "history": history, "creationContext": context}
 	if request.Details.PositionSKU != "" {
 		problem["positionSku"] = request.Details.PositionSKU

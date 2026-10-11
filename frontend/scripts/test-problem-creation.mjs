@@ -79,6 +79,17 @@ mode = 'success'
 draft = render()
 assert.equal(await draft.retry(), true)
 assert.equal(calls.at(-1).body, nativeRequest.body)
+draft = render(); mode = 'offline'
+assert.equal(await draft.assemblyAction('scan', { code: 'A' }), false)
+const scanRequest = calls.at(-1)
+assert.equal(scanRequest.url, '/api/assembly/scan')
+assert.deepEqual(Object.keys(JSON.parse(scanRequest.body)).sort(), ['code', 'requestId', 'version'])
+mode = 'success'; draft = render()
+assert.equal(await draft.retry(), true)
+assert.equal(calls.at(-1).body, scanRequest.body)
+draft = render()
+assert.equal(await draft.assemblyAction('start', { orderNumber: 'REAL' }), true)
+assert.deepEqual(Object.keys(JSON.parse(calls.at(-1).body)).sort(), ['orderNumber', 'requestId', 'version'])
 
 const dialogContext = { exports: {}, require: (id) => id === './problemTypes' ? { problemTypes: [['insufficient_stock', 'Недостаточно товара'], ['other', 'Другая проблема']] } : require(id) }
 vm.runInNewContext(compile('../src/pages/AssemblyPage/OrderProblemDialog.tsx'), dialogContext)

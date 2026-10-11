@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import refreshArrow from '../../assets/home/refresh-arrow.svg'
+import { API_BASE_URL } from '../../config/api'
 
 export type OzonSyncState = {
   status: 'connected' | 'disconnected' | 'syncing' | 'error'
@@ -11,7 +12,19 @@ type Props = {
   onSync?: () => Promise<void>
 }
 
-export default function OzonSyncStatus({ state = { status: 'disconnected' }, onSync }: Props) {
+export default function OzonSyncStatus({ state: suppliedState, onSync }: Props) {
+  const [backendState, setBackendState] = useState<OzonSyncState>({ status: 'disconnected' })
+  const state = suppliedState ?? backendState
+  useEffect(() => {
+    if (suppliedState) return
+    const controller = new AbortController()
+    void fetch(`${API_BASE_URL}/ozon/status`, { signal: controller.signal, cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw new Error('Ozon status unavailable')
+      const data = await response.json() as OzonSyncState
+      if (!controller.signal.aborted) setBackendState(data)
+    }).catch(() => { if (!controller.signal.aborted) setBackendState({ status: 'disconnected' }) })
+    return () => controller.abort()
+  }, [suppliedState])
   const [expanded, setExpanded] = useState(false)
   const [pending, setPending] = useState(false)
   const [failed, setFailed] = useState(false)

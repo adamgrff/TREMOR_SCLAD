@@ -68,6 +68,11 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("GET /api/assembly/orders", func(w http.ResponseWriter, r *http.Request) { assemblyOrdersHandler(database, w, r) })
+	mux.HandleFunc("GET /api/ozon/status", ozonConnectionHandler)
+	for _, action := range []string{"start", "scan", "undo", "finish"} {
+		mux.HandleFunc("POST /api/assembly/"+action, func(w http.ResponseWriter, r *http.Request) { warehouseAssemblyHandler(database, w, r, action) })
+	}
 	mux.HandleFunc("GET /api/assembly-preview/draft", func(w http.ResponseWriter, r *http.Request) { getAssemblyDraftHandler(database, w, r) })
 	mux.HandleFunc("GET /api/assembly/problems", func(w http.ResponseWriter, r *http.Request) { assemblyProblemsHandler(database, w, r) })
 	mux.HandleFunc("POST /api/assembly/problems", func(w http.ResponseWriter, r *http.Request) { createAssemblyProblemHandler(database, w, r) })

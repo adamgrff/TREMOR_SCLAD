@@ -9,23 +9,11 @@ import { useTheme } from '../../hooks/useTheme'
 import '../ReceivingPage/ReceivingPage.css'
 import '../ReceivingPage/ReceivingHistory.css'
 import './AssemblyPage.css'
+import { API_BASE_URL } from '../../config/api'
+const formatOrderTime = (value: string) => new Date(value).toLocaleTimeString('ru-RU', { timeZone: 'Asia/Krasnoyarsk', hour: '2-digit', minute: '2-digit' })
+const formatOrderDate = (value: string) => new Date(value).toLocaleDateString('ru-RU', { timeZone: 'Asia/Krasnoyarsk' })
 
-const previewOrders: Array<AssemblyPreviewOrder & { time: string; createdAt: string; status: string }> = [
-  { number: '024831-0001', time: '10:24', createdAt: '2026-10-07T10:24:00+07:00', status: 'Готов к сборке', items: [
-    { name: 'TREMOR Classic', sku: 'TR-CLASSIC', quantity: 3, stock: 18, cellStocks: { A1: 1, C2: 17 }, cells: 'A1 ×1 · C2 ×2' },
-    { name: 'TREMOR Black', sku: 'TR-BLACK', quantity: 2, stock: 12, cellStocks: { A1: 4, B3: 8 }, cells: 'A1 ×1 · B3 ×1' },
-    { name: 'TREMOR White', sku: 'TR-WHITE', quantity: 1, stock: 8, cellStocks: { A4: 8 }, cells: 'A4 ×1' },
-  ] },
-  { number: '024832-0001', time: '10:31', createdAt: '2026-10-07T10:31:00+07:00', status: 'Готов к сборке', items: [
-    { name: 'TREMOR Black', sku: 'TR-BLACK', quantity: 2, stock: 12, cellStocks: { A1: 4, B3: 8 }, cells: 'A1 ×1 · B3 ×1' },
-    { name: 'TREMOR Classic', sku: 'TR-CLASSIC', quantity: 1, stock: 18, cellStocks: { A1: 1, C2: 17 }, cells: 'A1 ×1' },
-  ] },
-  { number: '024833-0001', time: '10:45', createdAt: '2026-10-07T10:45:00+07:00', status: 'Готов к сборке', items: [
-    { name: 'TREMOR White', sku: 'TR-WHITE', quantity: 4, stock: 2, cellStocks: { A4: 2 }, cells: 'A4 ×2' },
-  ] },
-]
-
-type PreviewOrder = typeof previewOrders[number]
+type PreviewOrder = AssemblyPreviewOrder & { createdAt: string; status: string; stockReady?: boolean; stockMessage?: string }
 type AssemblyWorkspace = {
   schemaVersion: 1
   activeOrder: PreviewOrder | null
@@ -37,13 +25,28 @@ const initialWorkspace: AssemblyWorkspace = { schemaVersion: 1, activeOrder: nul
 
 export default function AssemblyPage() {
   const { theme, toggleTheme } = useTheme('dark')
-  const [selectedNumber, setSelectedNumber] = useState(previewOrders[0].number)
+  const [selectedNumber, setSelectedNumber] = useState('')
   const draft = useAssemblyDraft(initialWorkspace)
+  const [orders, setOrders] = useState<PreviewOrder[]>([])
+  const [loadingOrders, setLoadingOrders] = useState(false)
+  const [ordersError, setOrdersError] = useState('')
+  const [refreshOrders, setRefreshOrders] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoadingOrders(true)
+    void fetch(`${API_BASE_URL}/assembly/orders`, { signal: controller.signal, cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw new Error('Не удалось загрузить заказы из БД.')
+      const data = await response.json() as { orders: PreviewOrder[] }
+      if (!controller.signal.aborted) { setOrders(data.orders); setOrdersError('') }
+    }).catch(reason => { if (!controller.signal.aborted) setOrdersError(reason instanceof Error ? reason.message : 'Не удалось загрузить очередь.') })
+      .finally(() => { if (!controller.signal.aborted) setLoadingOrders(false) })
+    return () => controller.abort()
+  }, [refreshOrders, draft.state])
   const { activeOrder, activeState, problemOrders, completedOrders } = draft.state
   const [problemDialogOpen, setProblemDialogOpen] = useState(false)
   const [checkingStock, setCheckingStock] = useState(false)
   const stockCheckRef = useRef(false)
-  const queueOrders = previewOrders.filter((order) => order.number !== activeOrder?.number && !completedOrders.some((completed) => completed.number === order.number) && !problemOrders.some((problemOrder) => problemOrder.order.number === order.number && problemOrder.problem.resolutionStatus !== 'returned'))
+  const queueOrders = orders.filter((order) => !(order.number === activeOrder?.number && activeOrder.source === order.source) && !completedOrders.some((completed) => completed.number === order.number && completed.source === order.source) && !problemOrders.some((problemOrder) => problemOrder.order.number === order.number && problemOrder.order.source === order.source && problemOrder.problem.resolutionStatus !== 'returned'))
   const [currentTime, setCurrentTime] = useState(() => Date.now())
   useEffect(() => {
     const updateTime = () => setCurrentTime(Date.now())
@@ -100,16 +103,16 @@ export default function AssemblyPage() {
   const firstShortage = shortageItems[0]
   async function confirmProblem(problem: OrderProblemDetails) {
     if (!selected || draft.blocked) return
-    const saved = await draft.createProblem({ source: 'queue', orderNumber: selected.number, order: selected, details: problem })
+    const saved = await draft.createProblem({ source: 'queue', orderNumber: selected.number, details: problem })
     if (saved) {
       setSelectedNumber(queueOrders.find((order) => order.number !== selected.number)?.number ?? '')
       setProblemDialogOpen(false)
     }
   }
 
-  async function returnToAssembly(number: string) {
+  async function returnToAssembly(number: string, problemId?: string) {
     if (draft.blocked || activeOrder || stockCheckRef.current) return false
-    const entry = problemOrders.find((item) => item.order.number === number && item.problem.resolutionStatus !== 'returned')
+    const entry = problemOrders.find((item) => item.order.number === number && item.problem.resolutionStatus !== 'returned' && (!problemId || item.problemId === problemId))
     return entry?.problemId ? draft.problemAction(entry.problemId, 'return') : false
   }
 
@@ -138,6 +141,8 @@ export default function AssemblyPage() {
           {draft.error && <button type="button" className="receivingHistory__button" onClick={() => void draft.retry()}>Повторить</button>}
         </div>}
         {draft.actionNotice && <div className="assemblyPersistenceStatus" role="status">{draft.actionNotice}</div>}
+        {ordersError && <div className="assemblyPersistenceStatus" role="status">{ordersError}<button type="button" onClick={() => setRefreshOrders(value => value + 1)}>Повторить</button></div>}
+        {activeOrder && activeOrder.source !== 'ozon' && <div className="assemblyPersistenceStatus" role="status">Историческая демонстрационная сборка сохранена. Она не выполняет реальные списания.</div>}
         <section className="receivingPage__panel assemblyQueue" aria-label="Очередь заказов">
           <div className="assemblyQueue__list">
             <div className="assemblyQueue__heading">
@@ -154,7 +159,7 @@ export default function AssemblyPage() {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
                   </button>
                 </form>
-                <button className="receivingHistory__button receivingHistory__iconButton" type="button" aria-label="Обновить заказы" title="Обновить заказы" aria-disabled="true">
+                <button className="receivingHistory__button receivingHistory__iconButton" type="button" aria-label="Обновить заказы" title="Обновить заказы" disabled={loadingOrders} onClick={() => setRefreshOrders(value => value + 1)}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M20 7v5h-5M20 12a8 8 0 1 0-2.3 5.7" />
                   </svg>
@@ -175,7 +180,7 @@ export default function AssemblyPage() {
                   <td><button type="button" aria-pressed={order.number === selected.number} onClick={() => setSelectedNumber(order.number)}>
                     <strong>{order.number}</strong><span>{order.status}</span>
                   </button></td>
-                  <td><span className="assemblyQueue__time"><span>{order.time}</span><span className={`assemblyQueue__wait assemblyQueue__wait--${waitLevel}`} aria-label={`Ожидание: ${minutes} мин.`} title={`С момента поступления: ${minutes} мин.`}>{minutes}</span></span><span className="assemblyQueue__date">07.10.2026</span></td>
+                  <td><span className="assemblyQueue__time"><span>{formatOrderTime(order.createdAt)}</span><span className={`assemblyQueue__wait assemblyQueue__wait--${waitLevel}`} aria-label={`Ожидание: ${minutes} мин.`} title={`С момента поступления: ${minutes} мин.`}>{minutes}</span></span><span className="assemblyQueue__date">{formatOrderDate(order.createdAt)}</span></td>
                   <td>{order.items.length} / {order.items.reduce((sum, item) => sum + item.quantity, 0)}</td>
                 </tr>
               )})}{queueOrders.length === 0 && <tr><td colSpan={3}>В очереди нет заказов</td></tr>}</tbody>
@@ -191,7 +196,7 @@ export default function AssemblyPage() {
               </div>
               <dl className="assemblyQueue__parameters">
               <div><dt>Источник</dt><dd>Ozon</dd></div>
-              <div><dt>Поступил</dt><dd>07.10.2026 - {selected.time}</dd></div>
+              <div><dt>Поступил</dt><dd>{formatOrderDate(selected.createdAt)} - {formatOrderTime(selected.createdAt)}</dd></div>
               <div><dt>Позиций</dt><dd>{selected.items.length}</dd></div>
               <div><dt>Единиц</dt><dd>{total}</dd></div>
               </dl>
@@ -208,17 +213,18 @@ export default function AssemblyPage() {
             </div>
             <div className="assemblyQueue__footer">
               <div className="assemblyQueue__shortageMessage" id="assembly-shortage" role="status">
+                {selected.stockReady === false && !firstShortage && <p>{selected.stockMessage}</p>}
                 {firstShortage && <><p>Недостаточно товара для начала сборки.</p><p>{firstShortage.name}: требуется {firstShortage.quantity}, доступно {firstShortage.stock}.{shortageItems.length > 1 && ` И ещё ${shortageItems.length - 1} проблемных позиций.`}</p></>}
               </div>
               <div className="assemblyQueue__footerActions">
                 <button className="assemblyQueue__problem" type="button" disabled={draft.blocked || checkingStock} onClick={() => setProblemDialogOpen(true)}>Проблема</button>
-                <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={shortageItems.length > 0 || activeOrder !== null || draft.blocked || checkingStock} aria-describedby={firstShortage ? 'assembly-shortage' : undefined} onClick={() => { if (selected && !activeOrder && shortageItems.length === 0) void draft.save({ ...draft.state, activeOrder: selected, activeState: emptyAssemblyState }) }}>Начать сборку</button>
+                <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={selected.stockReady === false || shortageItems.length > 0 || activeOrder !== null || draft.blocked || checkingStock} aria-describedby={firstShortage ? 'assembly-shortage' : undefined} onClick={() => { if (selected && !activeOrder && shortageItems.length === 0) void draft.assemblyAction('start', { orderNumber: selected.number }) }}>Начать сборку</button>
               </div>
             </div>
             </> : <p className="assemblyQueue__subtitle">Выберите заказ из очереди</p>}
           </div>
         </section>
-        <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked || checkingStock} onChange={(next) => draft.save({ ...draft.state, activeState: next })} onComplete={() => { if (activeOrder && !draft.blocked) void draft.save({ ...draft.state, completedOrders: [...completedOrders, activeOrder], activeOrder: null, activeState: emptyAssemblyState }) }} onProblem={(details) => activeOrder && !draft.blocked ? draft.createProblem({ source: 'assembly', orderNumber: activeOrder.number, details }) : Promise.resolve(false)} />
+        <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked || checkingStock || activeOrder?.source !== 'ozon'} onChange={() => Promise.resolve(false)} onServerAction={(action, code) => draft.assemblyAction(action, code ? { code } : {})} onComplete={() => { if (activeOrder && !draft.blocked) void draft.assemblyAction('finish') }} onProblem={(details) => activeOrder && !draft.blocked ? draft.createProblem({ source: 'assembly', orderNumber: activeOrder.number, details }) : Promise.resolve(false)} />
         <ProblemOrders orders={problemOrders} blocked={draft.blocked || checkingStock} assemblyBusy={activeOrder !== null} onReturn={returnToAssembly} onStockCheck={refreshProblemStock} />
       </div>
       {problemDialogOpen && selected && <OrderProblemDialog blocked={draft.blocked || checkingStock} positions={selected.items} initialPositionSku={firstShortage?.sku ?? selected.items[0]?.sku} initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={(problem) => void confirmProblem(problem)} />}

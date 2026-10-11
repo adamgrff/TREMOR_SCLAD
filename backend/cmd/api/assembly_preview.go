@@ -38,7 +38,7 @@ func assemblyDraftFailure(w http.ResponseWriter, err error) {
 	assemblyDraftError(w, http.StatusInternalServerError, "assembly_draft_unavailable", "Не удалось сохранить или загрузить сборку. Проверьте подключение к backend.")
 }
 
-// Preview state is isolated from inventory. Real picking requires separate transactional APIs.
+// Legacy snapshots remain readable. Real picking uses transactional intent APIs.
 func validateAssemblyDraft(data json.RawMessage) bool {
 	var state struct {
 		SchemaVersion int `json:"schemaVersion"`
@@ -177,7 +177,11 @@ func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Requ
 			return
 		}
 		var success bool
-		request.State, message, success, err = applyAssemblyProblemOperation(r.Context(), tx, current, *operation, timestamp)
+		if operation.Action == "start" || operation.Action == "scan" || operation.Action == "undo" || operation.Action == "finish" {
+			request.State, message, success, err = applyWarehouseAssemblyOperation(r.Context(), tx, current, *operation, timestamp)
+		} else {
+			request.State, message, success, err = applyAssemblyProblemOperation(r.Context(), tx, current, *operation, timestamp)
+		}
 		if err != nil {
 			var conflict *assemblyActionConflict
 			if errors.As(err, &conflict) {
@@ -193,10 +197,34 @@ func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Requ
 			return
 		}
 	} else if create != nil {
+		var realEnabled bool
+		if err = tx.QueryRow(r.Context(), `SELECT to_regclass('assembly_warehouse_operations') IS NOT NULL`).Scan(&realEnabled); err != nil {
+			assemblyDraftFailure(w, err)
+			return
+		}
+		if realEnabled {
+			if err = prepareWarehouseProblem(r.Context(), tx, current, create); err != nil {
+				assemblyDraftError(w, 409, "invalid_problem_context", err.Error())
+				return
+			}
+			if create.Source == "assembly" {
+				hydrated, _ := decodeWorkspace(current)
+				hydrated["activeOrder"] = valueMapFromRaw(create.Order)
+				current = encodeValue(hydrated)
+				create.Order = nil
+			}
+		}
 		request.State, err = buildAssemblyProblem(current, *create, timestamp)
 		if err != nil {
 			assemblyDraftError(w, 409, "invalid_problem_context", err.Error())
 			return
+		}
+		if realEnabled {
+			request.State, err = enrichWarehouseProblemHistory(r.Context(), tx, request.State)
+			if err != nil {
+				assemblyDraftFailure(w, err)
+				return
+			}
 		}
 		if stockEnabled {
 			if _, err = tx.Exec(r.Context(), `SELECT set_config('assembly.server_action','true',true)`); err != nil {

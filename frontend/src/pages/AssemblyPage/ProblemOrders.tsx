@@ -15,7 +15,7 @@ function ProblemTime({ value }: { value: string }) {
   return <time className="problemOrders__time" dateTime={value}><span className="assemblyQueue__time">{timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><span className="assemblyQueue__date">{timestamp.toLocaleDateString('ru-RU')}</span></time>
 }
 
-export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string> }) {
+export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string, problemId?: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string> }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
   const [notice, setNotice] = useState('')
@@ -55,13 +55,14 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           if (group) group.quantity += 1
           else result.push({ sku: pick.sku, quantity: 1, cells: new Map() })
           const position = result.find((item) => item.sku === pick.sku)!
-          position.cells.set(pick.cell, (position.cells.get(pick.cell) ?? 0) + 1)
+          const cellLabel = pick.cellId ? `${pick.cell} [ID ${pick.cellId}]` : pick.cell
+          position.cells.set(cellLabel, (position.cells.get(cellLabel) ?? 0) + 1)
           return result
         }, [])
         const reason = allProblemTypes.find(([type]) => type === problem.type)?.[1] ?? 'Другая проблема'
         const resolved = problem.resolutionStatus === 'resolved'
-        const orderProblemsResolved = pendingOrders.filter((item) => item.order.number === order.number).every((item) => item.problem.resolutionStatus === 'resolved' && !item.problem.requiresDisassembly && !['cancelled_order', 'ozon_error'].includes(item.problem.type))
-        const returnHint = !orderProblemsResolved ? 'Сначала устраните все проблемы заказа' : assemblyBusy ? 'Сначала завершите текущую сборку' : blocked ? 'Дождитесь сохранения и восстановления связи' : 'Продолжить сборку с сохранённым прогрессом'
+        const orderProblemsResolved = order.source === 'ozon' && pendingOrders.filter((item) => item.order.number === order.number && item.order.source === order.source).every((item) => item.problem.resolutionStatus === 'resolved' && !item.problem.requiresDisassembly && !['cancelled_order', 'ozon_error'].includes(item.problem.type))
+        const returnHint = order.source !== 'ozon' ? 'Исторический пример: реальные складские списания отключены' : !orderProblemsResolved ? 'Сначала устраните все проблемы заказа' : assemblyBusy ? 'Сначала завершите текущую сборку' : blocked ? 'Дождитесь сохранения и восстановления связи' : 'Продолжить сборку с сохранённым прогрессом'
         const position = order.items.find((item) => item.sku === problem.positionSku)
         const product = position ? `${position.name} (${position.sku})` : 'товар заказа'
         const explanation = {
@@ -90,7 +91,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
         if (needsDisassembly) actions.push('Передать в разбор')
         return <details className="problemOrders__order" key={problemId ?? `${order.number}:${problem.type}:${problem.createdAt}`}>
           <summary className="problemOrders__row">
-            <span><strong className="problemOrders__number">{order.number}</strong><small>{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>
+            <span><strong className="problemOrders__number">{order.number}</strong><small>{order.source !== 'ozon' && 'Исторический пример · '}{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>
             <span className="problemOrders__reason">{reason}</span>
             <span>{affected.length > 1 ? <><strong>{affected.length} {({ one: 'позиция', few: 'позиции', many: 'позиций', other: 'позиции', zero: 'позиций', two: 'позиции' })[new Intl.PluralRules('ru').select(affected.length)]}</strong><small>{problemQuantity} шт.</small></> : affected.length === 1 ? <><strong>{affected[0].name}</strong><small>{affected[0].sku}</small></> : <><strong>Заказ целиком</strong><small>{order.items.length} поз. · {required} шт.</small></>}</span>
             <span><span className={`problemOrders__status${resolved ? ' problemOrders__status--resolved' : ''}`}>{resolved ? 'Решена' : 'Ожидает решения'}</span></span>
@@ -133,7 +134,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
               </li>)}</ol>
             </div>
             <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Вернуть в сборку' && (!orderProblemsResolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
-              if (action === 'Вернуть в сборку') void onReturn(order.number).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
+              if (action === 'Вернуть в сборку') void onReturn(order.number, problemId).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
               else if (action === 'Обновить остатки' && problem.type === 'insufficient_stock') { setNotice(`${order.number}: проверка остатков…`); void onStockCheck(order.number, problemId).then(setNotice).catch(() => setNotice('Не удалось выполнить проверку остатков. Повторите попытку.')) }
               else setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)
             }}>{action}</button>)}</div>
