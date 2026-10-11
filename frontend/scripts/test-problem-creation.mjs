@@ -26,6 +26,7 @@ const context = {
     if (!options.method) return { ok: true, json: async () => ({ version, state: serverState }) }
     if (mode === 'offline') throw new Error('offline')
     if (mode === 'conflict') return { ok: false, status: 409, json: async () => ({ error: 'Состояние изменилось' }) }
+    if (mode === 'declined') return { ok: true, status: 200, json: async () => ({ version: ++version, state: serverState = { marker: 'return denied' }, applied: false, message: 'Возврат отклонён: товара недостаточно.' }) }
     return { ok: true, status: 200, json: async () => ({ version: ++version, state: serverState = { marker: 'problem saved' } }) }
   },
 }
@@ -62,6 +63,23 @@ const oldPostCount = calls.filter((call) => call.method === 'POST').length
 assert.equal(await draft.retry(), true)
 assert.equal(calls.filter((call) => call.method === 'POST').length, oldPostCount)
 
+draft = render(); mode = 'declined'
+assert.equal(await draft.problemAction('problem-id', 'return'), false)
+draft = render()
+assert.equal(draft.state.marker, 'return denied')
+assert.equal(draft.blocked, false)
+assert.match(draft.actionNotice, /Возврат отклонён/)
+assert.equal(draft.getActionMessage(), draft.actionNotice)
+mode = 'offline'
+assert.equal(await draft.problemAction('problem-id', 'check-stock'), false)
+const nativeRequest = calls.at(-1)
+assert.equal(nativeRequest.url, '/api/assembly/problems/problem-id/check-stock')
+assert.deepEqual(Object.keys(JSON.parse(nativeRequest.body)).sort(), ['requestId', 'version'])
+mode = 'success'
+draft = render()
+assert.equal(await draft.retry(), true)
+assert.equal(calls.at(-1).body, nativeRequest.body)
+
 const dialogContext = { exports: {}, require: (id) => id === './problemTypes' ? { problemTypes: [['insufficient_stock', 'Недостаточно товара'], ['other', 'Другая проблема']] } : require(id) }
 vm.runInNewContext(compile('../src/pages/AssemblyPage/OrderProblemDialog.tsx'), dialogContext)
 const props = { positions: [{ sku: 'A', name: 'Alpha' }], initialPositionSku: 'A', onCancel() {}, onConfirm() {} }
@@ -73,4 +91,4 @@ assert.match(otherDialog, /<textarea[^>]*required/)
 assert.match(otherDialog, /type="submit"[^>]*disabled/)
 const blockedDialog = renderToStaticMarkup(React.createElement(dialogContext.exports.default, { ...props, initialType: 'insufficient_stock', blocked: true }))
 assert.match(blockedDialog, /type="submit"[^>]*disabled/)
-console.log('Problem creation UI checks passed: queue position, required comment, pending guard, server intent, retry identity, conflict reload, blocked dialog.')
+console.log('Problem UI checks passed: queue position, required comment, server actions, persisted return rejection, pending guard, retry identity, conflict reload, blocked dialog.')

@@ -3,8 +3,6 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Header from '../../components/Header/Header'
 import ActiveAssembly, { type ActiveAssemblyState, type AssemblyProblemSnapshot, type AssemblyPreviewOrder } from './ActiveAssembly'
 import useAssemblyDraft from './useAssemblyDraft'
-import checkProblemStock from './checkProblemStock'
-import createProblemHistory from './createProblemHistory'
 import ProblemOrders from './ProblemOrders'
 import OrderProblemDialog, { type OrderProblemDetails, type SavedOrderProblem } from './OrderProblemDialog'
 import { useTheme } from '../../hooks/useTheme'
@@ -111,24 +109,8 @@ export default function AssemblyPage() {
 
   async function returnToAssembly(number: string) {
     if (draft.blocked || activeOrder || stockCheckRef.current) return false
-    const related = problemOrders.filter((item) => item.order.number === number && item.problem.resolutionStatus !== 'returned')
-    const entry = related.find((item) => item.assembly) ?? related[0]
-    if (!entry || related.some((item) => item.problem.resolutionStatus !== 'resolved' || ['cancelled_order', 'ozon_error'].includes(item.problem.type) || item.problem.requiresDisassembly) || completedOrders.some((order) => order.number === number)) return false
-    const restored: ActiveAssemblyState = entry.assembly ? {
-      picks: entry.assembly.picks,
-      confirmedCell: null,
-      shipmentConfirmed: entry.assembly.shipmentConfirmed,
-      lastScan: '—',
-      log: 'Заказ возвращён в сборку после решения проблемы. Сохранённый прогресс восстановлен.',
-      error: false,
-    } : { ...emptyAssemblyState }
-    const returnedAt = new Date().toISOString()
-    return draft.save({
-      ...draft.state,
-      activeOrder: entry.order,
-      activeState: restored,
-      problemOrders: problemOrders.map((item) => related.includes(item) ? { ...item, problem: { ...item.problem, resolutionStatus: 'returned', returnedAt, history: [...(item.problem.history ?? createProblemHistory(item.order, item.problem, item.problem.createdAt, item.assembly)), { createdAt: returnedAt, kind: 'return', title: 'Заказ возвращён в сборку', message: 'Сохранённый прогресс восстановлен.', outcome: 'success' }] } } : item),
-    })
+    const entry = problemOrders.find((item) => item.order.number === number && item.problem.resolutionStatus !== 'returned')
+    return entry?.problemId ? draft.problemAction(entry.problemId, 'return') : false
   }
 
   async function refreshProblemStock(number: string, problemId?: string): Promise<string> {
@@ -138,15 +120,9 @@ export default function AssemblyPage() {
     stockCheckRef.current = true
     setCheckingStock(true)
     try {
-      const history = entry.problem.history?.some((event) => event.kind === 'creation') ? entry.problem.history : [...createProblemHistory(entry.order, entry.problem, entry.problem.createdAt, entry.assembly), ...(entry.problem.history ?? [])]
-      const result = await checkProblemStock(entry.order, { ...entry.problem, history }, entry.assembly)
-      const saved = await draft.save({ ...draft.state, problemOrders: problemOrders.map((item) => item === entry ? {
-        ...item,
-        order: { ...entry.order, items: result.order.items },
-        problem: result.problem,
-        ...(entry.assembly && result.problem.resolutionStatus === 'resolved' ? { assembly: { ...entry.assembly, cell: null } } : {}),
-      } : item) })
-      return saved ? `${number}: ${result.message}` : 'Результат проверки не сохранён. Нажмите «Повторить» в сообщении сохранения.'
+      if (!entry.problemId) return 'Перезагрузите страницу для восстановления ID проблемы.'
+      await draft.problemAction(entry.problemId, 'check-stock')
+      return draft.getActionMessage() ? `${number}: ${draft.getActionMessage()}` : 'Проверка не завершена. Проверьте сообщение сохранения и нажмите «Повторить».'
     } finally {
       stockCheckRef.current = false
       setCheckingStock(false)
@@ -161,6 +137,7 @@ export default function AssemblyPage() {
           {draft.error || (draft.saving ? 'Сохранение сборки…' : 'Восстановление сборки…')}
           {draft.error && <button type="button" className="receivingHistory__button" onClick={() => void draft.retry()}>Повторить</button>}
         </div>}
+        {draft.actionNotice && <div className="assemblyPersistenceStatus" role="status">{draft.actionNotice}</div>}
         <section className="receivingPage__panel assemblyQueue" aria-label="Очередь заказов">
           <div className="assemblyQueue__list">
             <div className="assemblyQueue__heading">

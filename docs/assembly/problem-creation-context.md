@@ -2,6 +2,8 @@
 
 Правила: [problem-resolution-rules.md](problem-resolution-rules.md). Хранение этапа 2: [problem-storage.md](problem-storage.md).
 
+Проверка реального склада и возврат подключены отдельно в [этапе 4](server-stock-checks.md). Ограничение ниже о frontend-проверке описывает исходное состояние этапа 3.
+
 ## Создание
 
 Оба окна вызывают POST `/api/assembly/problems`:

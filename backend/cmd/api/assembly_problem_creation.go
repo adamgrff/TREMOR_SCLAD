@@ -20,12 +20,13 @@ type assemblyProblemDetails struct {
 	PositionSKU string `json:"positionSku,omitempty"`
 }
 type assemblyProblemCreationRequest struct {
-	RequestID   string                 `json:"requestId"`
-	Version     int64                  `json:"version"`
-	Source      string                 `json:"source"`
-	Order       json.RawMessage        `json:"order,omitempty"`
-	OrderNumber string                 `json:"orderNumber"`
-	Details     assemblyProblemDetails `json:"details"`
+	RequestID          string                 `json:"requestId"`
+	Version            int64                  `json:"version"`
+	Source             string                 `json:"source"`
+	Order              json.RawMessage        `json:"order,omitempty"`
+	OrderNumber        string                 `json:"orderNumber"`
+	Details            assemblyProblemDetails `json:"details"`
+	AllowExistingQueue bool                   `json:"-"`
 }
 
 var manualProblemLabels = map[string]string{
@@ -46,7 +47,7 @@ func createAssemblyProblemHandler(db *pgxpool.Pool, w http.ResponseWriter, r *ht
 	}
 	// Hash the intent, not server-generated timestamps or state; a retry replays exactly one creation.
 	payload, _ := json.Marshal(request)
-	saveAssemblyWorkspace(db, w, r, assemblyDraftRequest{RequestID: request.RequestID, Version: request.Version, State: payload}, &request)
+	saveAssemblyWorkspace(db, w, r, assemblyDraftRequest{RequestID: request.RequestID, Version: request.Version, State: payload}, &request, nil)
 }
 
 type contextOrder struct {
@@ -112,7 +113,7 @@ func buildAssemblyProblem(current json.RawMessage, request assemblyProblemCreati
 				Status string `json:"resolutionStatus"`
 			}
 			json.Unmarshal(entry["problem"], &issue)
-			if existing.Number == order.Number && issue.Status != "returned" {
+			if existing.Number == order.Number && issue.Status != "returned" && !request.AllowExistingQueue {
 				return nil, errors.New("Заказ уже находится в проблемных.")
 			}
 		}

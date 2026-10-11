@@ -18,6 +18,8 @@ import (
 type assemblyDraftResponse struct {
 	Version int64           `json:"version"`
 	State   json.RawMessage `json:"state"`
+	Message string          `json:"message,omitempty"`
+	Applied *bool           `json:"applied,omitempty"`
 }
 type assemblyDraftRequest struct {
 	RequestID string          `json:"requestId"`
@@ -110,11 +112,11 @@ func saveAssemblyDraftHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.R
 		assemblyDraftError(w, 400, "invalid_assembly_draft", "Некорректное состояние сборки.")
 		return
 	}
-	saveAssemblyWorkspace(db, w, r, request, nil)
+	saveAssemblyWorkspace(db, w, r, request, nil, nil)
 }
 
 // Both mutations share the same version lock and idempotency ledger.
-func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request, request assemblyDraftRequest, create *assemblyProblemCreationRequest) {
+func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request, request assemblyDraftRequest, create *assemblyProblemCreationRequest, operation *assemblyProblemOperation) {
 	canonical, _ := json.Marshal(request)
 	hash := sha256.Sum256(canonical)
 	payloadHash := hex.EncodeToString(hash[:])
@@ -152,27 +154,72 @@ func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Requ
 		assemblyDraftError(w, 409, "assembly_draft_conflict", "Сборка изменена в другом окне. Загрузите актуальное состояние.")
 		return
 	}
-	if create != nil {
-		var current json.RawMessage
-		if err = tx.QueryRow(r.Context(), `SELECT assembly_load_workspace(state) FROM assembly_preview_drafts WHERE id=true`).Scan(&current); err != nil {
+	var stockEnabled bool
+	if err = tx.QueryRow(r.Context(), `SELECT to_regclass('assembly_stock_checks') IS NOT NULL`).Scan(&stockEnabled); err != nil {
+		assemblyDraftFailure(w, err)
+		return
+	}
+	var current json.RawMessage
+	if err = tx.QueryRow(r.Context(), `SELECT assembly_load_workspace(state) FROM assembly_preview_drafts WHERE id=true`).Scan(&current); err != nil {
+		assemblyDraftFailure(w, err)
+		return
+	}
+	var timestamp string
+	if err = tx.QueryRow(r.Context(), `SELECT to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`).Scan(&timestamp); err != nil {
+		assemblyDraftFailure(w, err)
+		return
+	}
+	message := ""
+	var applied *bool
+	if operation != nil {
+		if !stockEnabled {
+			assemblyDraftError(w, 503, "stock_migration_required", "Примените миграцию 014.")
+			return
+		}
+		var success bool
+		request.State, message, success, err = applyAssemblyProblemOperation(r.Context(), tx, current, *operation, timestamp)
+		if err != nil {
+			var conflict *assemblyActionConflict
+			if errors.As(err, &conflict) {
+				assemblyDraftError(w, 409, "assembly_action_conflict", conflict.Error())
+			} else {
+				assemblyDraftFailure(w, err)
+			}
+			return
+		}
+		applied = &success
+		if _, err = tx.Exec(r.Context(), `SELECT set_config('assembly.server_action','true',true)`); err != nil {
 			assemblyDraftFailure(w, err)
 			return
 		}
-		var timestamp string
-		if err = tx.QueryRow(r.Context(), `SELECT to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`).Scan(&timestamp); err != nil {
-			assemblyDraftFailure(w, err)
-			return
-		}
+	} else if create != nil {
 		request.State, err = buildAssemblyProblem(current, *create, timestamp)
 		if err != nil {
 			assemblyDraftError(w, 409, "invalid_problem_context", err.Error())
 			return
+		}
+		if stockEnabled {
+			if _, err = tx.Exec(r.Context(), `SELECT set_config('assembly.server_action','true',true)`); err != nil {
+				assemblyDraftFailure(w, err)
+				return
+			}
 		}
 	} else {
 		var contextualStorage bool
 		if err = tx.QueryRow(r.Context(), `SELECT to_regclass('assembly_problem_contexts') IS NOT NULL`).Scan(&contextualStorage); err != nil {
 			assemblyDraftFailure(w, err)
 			return
+		}
+		if stockEnabled {
+			if err = authorizeAssemblyDraft(r.Context(), tx, current, &request.State, request.RequestID, timestamp); err != nil {
+				var conflict *assemblyActionConflict
+				if errors.As(err, &conflict) {
+					assemblyDraftError(w, 409, "assembly_server_check_required", conflict.Error())
+				} else {
+					assemblyDraftFailure(w, err)
+				}
+				return
+			}
 		}
 		if contextualStorage {
 			var state struct {
@@ -206,7 +253,7 @@ func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Requ
 		assemblyDraftFailure(w, err)
 		return
 	}
-	response := assemblyDraftResponse{Version: currentVersion + 1, State: restored}
+	response := assemblyDraftResponse{Version: currentVersion + 1, State: restored, Message: message, Applied: applied}
 	body, err := json.Marshal(response)
 	if err != nil {
 		assemblyDraftFailure(w, err)
