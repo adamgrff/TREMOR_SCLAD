@@ -27,6 +27,7 @@ func main() {
 		{"assembly_stock_checks", "migrations/014_assembly_stock_checks.sql"},
 		{"assembly_warehouse_operations", "migrations/015_assembly_warehouse_operations.sql"},
 		{"assembly_sku_mappings", "migrations/016_assembly_sku_mappings.sql"},
+		{"assembly_ozon_operations", "migrations/017_assembly_ozon_operations.sql"},
 	} {
 		var applied bool
 		if err = conn.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, migration.table).Scan(&applied); err != nil {

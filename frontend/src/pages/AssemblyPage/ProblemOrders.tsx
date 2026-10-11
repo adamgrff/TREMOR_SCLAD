@@ -16,14 +16,14 @@ function ProblemTime({ value }: { value: string }) {
   return <time className="problemOrders__time" dateTime={value}><span className="assemblyQueue__time">{timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><span className="assemblyQueue__date">{timestamp.toLocaleDateString('ru-RU')}</span></time>
 }
 
-export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck, onMap }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string, problemId?: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string>; onMap?: (problemId: string, positionSku: string, productId: number) => Promise<boolean> }) {
+export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck, onMap, onOzonAction }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string, problemId?: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string>; onMap?: (problemId: string, positionSku: string, productId: number) => Promise<boolean>; onOzonAction?: (problemId: string, action: 'retry-ozon' | 'close-cancelled') => Promise<string> }) {
   const [mapping, setMapping] = useState<ProblemOrder | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
   const [notice, setNotice] = useState('')
   const [page, setPage] = useState(1)
   const search = query.trim().toLocaleLowerCase('ru-RU')
-  const pendingOrders = orders.filter(({ problem }) => problem.resolutionStatus !== 'returned')
+  const pendingOrders = orders.filter(({ problem }) => problem.resolutionStatus !== 'returned' && !problem.closedOutcome)
   const visible = pendingOrders.filter(({ order, problem }) => (!filter || problem.type === filter) && (!search || [order.number, ...order.items.flatMap((item) => [item.name, item.sku])].some((value) => value.toLocaleLowerCase('ru-RU').includes(search))))
   const pageSize = 5
   const pageCount = Math.max(1, Math.ceil(visible.length / pageSize))
@@ -63,7 +63,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
         }, [])
         const reason = allProblemTypes.find(([type]) => type === problem.type)?.[1] ?? 'Другая проблема'
         const resolved = problem.resolutionStatus === 'resolved'
-        const orderProblemsResolved = order.source === 'ozon' && pendingOrders.filter((item) => item.order.number === order.number && item.order.source === order.source).every((item) => item.problem.resolutionStatus === 'resolved' && !item.problem.requiresDisassembly && !['cancelled_order', 'ozon_error'].includes(item.problem.type))
+        const orderProblemsResolved = order.source === 'ozon' && pendingOrders.filter((item) => item.order.number === order.number && item.order.source === order.source).every((item) => item.problem.resolutionStatus === 'resolved' && !item.problem.requiresDisassembly && item.problem.type !== 'cancelled_order' && (item.problem.type !== 'ozon_error' || (item.problem.ozonPurpose === 'refresh_order' && item.problem.ozonOutcome === 'applied')))
         const returnHint = order.source !== 'ozon' ? 'Исторический пример: реальные складские списания отключены' : !orderProblemsResolved ? 'Сначала устраните все проблемы заказа' : assemblyBusy ? 'Сначала завершите текущую сборку' : blocked ? 'Дождитесь сохранения и восстановления связи' : 'Продолжить сборку с сохранённым прогрессом'
         const position = order.items.find((item) => item.sku === problem.positionSku)
         const product = position ? `${position.name} (${position.sku})` : 'товар заказа'
@@ -78,13 +78,13 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           invalid_order: { happened: 'В составе, количестве или других данных заказа отмечена ошибка.', todo: 'Сверьте заказ с данными Ozon и устраните расхождения перед продолжением сборки.' },
           other: { happened: problem.comment || 'Заказ остановлен по причине, указанной как «Другая проблема».', todo: 'Уточните причину по комментарию и проверьте заказ. После устранения причины можно продолжить сборку.' },
           cancelled_order: { happened: 'Заказ отменён. Продолжать сборку этого заказа нельзя.', todo: needsDisassembly ? 'Передайте уже отобранные товары в разбор для возврата в исходные ячейки.' : picks.length > 0 ? 'Для этого заказа физический разбор не требуется.' : 'Отобранных товаров нет. Физический разбор не требуется.' },
-          ozon_error: { happened: 'Запрос к Ozon завершился ошибкой. Успешное подтверждение не получено.', todo: 'Повторите запрос Ozon и дождитесь подтверждённого ответа.' },
+          ozon_error: { happened: problem.ozonOutcome === 'applied' ? 'Исходная операция Ozon подтверждена. Остальные причины проверяются отдельно.' : 'Фактическое подтверждение Ozon не получено или ожидает сверки.', todo: 'Повтор сначала проверяет результат исходной операции. При неизвестном результате повторная отправка запрещена.' },
         }[problem.type]
         const actions: string[] = {
           insufficient_stock: ['Обновить остатки', 'Вернуть в сборку'],
           unknown_sku: resolved ? ['Вернуть в сборку'] : ['Сопоставить товар'],
-          cancelled_order: [],
-          ozon_error: ['Повторить запрос Ozon'],
+          cancelled_order: !picks.length && problem.ozonOperationId ? ['Закрыть отменённый заказ'] : [],
+          ozon_error: resolved && problem.ozonPurpose === 'refresh_order' ? ['Вернуть в сборку'] : ['Повторить запрос Ozon'],
           missing_in_cell: ['Вернуть в сборку'],
           damaged_product: ['Вернуть в сборку'],
           invalid_order: ['Вернуть в сборку'],
@@ -135,9 +135,10 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                 </span>}
               </li>)}</ol>
             </div>
-            <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Сопоставить товар' && (order.source !== 'ozon' || !problemId || !onMap)) || (action === 'Вернуть в сборку' && (!orderProblemsResolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
+            <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (['Повторить запрос Ozon', 'Закрыть отменённый заказ'].includes(action) && (!onOzonAction || !problemId || !problem.ozonOperationId || order.source !== 'ozon')) || (action === 'Сопоставить товар' && (order.source !== 'ozon' || !problemId || !onMap)) || (action === 'Вернуть в сборку' && (!orderProblemsResolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
               if (action === 'Вернуть в сборку') void onReturn(order.number, problemId).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
               else if (action === 'Обновить остатки' && problem.type === 'insufficient_stock') { setNotice(`${order.number}: проверка остатков…`); void onStockCheck(order.number, problemId).then(setNotice).catch(() => setNotice('Не удалось выполнить проверку остатков. Повторите попытку.')) }
+              else if (['Повторить запрос Ozon', 'Закрыть отменённый заказ'].includes(action) && problemId && onOzonAction) { setNotice(`${order.number}: проверка исходной операции…`); void onOzonAction(problemId, action === 'Повторить запрос Ozon' ? 'retry-ozon' : 'close-cancelled').then(setNotice).catch(() => setNotice('Не удалось проверить операцию. Повторите тот же запрос.')) }
               else if (action === 'Сопоставить товар') setMapping({ problemId, order, problem, status: 'problem', assembly })
               else setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)
             }}>{action}</button>)}</div>

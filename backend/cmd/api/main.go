@@ -84,6 +84,9 @@ func main() {
 	mux.HandleFunc("POST /api/assembly/problems/{problemID}/return", func(w http.ResponseWriter, r *http.Request) {
 		assemblyProblemOperationHandler(database, w, r, "return")
 	})
+	for _, action := range []string{"retry-ozon", "close-cancelled"} {
+		mux.HandleFunc("POST /api/assembly/problems/{problemID}/"+action, func(w http.ResponseWriter, r *http.Request) { assemblyProblemOperationHandler(database, w, r, action) })
+	}
 	mux.HandleFunc("GET /api/assembly/problems/{problemID}", func(w http.ResponseWriter, r *http.Request) { assemblyProblemHandler(database, w, r) })
 	mux.HandleFunc("PUT /api/assembly-preview/draft", func(w http.ResponseWriter, r *http.Request) { saveAssemblyDraftHandler(database, w, r) })
 	mux.HandleFunc("POST /api/racks", func(w http.ResponseWriter, r *http.Request) { createRackHandler(database, w, r) })

@@ -497,11 +497,19 @@ func applyAssemblyProblemOperation(ctx context.Context, tx pgx.Tx, current json.
 		}
 		for _, entry := range related {
 			p := valueMap(entry["problem"])
-			if p["resolutionStatus"] != "resolved" || p["requiresDisassembly"] == true || p["type"] == "cancelled_order" || p["type"] == "ozon_error" {
+			ozonBlocked := p["type"] == "ozon_error"
+			if ozonBlocked {
+				verified, e := verifiedOzonRefresh(ctx, tx, p)
+				if e != nil {
+					return nil, "", false, e
+				}
+				ozonBlocked = !verified
+			}
+			if p["resolutionStatus"] != "resolved" || p["requiresDisassembly"] == true || p["type"] == "cancelled_order" || ozonBlocked {
 				return nil, "", false, stockConflict("Сначала устраните все проблемы заказа и завершите обязательные операции.")
 			}
 			if p["type"] != "insufficient_stock" {
-				kind := map[string]string{"missing_in_cell": "physical_check", "damaged_product": "damage_handled", "unknown_sku": "sku_mapping", "invalid_order": "order_verified", "other": "manual_resolution"}[textValue(p["type"])]
+				kind := map[string]string{"missing_in_cell": "physical_check", "damaged_product": "damage_handled", "unknown_sku": "sku_mapping", "invalid_order": "order_verified", "other": "manual_resolution", "ozon_error": "order_verified"}[textValue(p["type"])]
 				var verified bool
 				if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM assembly_problem_clearances c JOIN assembly_problem_records p ON p.id=c.problem_id WHERE c.problem_id=$1::uuid AND c.kind=$2 AND (SELECT jsonb_agg(jsonb_build_array(sku,required_quantity) ORDER BY sku) FROM assembly_order_positions WHERE version_id=c.order_version_id)=(SELECT jsonb_agg(jsonb_build_array(sku,required_quantity) ORDER BY sku) FROM assembly_order_positions WHERE version_id=p.order_version_id))`, textValue(entry["problemId"]), kind).Scan(&verified); err != nil {
 					return nil, "", false, err

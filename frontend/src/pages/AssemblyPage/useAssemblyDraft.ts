@@ -17,7 +17,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
 
   async function load(signal?: AbortSignal) {
     const response = await fetch(`${API_BASE_URL}/assembly-preview/draft`, { signal, cache: 'no-store' })
-    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–016.')
+    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–017.')
     const data = await response.json() as Response<T>
     if (signal?.aborted) return
     version.current = data.version
@@ -44,7 +44,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
     pending.current = { path: '/assembly/problems', method: 'POST', body: { ...intent, requestId: crypto.randomUUID(), version: version.current } }
     return retry()
   }
-  async function problemAction(problemId: string, action: 'check-stock' | 'return'): Promise<boolean> {
+  async function problemAction(problemId: string, action: 'check-stock' | 'return' | 'retry-ozon' | 'close-cancelled'): Promise<boolean> {
     if (!ready || inFlight.current || pending.current) return false
     pending.current = { path: `/assembly/problems/${encodeURIComponent(problemId)}/${action}`, method: 'POST', body: { requestId: crypto.randomUUID(), version: version.current } }
     return retry()

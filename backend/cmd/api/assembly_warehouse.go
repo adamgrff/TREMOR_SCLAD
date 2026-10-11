@@ -271,6 +271,13 @@ func applyWarehouseAssemblyOperation(ctx context.Context, tx pgx.Tx, current jso
 		if len(picks) != total || active["shipmentConfirmed"] != true {
 			return nil, "", false, stockConflict("Соберите все товары и подтвердите отправление.")
 		}
+		var journal bool
+		if err = tx.QueryRow(ctx, `SELECT to_regclass('assembly_ozon_operations') IS NOT NULL`).Scan(&journal); err != nil {
+			return nil, "", false, err
+		}
+		if journal {
+			return prepareOzonConfirmation(ctx, tx, state, order, active, op, timestamp)
+		}
 		// A label scan proves the physical box, not successful marketplace confirmation.
 		// Stage 7 will supply the verified external operation; never fabricate completion.
 		active["log"] = "Товары собраны, коробка подтверждена. Для завершения нужно подтверждение Ozon; внешний клиент ещё не подключён."

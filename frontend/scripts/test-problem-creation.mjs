@@ -104,6 +104,17 @@ mode = 'success'; draft = render()
 assert.equal(await draft.retry(), true)
 assert.equal(calls.at(-1).body, mappingRequest.body)
 
+draft = render(); mode = 'offline'
+assert.equal(await draft.problemAction('original-operation-problem', 'retry-ozon'), false)
+const ozonRetry = calls.at(-1)
+assert.equal(ozonRetry.url, '/api/assembly/problems/original-operation-problem/retry-ozon')
+assert.deepEqual(Object.keys(JSON.parse(ozonRetry.body)).sort(), ['requestId', 'version'])
+mode = 'success'; draft = render(); assert.equal(await draft.retry(), true)
+assert.equal(calls.at(-1).body, ozonRetry.body)
+draft = render()
+assert.equal(await draft.problemAction('cancelled-problem', 'close-cancelled'), true)
+assert.equal(calls.at(-1).url, '/api/assembly/problems/cancelled-problem/close-cancelled')
+
 const dialogContext = { exports: {}, require: (id) => id === './problemTypes' ? { problemTypes: [['insufficient_stock', 'Недостаточно товара'], ['other', 'Другая проблема']] } : require(id) }
 vm.runInNewContext(compile('../src/pages/AssemblyPage/OrderProblemDialog.tsx'), dialogContext)
 const props = { positions: [{ sku: 'A', name: 'Alpha' }], initialPositionSku: 'A', onCancel() {}, onConfirm() {} }

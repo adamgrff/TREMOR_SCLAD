@@ -181,6 +181,8 @@ func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Requ
 			request.State, message, success, err = applyWarehouseAssemblyOperation(r.Context(), tx, current, *operation, timestamp)
 		} else if operation.Action == "map-product" {
 			request.State, message, success, err = applyAssemblyMapping(r.Context(), tx, current, *operation, timestamp)
+		} else if operation.Action == "retry-ozon" || operation.Action == "close-cancelled" {
+			request.State, message, success, err = applyOzonProblemAction(r.Context(), tx, current, *operation, timestamp)
 		} else {
 			request.State, message, success, err = applyAssemblyProblemOperation(r.Context(), tx, current, *operation, timestamp)
 		}

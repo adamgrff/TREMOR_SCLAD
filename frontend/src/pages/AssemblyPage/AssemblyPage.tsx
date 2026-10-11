@@ -225,7 +225,7 @@ export default function AssemblyPage() {
           </div>
         </section>
         <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked || checkingStock || activeOrder?.source !== 'ozon'} onChange={() => Promise.resolve(false)} onServerAction={(action, code) => draft.assemblyAction(action, code ? { code } : {})} onComplete={() => { if (activeOrder && !draft.blocked) void draft.assemblyAction('finish') }} onProblem={(details) => activeOrder && !draft.blocked ? draft.createProblem({ source: 'assembly', orderNumber: activeOrder.number, details }) : Promise.resolve(false)} />
-        <ProblemOrders orders={problemOrders} blocked={draft.blocked || checkingStock} assemblyBusy={activeOrder !== null} onReturn={returnToAssembly} onStockCheck={refreshProblemStock} onMap={draft.mapProduct} />
+        <ProblemOrders orders={problemOrders} blocked={draft.blocked || checkingStock} assemblyBusy={activeOrder !== null} onReturn={returnToAssembly} onStockCheck={refreshProblemStock} onMap={draft.mapProduct} onOzonAction={async (problemId, action) => { await draft.problemAction(problemId, action); return draft.getActionMessage() || 'Действие не завершено. Проверьте сообщение сервера.' }} />
       </div>
       {problemDialogOpen && selected && <OrderProblemDialog blocked={draft.blocked || checkingStock} positions={selected.items} initialPositionSku={firstShortage?.sku ?? selected.items[0]?.sku} initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={(problem) => void confirmProblem(problem)} />}
     </main>
