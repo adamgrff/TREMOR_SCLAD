@@ -32,7 +32,7 @@ type AssemblyWorkspace = {
   schemaVersion: 1
   activeOrder: PreviewOrder | null
   activeState: ActiveAssemblyState
-  problemOrders: Array<{ order: PreviewOrder; problem: SavedOrderProblem; status: 'problem'; assembly?: AssemblyProblemSnapshot }>
+  problemOrders: Array<{ problemId?: string; order: PreviewOrder; problem: SavedOrderProblem; status: 'problem'; assembly?: AssemblyProblemSnapshot }>
   completedOrders: PreviewOrder[]
 }
 const initialWorkspace: AssemblyWorkspace = { schemaVersion: 1, activeOrder: null, activeState: emptyAssemblyState, problemOrders: [], completedOrders: [] }
@@ -119,11 +119,12 @@ export default function AssemblyPage() {
 
   async function returnToAssembly(number: string) {
     if (draft.blocked || activeOrder || stockCheckRef.current) return false
-    const entry = problemOrders.find((item) => item.order.number === number && item.problem.resolutionStatus === 'resolved')
-    if (!entry || ['cancelled_order', 'ozon_error'].includes(entry.problem.type) || completedOrders.some((order) => order.number === number)) return false
+    const related = problemOrders.filter((item) => item.order.number === number && item.problem.resolutionStatus !== 'returned')
+    const entry = related.find((item) => item.assembly) ?? related[0]
+    if (!entry || related.some((item) => item.problem.resolutionStatus !== 'resolved' || ['cancelled_order', 'ozon_error'].includes(item.problem.type) || item.problem.requiresDisassembly) || completedOrders.some((order) => order.number === number)) return false
     const restored: ActiveAssemblyState = entry.assembly ? {
       picks: entry.assembly.picks,
-      confirmedCell: entry.assembly.cell,
+      confirmedCell: null,
       shipmentConfirmed: entry.assembly.shipmentConfirmed,
       lastScan: '—',
       log: 'Заказ возвращён в сборку после решения проблемы. Сохранённый прогресс восстановлен.',
@@ -134,13 +135,13 @@ export default function AssemblyPage() {
       ...draft.state,
       activeOrder: entry.order,
       activeState: restored,
-      problemOrders: problemOrders.map((item) => item === entry ? { ...item, problem: { ...item.problem, resolutionStatus: 'returned', returnedAt, history: [...(item.problem.history ?? createProblemHistory(item.order, item.problem, item.problem.createdAt, item.assembly)), { createdAt: returnedAt, kind: 'return', title: 'Заказ возвращён в сборку', message: 'Сохранённый прогресс восстановлен.', outcome: 'success' }] } } : item),
+      problemOrders: problemOrders.map((item) => related.includes(item) ? { ...item, problem: { ...item.problem, resolutionStatus: 'returned', returnedAt, history: [...(item.problem.history ?? createProblemHistory(item.order, item.problem, item.problem.createdAt, item.assembly)), { createdAt: returnedAt, kind: 'return', title: 'Заказ возвращён в сборку', message: 'Сохранённый прогресс восстановлен.', outcome: 'success' }] } } : item),
     })
   }
 
-  async function refreshProblemStock(number: string): Promise<string> {
+  async function refreshProblemStock(number: string, problemId?: string): Promise<string> {
     if (draft.blocked || stockCheckRef.current) return 'Дождитесь завершения сохранения.'
-    const entry = problemOrders.find((item) => item.order.number === number && item.problem.resolutionStatus !== 'returned')
+    const entry = problemOrders.find((item) => item.order.number === number && item.problem.type === 'insufficient_stock' && item.problem.resolutionStatus !== 'returned' && (!problemId || item.problemId === problemId))
     if (!entry || entry.problem.type !== 'insufficient_stock') return 'Проверка остатков не устраняет этот тип проблемы.'
     stockCheckRef.current = true
     setCheckingStock(true)

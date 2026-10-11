@@ -20,12 +20,18 @@ func main() {
 		log.Fatal("failed to connect using API settings")
 	}
 	defer conn.Close(context.Background())
-	var applied bool
-	if err = conn.QueryRow(ctx, `SELECT to_regclass('assembly_preview_drafts') IS NOT NULL`).Scan(&applied); err != nil {
-		log.Fatal(err)
-	}
-	if !applied {
-		data, err := os.ReadFile("migrations/011_assembly_preview_drafts.sql")
+	for _, migration := range []struct{ table, file string }{
+		{"assembly_preview_drafts", "migrations/011_assembly_preview_drafts.sql"},
+		{"assembly_problem_records", "migrations/012_assembly_problem_storage.sql"},
+	} {
+		var applied bool
+		if err = conn.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, migration.table).Scan(&applied); err != nil {
+			log.Fatal(err)
+		}
+		if applied {
+			continue
+		}
+		data, err := os.ReadFile(migration.file)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -33,5 +39,5 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	log.Println("assembly preview persistence ready; warehouse stock unchanged")
+	log.Println("normalized assembly problem storage ready; warehouse stock unchanged")
 }

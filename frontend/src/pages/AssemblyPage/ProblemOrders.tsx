@@ -9,13 +9,13 @@ import arrowDown from '../../assets/home/arrow-down.svg'
 import arrowUp from '../../assets/home/arrow-up.svg'
 import './ProblemOrders.css'
 
-type ProblemOrder = { order: AssemblyPreviewOrder; problem: SavedOrderProblem; status: 'problem'; assembly?: AssemblyProblemSnapshot }
+type ProblemOrder = { problemId?: string; order: AssemblyPreviewOrder; problem: SavedOrderProblem; status: 'problem'; assembly?: AssemblyProblemSnapshot }
 function ProblemTime({ value }: { value: string }) {
   const timestamp = new Date(value)
   return <time className="problemOrders__time" dateTime={value}><span className="assemblyQueue__time">{timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><span className="assemblyQueue__date">{timestamp.toLocaleDateString('ru-RU')}</span></time>
 }
 
-export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string) => Promise<boolean>; onStockCheck: (number: string) => Promise<string> }) {
+export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string> }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
   const [notice, setNotice] = useState('')
@@ -38,7 +38,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
     </div>
     <div className="problemOrders__columns" aria-hidden="true"><span>Заказ / статус</span><span>Причина</span><span>Затронутый товар</span><span>Решение</span><span>Время</span><span/></div>
     <div className="problemOrders__list" key={`${currentPage}:${query}:${filter}`}>
-      {pageOrders.map(({ order, problem, assembly }) => {
+      {pageOrders.map(({ problemId, order, problem, assembly }) => {
         const affected = order.items.filter((item) => item.sku === problem.positionSku || problem.shortages.some((shortage) => shortage.sku === item.sku))
         const problemQuantity = affected.reduce((sum, item) => {
           const shortage = problem.shortages.find((position) => position.sku === item.sku)
@@ -59,7 +59,8 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
         }, [])
         const reason = allProblemTypes.find(([type]) => type === problem.type)?.[1] ?? 'Другая проблема'
         const resolved = problem.resolutionStatus === 'resolved'
-        const returnHint = !resolved ? 'Сначала устраните причину проблемы' : assemblyBusy ? 'Сначала завершите текущую сборку' : blocked ? 'Дождитесь сохранения и восстановления связи' : 'Продолжить сборку с сохранённым прогрессом'
+        const orderProblemsResolved = pendingOrders.filter((item) => item.order.number === order.number).every((item) => item.problem.resolutionStatus === 'resolved' && !item.problem.requiresDisassembly && !['cancelled_order', 'ozon_error'].includes(item.problem.type))
+        const returnHint = !orderProblemsResolved ? 'Сначала устраните все проблемы заказа' : assemblyBusy ? 'Сначала завершите текущую сборку' : blocked ? 'Дождитесь сохранения и восстановления связи' : 'Продолжить сборку с сохранённым прогрессом'
         const position = order.items.find((item) => item.sku === problem.positionSku)
         const product = position ? `${position.name} (${position.sku})` : 'товар заказа'
         const explanation = {
@@ -86,7 +87,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           other: ['Вернуть в сборку'],
         }[problem.type]
         if (needsDisassembly) actions.push('Передать в разбор')
-        return <details className="problemOrders__order" key={order.number}>
+        return <details className="problemOrders__order" key={problemId ?? `${order.number}:${problem.type}:${problem.createdAt}`}>
           <summary className="problemOrders__row">
             <span><strong className="problemOrders__number">{order.number}</strong><small>{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>
             <span className="problemOrders__reason">{reason}</span>
@@ -130,9 +131,9 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                 </span>}
               </li>)}</ol>
             </div>
-            <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Вернуть в сборку' && (!resolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
+            <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Вернуть в сборку' && (!orderProblemsResolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
               if (action === 'Вернуть в сборку') void onReturn(order.number).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
-              else if (action === 'Обновить остатки' && problem.type === 'insufficient_stock') { setNotice(`${order.number}: проверка остатков…`); void onStockCheck(order.number).then(setNotice).catch(() => setNotice('Не удалось выполнить проверку остатков. Повторите попытку.')) }
+              else if (action === 'Обновить остатки' && problem.type === 'insufficient_stock') { setNotice(`${order.number}: проверка остатков…`); void onStockCheck(order.number, problemId).then(setNotice).catch(() => setNotice('Не удалось выполнить проверку остатков. Повторите попытку.')) }
               else setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)
             }}>{action}</button>)}</div>
           </div>

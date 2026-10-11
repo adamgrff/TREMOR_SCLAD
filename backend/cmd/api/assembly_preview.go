@@ -11,6 +11,7 @@ import (
 	"regexp"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -88,7 +89,7 @@ func getAssemblyDraftHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Re
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	response := assemblyDraftResponse{State: json.RawMessage("null")}
-	err := db.QueryRow(r.Context(), `SELECT version, state FROM assembly_preview_drafts WHERE id = TRUE`).Scan(&response.Version, &response.State)
+	err := db.QueryRow(r.Context(), `SELECT version, assembly_load_workspace(state) FROM assembly_preview_drafts WHERE id = TRUE`).Scan(&response.Version, &response.State)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		assemblyDraftFailure(w, err)
 		return
@@ -146,13 +147,27 @@ func saveAssemblyDraftHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.R
 		assemblyDraftError(w, 409, "assembly_draft_conflict", "Сборка изменена в другом окне. Загрузите актуальное состояние.")
 		return
 	}
-	response := assemblyDraftResponse{Version: currentVersion + 1, State: request.State}
+	var compact, restored json.RawMessage
+	if err = tx.QueryRow(r.Context(), `SELECT assembly_store_workspace($1::jsonb)`, []byte(request.State)).Scan(&compact); err != nil {
+		var pgerr *pgconn.PgError
+		if errors.As(err, &pgerr) && (pgerr.Code == "23514" || pgerr.Code == "23505" || pgerr.Code == "23502" || pgerr.Code == "22P02" || pgerr.Code == "22007") {
+			assemblyDraftError(w, 409, "assembly_problem_conflict", "Изменение отклонено: проверьте нерешённые проблемы, сохранённый контекст и историю заказа.")
+		} else {
+			assemblyDraftFailure(w, err)
+		}
+		return
+	}
+	if err = tx.QueryRow(r.Context(), `SELECT assembly_load_workspace($1::jsonb)`, []byte(compact)).Scan(&restored); err != nil {
+		assemblyDraftFailure(w, err)
+		return
+	}
+	response := assemblyDraftResponse{Version: currentVersion + 1, State: restored}
 	body, err := json.Marshal(response)
 	if err != nil {
 		assemblyDraftFailure(w, err)
 		return
 	}
-	if _, err = tx.Exec(r.Context(), `UPDATE assembly_preview_drafts SET version = $1, state = $2::jsonb, updated_at = NOW() WHERE id = TRUE`, response.Version, []byte(request.State)); err != nil {
+	if _, err = tx.Exec(r.Context(), `UPDATE assembly_preview_drafts SET version = $1, state = $2::jsonb, updated_at = NOW() WHERE id = TRUE`, response.Version, []byte(compact)); err != nil {
 		assemblyDraftFailure(w, err)
 		return
 	}

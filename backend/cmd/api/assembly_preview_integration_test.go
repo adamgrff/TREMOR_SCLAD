@@ -46,6 +46,13 @@ func TestAssemblyDraftPersistence(t *testing.T) {
 	if _, err = db.Exec(ctx, string(migration)); err != nil {
 		t.Fatal(err)
 	}
+	migration, err = os.ReadFile("../../migrations/012_assembly_problem_storage.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(ctx, string(migration)); err != nil {
+		t.Fatal(err)
+	}
 	state := `{"schemaVersion":1,"activeOrder":{"number":"024831-0001","items":[{"sku":"TR-BLACK","quantity":2}]},"activeState":{"picks":[{"sku":"TR-BLACK","cell":"A1"}],"confirmedCell":"A1","shipmentConfirmed":false,"lastScan":"TR-BLACK","log":"saved","error":false},"problemOrders":[],"completedOrders":[]}`
 	put := func(id string, version int, payload string) *httptest.ResponseRecorder {
 		body := fmt.Sprintf(`{"requestId":%q,"version":%d,"state":%s}`, id, version, payload)

@@ -13,7 +13,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
 
   async function load(signal?: AbortSignal) {
     const response = await fetch(`${API_BASE_URL}/assembly-preview/draft`, { signal, cache: 'no-store' })
-    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграцию 011.')
+    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–012.')
     const data = await response.json() as Response<T>
     if (signal?.aborted) return
     version.current = data.version
@@ -47,9 +47,10 @@ export default function useAssemblyDraft<T>(initialState: T) {
     try {
       const response = await fetch(`${API_BASE_URL}/assembly-preview/draft`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending.current) })
       if (response.status === 409) {
+        const conflict = await response.json() as { error?: string }
         pending.current = null
         await load()
-        throw new Error('Сборка изменена в другом окне. Загружено актуальное состояние; повторите действие.')
+        throw new Error(conflict.error ?? 'Сборка изменена в другом окне. Загружено актуальное состояние; повторите действие.')
       }
       if (!response.ok) throw new Error('Сборка не сохранена. Проверьте backend и нажмите «Повторить».')
       const data = await response.json() as Response<T>
