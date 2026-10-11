@@ -30,9 +30,13 @@ func valueMapFromRaw(raw json.RawMessage) map[string]any {
 
 // Physical stock already excludes warehouse picks. Only the remaining reserve is held.
 func updateWarehousePlan(order map[string]any, result assemblyStockResult, picks []any) {
+	allocated := map[int64]map[int64]int{}
 	for _, p := range result.Positions {
 		item := findOrderItem(order, p.SKU)
-		item["stock"], item["productId"] = p.Available, p.ProductID
+		item["stock"], item["productId"], item["warehouseSku"] = p.Available, p.ProductID, p.WarehouseSKU
+		if allocated[p.ProductID] == nil {
+			allocated[p.ProductID] = map[int64]int{}
+		}
 		cells := append([]productStockCell{}, p.Cells...)
 		sort.SliceStable(cells, func(i, j int) bool {
 			if cells[i].Quantity != cells[j].Quantity {
@@ -58,10 +62,11 @@ func updateWarehousePlan(order map[string]any, result assemblyStockResult, picks
 		parts := []string{}
 		compat := map[string]int{}
 		for _, c := range cells {
-			eligible := min(c.Quantity, available)
+			eligible := min(max(0, c.Quantity-allocated[p.ProductID][c.CellID]), available)
 			available -= eligible
 			take := min(eligible, remaining)
 			remaining -= take
+			allocated[p.ProductID][c.CellID] += take
 			if take == 0 && own[c.CellID] == 0 {
 				continue
 			}
@@ -98,6 +103,7 @@ func warehousePlans(order map[string]any) []map[string]any {
 		json.Unmarshal(encodeValue(item["pickingPlan"]), &list)
 		for _, plan := range list {
 			plan["sku"] = item["sku"]
+			plan["warehouseSku"] = item["warehouseSku"]
 			plan["name"] = item["name"]
 			plan["productId"] = item["productId"]
 			plans = append(plans, plan)
@@ -349,7 +355,7 @@ func applyWarehouseAssemblyOperation(ctx context.Context, tx pgx.Tx, current jso
 	}
 	var chosen map[string]any
 	for _, plan := range warehousePlans(order) {
-		if int64(intValue(plan["cellId"])) == confirmed && strings.EqualFold(textValue(plan["sku"]), op.Code) && intValue(plan["picked"]) < intValue(plan["required"]) && intValue(plan["available"]) > 0 {
+		if int64(intValue(plan["cellId"])) == confirmed && strings.EqualFold(warehouseScanSKU(plan), op.Code) && intValue(plan["picked"]) < intValue(plan["required"]) && intValue(plan["available"]) > 0 {
 			chosen = plan
 			break
 		}
@@ -481,4 +487,11 @@ func enrichWarehouseProblemHistory(ctx context.Context, tx pgx.Tx, raw json.RawM
 	problem["history"] = history
 	valueMap(problem["creationContext"])["warehouseOperations"] = operations
 	return encodeValue(state), nil
+}
+
+func warehouseScanSKU(plan map[string]any) string {
+	if sku := textValue(plan["warehouseSku"]); sku != "" {
+		return sku
+	}
+	return textValue(plan["sku"])
 }

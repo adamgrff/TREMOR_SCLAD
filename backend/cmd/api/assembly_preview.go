@@ -179,6 +179,8 @@ func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Requ
 		var success bool
 		if operation.Action == "start" || operation.Action == "scan" || operation.Action == "undo" || operation.Action == "finish" {
 			request.State, message, success, err = applyWarehouseAssemblyOperation(r.Context(), tx, current, *operation, timestamp)
+		} else if operation.Action == "map-product" {
+			request.State, message, success, err = applyAssemblyMapping(r.Context(), tx, current, *operation, timestamp)
 		} else {
 			request.State, message, success, err = applyAssemblyProblemOperation(r.Context(), tx, current, *operation, timestamp)
 		}

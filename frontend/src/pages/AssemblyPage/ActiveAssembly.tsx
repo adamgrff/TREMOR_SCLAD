@@ -3,7 +3,7 @@ import OrderProblemDialog, { type OrderProblemDetails } from './OrderProblemDial
 import useScanErrorFeedback from './useScanErrorFeedback'
 
 export type WarehousePlanEntry = { cellId: number; cell: string; warehouse: string; scanCode: string; required: number; picked: number; available: number }
-export type AssemblyPreviewOrder = { source?: 'ozon' | 'preview'; number: string; suggestedCellId?: number | null; items: Array<{ name: string; sku: string; quantity: number; stock: number; cells: string; cellStocks: Record<string, number>; pickingPlan?: WarehousePlanEntry[] }> }
+export type AssemblyPreviewOrder = { source?: 'ozon' | 'preview'; number: string; suggestedCellId?: number | null; items: Array<{ name: string; sku: string; warehouseSku?: string; ozonSku?: string; productId?: number; quantity: number; stock: number; cells: string; cellStocks: Record<string, number>; pickingPlan?: WarehousePlanEntry[] }> }
 export type PreviewPick = { sku: string; cell: string; cellId?: number; operationId?: string; pickId?: string; occurredAt?: string }
 export type AssemblyProblemSnapshot = { details: OrderProblemDetails; picks: PreviewPick[]; cell: string | null; shipmentConfirmed: boolean }
 export type ActiveAssemblyState = { picks: PreviewPick[]; confirmedCell: string | null; confirmedCellId?: number | null; shipmentConfirmed: boolean; lastScan: string; log: string; error: boolean }
@@ -37,7 +37,7 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
     const match = entry.trim().match(/^(.+?)\s*×\s*(\d+)$/)
     return match ? [{ sku: item.sku, name: item.name, cell: match[1].trim(), required: Number(match[2]), stock: item.cellStocks[match[1].trim()] ?? 0 }] : []
   })) ?? []
-  const realPlans = order?.items.flatMap(item => (item.pickingPlan ?? []).map(plan => ({ ...plan, sku: item.sku, name: item.name, stock: plan.available + plan.picked }))) ?? []
+  const realPlans = order?.items.flatMap(item => (item.pickingPlan ?? []).map(plan => ({ ...plan, sku: item.sku, warehouseSku: item.warehouseSku, name: item.name, stock: plan.available + plan.picked }))) ?? []
   const effectivePlans = order?.source === 'ozon' ? realPlans : plans.map(plan => ({ ...plan, cellId: undefined, scanCode: plan.cell, warehouse: '' }))
   const count = (sku: string, cell?: string, cellId?: number) => picks.filter((pick) => pick.sku === sku && (cellId !== undefined ? pick.cellId === cellId : !cell || pick.cell === cell)).length
   const remaining = effectivePlans.filter((plan) => count(plan.sku, plan.cell, plan.cellId) < plan.required && plan.stock - count(plan.sku, plan.cell, plan.cellId) > 0)
@@ -110,7 +110,7 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
             <tbody>{order.items.map((item) => {
               const done = count(item.sku) >= item.quantity
               return <tr key={item.sku} className={done ? 'activeAssembly__row--done' : undefined}>
-                <td><strong>{item.name}</strong><span>{item.sku}</span></td><td>{item.quantity} шт.</td>
+                <td><strong>{item.name}</strong><span>{item.warehouseSku && item.warehouseSku !== item.sku ? `${item.warehouseSku} · Ozon: ${item.sku}` : item.sku}</span></td><td>{item.quantity} шт.</td>
                 <td><div className="activeAssembly__collectedValue">{count(item.sku)} шт.{done && <span className="activeAssembly__check" aria-label="Позиция полностью собрана">✓</span>}</div></td>
               </tr>
             })}</tbody>

@@ -27,6 +27,9 @@ type assemblyProblemOperation struct {
 	Action      string `json:"action"`
 	OrderNumber string `json:"orderNumber,omitempty"`
 	Code        string `json:"code,omitempty"`
+	PositionSKU string `json:"positionSku,omitempty"`
+	ProductID   int64  `json:"productId,omitempty"`
+	Confirmed   bool   `json:"confirmed,omitempty"`
 }
 
 func assemblyProblemOperationHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request, action string) {
@@ -50,6 +53,7 @@ func assemblyProblemOperationHandler(db *pgxpool.Pool, w http.ResponseWriter, r 
 type assemblyStockPosition struct {
 	SKU           string             `json:"sku"`
 	Name          string             `json:"name"`
+	WarehouseSKU  string             `json:"warehouseSku,omitempty"`
 	ProductID     int64              `json:"productId"`
 	Required      int                `json:"required"`
 	Picked        int                `json:"picked"`
@@ -118,30 +122,46 @@ func readAssemblyStock(ctx context.Context, tx pgx.Tx, order map[string]any, pic
 		return result, err
 	}
 	items := valueArray(order["items"])
-	skus := []string{}
-	for _, value := range items {
-		skus = append(skus, strings.ToUpper(strings.TrimSpace(textValue(valueMap(value)["sku"]))))
+	var mappings bool
+	if err := tx.QueryRow(ctx, "SELECT to_regclass('assembly_sku_mappings') IS NOT NULL").Scan(&mappings); err != nil {
+		return result, err
 	}
-	rows, err := tx.Query(ctx, `SELECT id,sku,name,archived FROM products WHERE sku=ANY($1) ORDER BY id FOR NO KEY UPDATE`, skus)
+	resolved := map[string]int64{}
+	ids := []int64{}
+	for _, value := range items {
+		item := valueMap(value)
+		var id *int64
+		var err error
+		if mappings {
+			err = tx.QueryRow(ctx, "SELECT assembly_resolve_product($1::jsonb,$2)", []byte(encodeValue(item)), textValue(order["source"])).Scan(&id)
+		} else {
+			err = tx.QueryRow(ctx, "SELECT (SELECT id FROM products WHERE upper(sku)=upper(btrim($1)))", textValue(item["sku"])).Scan(&id)
+		}
+		if err != nil {
+			return result, err
+		}
+		if id != nil {
+			resolved[textValue(item["sku"])] = *id
+			ids = append(ids, *id)
+		}
+	}
+	rows, err := tx.Query(ctx, "SELECT id,sku,name,archived FROM products WHERE id=ANY($1) ORDER BY id FOR NO KEY UPDATE", ids)
 	if err != nil {
 		return result, err
 	}
 	type product struct {
-		id       int64
-		name     string
-		archived bool
+		id        int64
+		sku, name string
+		archived  bool
 	}
-	products := map[string]product{}
-	ids := []int64{}
+	products := map[int64]product{}
 	for rows.Next() {
 		var p product
-		var sku string
-		if err = rows.Scan(&p.id, &sku, &p.name, &p.archived); err != nil {
+		if err = rows.Scan(&p.id, &p.sku, &p.name, &p.archived); err != nil {
 			rows.Close()
 			return result, err
 		}
-		products[sku] = p
-		ids = append(ids, p.id)
+		products[p.id] = p
 	}
 	err = rows.Err()
 	rows.Close()
@@ -173,14 +193,15 @@ func readAssemblyStock(ctx context.Context, tx pgx.Tx, order map[string]any, pic
 	for _, value := range picks {
 		counts[textValue(valueMap(value)["sku"])]++
 	}
+	allocated := map[int64]int{}
 	for _, value := range items {
 		item := valueMap(value)
 		sku := textValue(item["sku"])
-		p, known := products[strings.ToUpper(strings.TrimSpace(sku))]
+		p, known := products[resolved[sku]]
 		if counts[sku] > intValue(item["quantity"]) {
 			return result, stockConflict("Сохранённые отборы превышают состав заказа. Требуется согласовать данные заказа.")
 		}
-		position := assemblyStockPosition{SKU: sku, Name: textValue(item["name"]), ProductID: p.id, Picked: counts[sku], Required: max(0, intValue(item["quantity"])-counts[sku]), Cells: []productStockCell{}}
+		position := assemblyStockPosition{SKU: sku, Name: textValue(item["name"]), ProductID: p.id, WarehouseSKU: p.sku, Picked: counts[sku], Required: max(0, intValue(item["quantity"])-counts[sku]), Cells: []productStockCell{}}
 		if !known || p.archived {
 			position.Error = fmt.Sprintf("SKU %s не найден или товар архивирован. Проверьте сопоставление товара.", sku)
 			position.Missing = position.Required
@@ -210,7 +231,8 @@ func readAssemblyStock(ctx context.Context, tx pgx.Tx, order map[string]any, pic
 		if order["source"] != "ozon" {
 			position.PreviewHeld += counts[sku]
 		}
-		position.Available = max(0, position.Physical-position.OtherReserved-position.PreviewHeld)
+		position.Available = max(0, position.Physical-position.OtherReserved-position.PreviewHeld-allocated[p.id])
+		allocated[p.id] += min(position.Available, position.Required)
 		position.Missing = max(0, position.Required-position.Available)
 		var physicalCheck bool
 		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM assembly_problem_records p JOIN assembly_problem_affected_positions a ON a.problem_id=p.id WHERE p.order_id=$1::uuid AND p.disposition='problem' AND p.resolution_status='awaiting' AND p.problem_type IN ('missing_in_cell','damaged_product') AND a.sku=$2)`, result.OrderID, sku).Scan(&physicalCheck); err != nil {
@@ -231,7 +253,21 @@ func reserveAssemblyStock(ctx context.Context, tx pgx.Tx, result assemblyStockRe
 	if err := tx.QueryRow(ctx, `SELECT source='ozon' FROM assembly_order_records WHERE id=$1::uuid`, result.OrderID).Scan(&real); err != nil {
 		return err
 	}
+	totals := map[int64]assemblyStockPosition{}
 	for _, p := range result.Positions {
+		t := totals[p.ProductID]
+		t.ProductID = p.ProductID
+		t.Required += p.Required
+		t.Picked += p.Picked
+		totals[p.ProductID] = t
+	}
+	ids := []int64{}
+	for id := range totals {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	for _, id := range ids {
+		p := totals[id]
 		if p.ProductID == 0 {
 			return stockConflict("Нельзя зарезервировать неизвестный товар.")
 		}

@@ -6,7 +6,7 @@ export type OrderProblemDetails = { type: OrderProblemType; comment: string; pos
 export type OrderShortage = { sku: string; name: string; required: number; available: number; missing: number; cells: string }
 export type ProblemResolutionStatus = 'awaiting' | 'resolved' | 'returned'
 export type ProblemCreationContext = { schemaVersion: 1; complete: boolean; source: 'queue' | 'assembly'; positions: Array<{ sku: string; name?: string; required?: number; picked?: number; remaining?: number; available?: number; missing?: number; orderPositionId: string }>; affectedPositions: Array<{ sku: string }>; confirmedCell?: string | null; suggestedCell?: string | null; scanStep?: 'cell' | 'product' | 'shipment'; picked?: number; required?: number }
-export type ProblemHistoryEvent = { createdAt: string; title: string; message: string; outcome: 'success' | 'failure' | 'error' | 'neutral'; kind?: 'creation' | 'transfer' | 'check' | 'result' | 'resolution' | 'return' | 'pick' | 'undo_pick'; operationId?: string }
+export type ProblemHistoryEvent = { createdAt: string; title: string; message: string; outcome: 'success' | 'failure' | 'error' | 'neutral'; kind?: 'creation' | 'transfer' | 'check' | 'result' | 'resolution' | 'return' | 'pick' | 'undo_pick' | 'mapping'; operationId?: string }
 export type SavedOrderProblem = OrderProblemDetails & { shortages: OrderShortage[]; createdAt: string; resolutionStatus?: ProblemResolutionStatus; returnedAt?: string; history?: ProblemHistoryEvent[]; requiresDisassembly?: boolean; creationContext?: ProblemCreationContext }
 
 export default function OrderProblemDialog({ initialType = '', positions = [], initialPositionSku = '', blocked = false, onCancel, onConfirm }: {

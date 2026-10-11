@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import SkuMappingDialog from './SkuMappingDialog'
 import { Link } from 'react-router'
 import type { AssemblyPreviewOrder, AssemblyProblemSnapshot } from './ActiveAssembly'
 import type { SavedOrderProblem } from './OrderProblemDialog'
@@ -15,7 +16,8 @@ function ProblemTime({ value }: { value: string }) {
   return <time className="problemOrders__time" dateTime={value}><span className="assemblyQueue__time">{timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><span className="assemblyQueue__date">{timestamp.toLocaleDateString('ru-RU')}</span></time>
 }
 
-export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string, problemId?: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string> }) {
+export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck, onMap }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string, problemId?: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string>; onMap?: (problemId: string, positionSku: string, productId: number) => Promise<boolean> }) {
+  const [mapping, setMapping] = useState<ProblemOrder | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
   const [notice, setNotice] = useState('')
@@ -133,9 +135,10 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                 </span>}
               </li>)}</ol>
             </div>
-            <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Вернуть в сборку' && (!orderProblemsResolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
+            <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (action === 'Сопоставить товар' && (order.source !== 'ozon' || !problemId || !onMap)) || (action === 'Вернуть в сборку' && (!orderProblemsResolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
               if (action === 'Вернуть в сборку') void onReturn(order.number, problemId).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
               else if (action === 'Обновить остатки' && problem.type === 'insufficient_stock') { setNotice(`${order.number}: проверка остатков…`); void onStockCheck(order.number, problemId).then(setNotice).catch(() => setNotice('Не удалось выполнить проверку остатков. Повторите попытку.')) }
+              else if (action === 'Сопоставить товар') setMapping({ problemId, order, problem, status: 'problem', assembly })
               else setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)
             }}>{action}</button>)}</div>
           </div>
@@ -149,6 +152,11 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
       <span aria-live="polite">Страница {currentPage} из {pageCount}</span>
       <button type="button" className="receivingHistory__button" disabled={currentPage === pageCount} onClick={() => { setPage(currentPage + 1); setNotice('') }}>Следующая</button>
     </nav>
+    {mapping?.problemId && onMap && <SkuMappingDialog order={mapping.order} problem={mapping.problem} blocked={blocked} onCancel={() => setMapping(null)} onConfirm={async (sku, productId) => {
+      const saved = await onMap(mapping.problemId!, sku, productId)
+      if (saved) setMapping(null)
+      return saved
+    }} />}
     {notice && <p className="problemOrders__notice" role="status">{notice}</p>}
   </section>
 }

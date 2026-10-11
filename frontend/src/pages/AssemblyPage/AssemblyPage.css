@@ -151,6 +151,10 @@
 .assemblyProblemDialog__field { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
 .assemblyProblemDialog select, .assemblyProblemDialog textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .4); border-radius: 9px; background: #252525; color: #fff; font: inherit; }
 .assemblyProblemDialog textarea { resize: vertical; }
+.assemblyProblemDialog input[type="search"] { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .4); border-radius: 9px; background: #252525; color: #fff; font: inherit; }
+.skuMapping__conformity { display: flex; align-items: flex-start; gap: 8px; margin-top: 20px; }
+.skuMapping__confirm { border-color: rgba(85, 150, 235, .7); }
+.skuMapping__confirm:hover:not(:disabled) { background: rgba(55, 110, 190, .6); }
 .assemblyProblemDialog__confirm { border-color: rgba(230, 120, 120, .7); }
 .assemblyProblemDialog__confirm:hover:not(:disabled) { background: rgba(200, 35, 45, .6); }
 

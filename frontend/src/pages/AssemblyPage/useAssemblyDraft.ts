@@ -17,7 +17,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
 
   async function load(signal?: AbortSignal) {
     const response = await fetch(`${API_BASE_URL}/assembly-preview/draft`, { signal, cache: 'no-store' })
-    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–015.')
+    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–016.')
     const data = await response.json() as Response<T>
     if (signal?.aborted) return
     version.current = data.version
@@ -52,6 +52,11 @@ export default function useAssemblyDraft<T>(initialState: T) {
   async function assemblyAction(action: 'start' | 'scan' | 'undo' | 'finish', params: { orderNumber?: string; code?: string } = {}): Promise<boolean> {
     if (!ready || inFlight.current || pending.current) return false
     pending.current = { path: `/assembly/${action}`, method: 'POST', body: { ...params, requestId: crypto.randomUUID(), version: version.current } }
+    return retry()
+  }
+  async function mapProduct(problemId: string, positionSku: string, productId: number): Promise<boolean> {
+    if (!ready || inFlight.current || pending.current) return false
+    pending.current = { path: `/assembly/problems/${encodeURIComponent(problemId)}/map-product`, method: 'POST', body: { requestId: crypto.randomUUID(), version: version.current, positionSku, productId, confirmed: true } }
     return retry()
   }
   async function retry(): Promise<boolean> {
@@ -91,5 +96,5 @@ export default function useAssemblyDraft<T>(initialState: T) {
       return false
     } finally { inFlight.current = false; setSaving(false) }
   }
-  return { state, save, createProblem, problemAction, assemblyAction, actionNotice, getActionMessage: () => actionMessage.current, ready, saving, error, retry, blocked: !ready || saving || error !== '' }
+  return { state, save, createProblem, problemAction, assemblyAction, mapProduct, actionNotice, getActionMessage: () => actionMessage.current, ready, saving, error, retry, blocked: !ready || saving || error !== '' }
 }

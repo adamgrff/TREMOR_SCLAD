@@ -91,6 +91,19 @@ draft = render()
 assert.equal(await draft.assemblyAction('start', { orderNumber: 'REAL' }), true)
 assert.deepEqual(Object.keys(JSON.parse(calls.at(-1).body)).sort(), ['orderNumber', 'requestId', 'version'])
 
+draft = render(); mode = 'offline'
+assert.equal(await draft.mapProduct('mapping-problem', 'EXT-A', 42), false)
+const mappingRequest = calls.at(-1)
+assert.equal(mappingRequest.url, '/api/assembly/problems/mapping-problem/map-product')
+const mappingBody = JSON.parse(mappingRequest.body)
+assert.deepEqual(Object.keys(mappingBody).sort(), ['confirmed', 'positionSku', 'productId', 'requestId', 'version'])
+assert.equal(mappingBody.confirmed, true)
+assert.equal(mappingBody.productId, 42)
+assert.equal(draft.state.marker, serverState.marker)
+mode = 'success'; draft = render()
+assert.equal(await draft.retry(), true)
+assert.equal(calls.at(-1).body, mappingRequest.body)
+
 const dialogContext = { exports: {}, require: (id) => id === './problemTypes' ? { problemTypes: [['insufficient_stock', 'Недостаточно товара'], ['other', 'Другая проблема']] } : require(id) }
 vm.runInNewContext(compile('../src/pages/AssemblyPage/OrderProblemDialog.tsx'), dialogContext)
 const props = { positions: [{ sku: 'A', name: 'Alpha' }], initialPositionSku: 'A', onCancel() {}, onConfirm() {} }
