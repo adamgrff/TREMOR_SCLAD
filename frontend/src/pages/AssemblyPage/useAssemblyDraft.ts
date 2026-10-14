@@ -13,7 +13,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
   const actionMessage = useRef('')
   const version = useRef(0)
   const inFlight = useRef(false)
-  const pending = useRef<{ path: string; method: string; body: object } | null>(null)
+  const pending = useRef<{ path: string; method: string; body: object; uncertain?: boolean } | null>(null)
 
   async function load(signal?: AbortSignal) {
     const response = await fetch(`${API_BASE_URL}/assembly-preview/draft`, { signal, cache: 'no-store' })
@@ -75,6 +75,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
     setError('')
     setActionNotice('')
     actionMessage.current = ''
+    const reconcile = pending.current.uncertain === true
     try {
       const response = await fetch(`${API_BASE_URL}${pending.current.path}`, { method: pending.current.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending.current.body) })
       if (response.status === 409) {
@@ -90,13 +91,19 @@ export default function useAssemblyDraft<T>(initialState: T) {
       }
       if (!response.ok) throw new Error('Сборка не сохранена. Проверьте backend и нажмите «Повторить».')
       const data = await response.json() as Response<T>
-      version.current = data.version
-      setState(data.state ?? initialState)
+      // A replay returns the original receipt, which can predate another tab's work.
+      // Reconcile an uncertain request before unblocking further warehouse actions.
+      if (reconcile) await load()
+      else {
+        version.current = data.version
+        setState(data.state ?? initialState)
+      }
       pending.current = null
       actionMessage.current = data.message ?? ''
       setActionNotice(actionMessage.current)
       return data.applied !== false
     } catch (reason) {
+      if (pending.current) pending.current.uncertain = true
       setError(reason instanceof Error ? reason.message : 'Связь с backend прервалась. Нажмите «Повторить».')
       return false
     } finally { inFlight.current = false; setSaving(false) }

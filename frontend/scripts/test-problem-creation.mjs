@@ -78,7 +78,7 @@ assert.deepEqual(Object.keys(JSON.parse(nativeRequest.body)).sort(), ['requestId
 mode = 'success'
 draft = render()
 assert.equal(await draft.retry(), true)
-assert.equal(calls.at(-1).body, nativeRequest.body)
+assert.equal(calls.findLast(call => call.method === 'POST').body, nativeRequest.body)
 draft = render(); mode = 'offline'
 assert.equal(await draft.assemblyAction('scan', { code: 'A' }), false)
 const scanRequest = calls.at(-1)
@@ -86,10 +86,10 @@ assert.equal(scanRequest.url, '/api/assembly/scan')
 assert.deepEqual(Object.keys(JSON.parse(scanRequest.body)).sort(), ['code', 'requestId', 'version'])
 mode = 'success'; draft = render()
 assert.equal(await draft.retry(), true)
-assert.equal(calls.at(-1).body, scanRequest.body)
+assert.equal(calls.findLast(call => call.method === 'POST').body, scanRequest.body)
 draft = render()
 assert.equal(await draft.assemblyAction('start', { orderNumber: 'REAL' }), true)
-assert.deepEqual(Object.keys(JSON.parse(calls.at(-1).body)).sort(), ['orderNumber', 'requestId', 'version'])
+assert.deepEqual(Object.keys(JSON.parse(calls.findLast(call => call.method === 'POST').body)).sort(), ['orderNumber', 'requestId', 'version'])
 
 draft = render(); mode = 'offline'
 assert.equal(await draft.mapProduct('mapping-problem', 'EXT-A', 42), false)
@@ -102,7 +102,7 @@ assert.equal(mappingBody.productId, 42)
 assert.equal(draft.state.marker, serverState.marker)
 mode = 'success'; draft = render()
 assert.equal(await draft.retry(), true)
-assert.equal(calls.at(-1).body, mappingRequest.body)
+assert.equal(calls.findLast(call => call.method === 'POST').body, mappingRequest.body)
 
 draft = render(); mode = 'offline'
 assert.equal(await draft.problemAction('original-operation-problem', 'retry-ozon'), false)
@@ -110,7 +110,7 @@ const ozonRetry = calls.at(-1)
 assert.equal(ozonRetry.url, '/api/assembly/problems/original-operation-problem/retry-ozon')
 assert.deepEqual(Object.keys(JSON.parse(ozonRetry.body)).sort(), ['requestId', 'version'])
 mode = 'success'; draft = render(); assert.equal(await draft.retry(), true)
-assert.equal(calls.at(-1).body, ozonRetry.body)
+assert.equal(calls.findLast(call => call.method === 'POST').body, ozonRetry.body)
 draft = render()
 assert.equal(await draft.problemAction('cancelled-problem', 'close-cancelled'), true)
 assert.equal(calls.at(-1).url, '/api/assembly/problems/cancelled-problem/close-cancelled')
@@ -120,14 +120,14 @@ assert.equal(await draft.problemAction('problem', 'transfer-disassembly'), false
 const transferRequest = calls.at(-1)
 assert.equal(transferRequest.url, '/api/assembly/problems/problem/transfer-disassembly')
 mode = 'success'; draft = render(); assert.equal(await draft.retry(), true)
-assert.equal(calls.at(-1).body, transferRequest.body)
+assert.equal(calls.findLast(call => call.method === 'POST').body, transferRequest.body)
 draft = render(); mode = 'offline'
 assert.equal(await draft.disassemblyAction('session', 'scan', 'CELL:3'), false)
 const returnRequest = calls.at(-1)
 assert.equal(returnRequest.url, '/api/assembly/disassembly/session/scan')
 assert.deepEqual(Object.keys(JSON.parse(returnRequest.body)).sort(), ['code', 'requestId', 'version'])
 mode = 'success'; draft = render(); assert.equal(await draft.retry(), true)
-assert.equal(calls.at(-1).body, returnRequest.body)
+assert.equal(calls.findLast(call => call.method === 'POST').body, returnRequest.body)
 
 const dialogContext = { exports: {}, require: (id) => id === './problemTypes' ? { problemTypes: [['insufficient_stock', 'Недостаточно товара'], ['other', 'Другая проблема']] } : require(id) }
 vm.runInNewContext(compile('../src/pages/AssemblyPage/OrderProblemDialog.tsx'), dialogContext)
