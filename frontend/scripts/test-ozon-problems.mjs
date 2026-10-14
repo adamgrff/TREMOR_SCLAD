@@ -10,6 +10,7 @@ const compile = path => ts.transpileModule(readFileSync(new URL(path, import.met
 const context = { exports: {}, require: id => {
   if (id === 'react-router') return { Link: props => React.createElement('a', props, props.children) }
   if (id === './SkuMappingDialog') return { __esModule: true, default: () => null }
+  if (id === './ProblemHistory') return { __esModule: true, default: () => null, ProblemTime: props => React.createElement('time', { dateTime: props.value }, props.value) }
   if (id === './groupProblemHistory') return { __esModule: true, default: history => history.map((event, index) => ({ key: String(index), latest: event, previous: [] })) }
   if (id === './createProblemHistory') return { __esModule: true, default: () => [] }
   if (id === './problemTypes') return { allProblemTypes: [['ozon_error', 'Ошибка Ozon'], ['cancelled_order', 'Отменённый заказ'], ['insufficient_stock', 'Недостаточно товара']] }

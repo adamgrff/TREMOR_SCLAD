@@ -4,19 +4,15 @@ import { Link } from 'react-router'
 import type { AssemblyPreviewOrder, AssemblyProblemSnapshot } from './ActiveAssembly'
 import type { SavedOrderProblem } from './OrderProblemDialog'
 import { allProblemTypes } from './problemTypes'
-import groupProblemHistory from './groupProblemHistory'
+import ProblemHistory, { ProblemTime } from './ProblemHistory'
 import createProblemHistory from './createProblemHistory'
 import arrowDown from '../../assets/home/arrow-down.svg'
 import arrowUp from '../../assets/home/arrow-up.svg'
 import './ProblemOrders.css'
 
 type ProblemOrder = { problemId?: string; order: AssemblyPreviewOrder; problem: SavedOrderProblem; status: 'problem'; assembly?: AssemblyProblemSnapshot }
-function ProblemTime({ value }: { value: string }) {
-  const timestamp = new Date(value)
-  return <time className="problemOrders__time" dateTime={value}><span className="assemblyQueue__time">{timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><span className="assemblyQueue__date">{timestamp.toLocaleDateString('ru-RU')}</span></time>
-}
 
-export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck, onMap, onOzonAction, onTransfer }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string, problemId?: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string>; onMap?: (problemId: string, positionSku: string, productId: number) => Promise<boolean>; onOzonAction?: (problemId: string, action: 'retry-ozon' | 'close-cancelled') => Promise<string>; onTransfer?: (problemId: string) => Promise<string> }) {
+export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck, onMap, onOzonAction, onTransfer, onArchive }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string, problemId?: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string>; onMap?: (problemId: string, positionSku: string, productId: number) => Promise<boolean>; onOzonAction?: (problemId: string, action: 'retry-ozon' | 'close-cancelled') => Promise<string>; onTransfer?: (problemId: string) => Promise<string>; onArchive?: () => void }) {
   const [mapping, setMapping] = useState<ProblemOrder | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
@@ -34,6 +30,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
     <div className="problemOrders__header">
       <div><div className="problemOrders__title"><h2 className="receivingPage__panelTitle" id="problem-orders-title">ПРОБЛЕМНЫЕ ЗАКАЗЫ</h2><span className="problemOrders__count">{pendingOrders.length}</span></div><p className="assemblyQueue__subtitle">Разберите причину и продолжите работу с заказом</p></div>
       <div className="problemOrders__tools">
+        {onArchive && <button type="button" className="receivingHistory__button" onClick={onArchive}>Архив закрытых</button>}
         <label className="problemOrders__search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg><input type="search" aria-label="Поиск проблемного заказа, SKU или товара" placeholder="Заказ, SKU или товар" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }}/></label>
         <select aria-label="Фильтр типа проблемы" value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1) }}><option value="">Все причины</option>{allProblemTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       </div>
@@ -120,20 +117,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                 {problem.type === 'insufficient_stock' && <Link className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">В Приёмку</Link>}
               </div>
               <h3>История проблемы</h3>
-              <ol className="problemOrders__history problemOrders__checks" aria-label="История создания и решения проблемы" aria-live="polite">{groupProblemHistory(history).map(({ key, latest: event, previous }) => <li key={key}>
-                <ProblemTime value={event.createdAt}/>
-                <span className={`problemOrders__checkResult problemOrders__checkResult--${event.outcome}`}><strong>{event.title}</strong><span>{event.message}</span></span>
-                {previous.length > 0 && <span className="problemOrders__repeats">
-                  <button type="button" className="problemOrders__repeatBadge" aria-label={`Предыдущие одинаковые сообщения: ${previous.length}`}>+{previous.length}</button>
-                  <span className="problemOrders__repeatPopup" role="tooltip">
-                    <strong className="problemOrders__repeatTitle">Предыдущие сообщения · {previous.length}</strong>
-                    <span className="problemOrders__repeatList">{previous.map((repeat, index) => <span className="problemOrders__repeatEntry" key={`${repeat.createdAt}-${index}`}>
-                      <ProblemTime value={repeat.createdAt}/>
-                      <span className={`problemOrders__checkResult problemOrders__checkResult--${repeat.outcome}`}><strong>{repeat.title}</strong><span>{repeat.message}</span></span>
-                    </span>)}</span>
-                  </span>
-                </span>}
-              </li>)}</ol>
+              <ProblemHistory events={history} />
             </div>
             <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (!!problem.disassemblySessionId && ['Обновить остатки', 'Вернуть в сборку', 'Сопоставить товар', 'Закрыть отменённый заказ'].includes(action)) || action === 'Передан в разбор' || (action === 'Передать в разбор' && (!onTransfer || !problemId || order.source !== 'ozon')) || (['Повторить запрос Ozon', 'Закрыть отменённый заказ'].includes(action) && (!onOzonAction || !problemId || !problem.ozonOperationId || order.source !== 'ozon')) || (action === 'Сопоставить товар' && (order.source !== 'ozon' || !problemId || !onMap)) || (action === 'Вернуть в сборку' && (!orderProblemsResolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
               if (action === 'Вернуть в сборку') void onReturn(order.number, problemId).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })

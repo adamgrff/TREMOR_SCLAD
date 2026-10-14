@@ -82,6 +82,8 @@ func main() {
 	}
 	mux.HandleFunc("GET /api/assembly-preview/draft", func(w http.ResponseWriter, r *http.Request) { getAssemblyDraftHandler(database, w, r) })
 	mux.HandleFunc("GET /api/assembly/problems", func(w http.ResponseWriter, r *http.Request) { assemblyProblemsHandler(database, w, r) })
+	mux.HandleFunc("GET /api/assembly/problems/archive", func(w http.ResponseWriter, r *http.Request) { assemblyProblemArchiveHandler(database, w, r) })
+	mux.HandleFunc("GET /api/assembly/problems/{problemID}/history", func(w http.ResponseWriter, r *http.Request) { assemblyProblemHistoryHandler(database, w, r) })
 	mux.HandleFunc("POST /api/assembly/problems", func(w http.ResponseWriter, r *http.Request) { createAssemblyProblemHandler(database, w, r) })
 	mux.HandleFunc("POST /api/assembly/problems/{problemID}/check-stock", func(w http.ResponseWriter, r *http.Request) {
 		assemblyProblemOperationHandler(database, w, r, "check-stock")

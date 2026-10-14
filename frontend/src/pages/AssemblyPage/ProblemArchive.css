@@ -1,0 +1,24 @@
+.problemArchive { min-height: 0; }
+.problemArchive__filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+.problemArchive__filters input, .problemArchive__filters select { padding: 10px 12px; background: #252525; color: inherit; border: 1px solid #ffffff50; border-radius: 9px; font: inherit; min-width: 0; }
+.problemArchive__filters input { flex: 1; }
+.problemArchive__table { overflow: auto; }
+.problemArchive__table table { min-width: 900px; }
+.problemArchive__selected { background: #619bd918; }
+.problemArchive__position { display: block; margin: 5px 0; }
+.problemArchive__detail { border-top: 1px solid #ffffff40; margin-top: 24px; padding-top: 24px; }
+.problemArchive__detailTitle { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.problemArchive__context { display: grid; grid-template-columns: 3fr 2fr; gap: 28px; }
+.problemArchive__context > div { min-width: 0; }
+.problemArchive__context table { min-width: 620px; }
+.problemArchive__legacy { border-left: 3px solid #e6bf78; padding-left: 14px; color: #e6cfaa; }
+.problemArchive__related { padding: 0; list-style: none; }
+.problemArchive__related li { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+.problemArchive__journal { padding: 14px 0; border-bottom: 1px solid #ffffff30; }
+.problemArchive__journal p { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.problemArchive__journal small { overflow-wrap: anywhere; }
+.problemArchive__context summary { cursor: pointer; padding: 12px 0; font-weight: 700; }
+.problemArchive__history { max-height: 650px; overflow: auto; padding: 0 10px 20px 0; scrollbar-width: thin; }
+.problemHistory__tools { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 12px 0; font-size: 14px; }
+.problemHistory .problemOrders__checkResult small { color: var(--problem-muted); overflow-wrap: anywhere; font-size: 12px; }
+@media (max-width: 1100px) { .problemArchive__context { grid-template-columns: 1fr; } .problemArchive__filters input { min-width: 180px; } }

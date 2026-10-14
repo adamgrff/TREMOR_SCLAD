@@ -14,7 +14,7 @@ func assemblyProblemsHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Re
 	w.Header().Set("Cache-Control", "no-store")
 	var data json.RawMessage
 	err := db.QueryRow(r.Context(), `SELECT COALESCE(jsonb_agg(assembly_load_problem(id) ORDER BY created_at,recorded_at,id),'[]'::jsonb)
-  FROM assembly_problem_records WHERE ($1 OR disposition <> 'returned') AND ($2 = '' OR order_id IN (SELECT id FROM assembly_order_records WHERE order_number=$2))`, r.URL.Query().Get("includeClosed") == "true", r.URL.Query().Get("order")).Scan(&data)
+  FROM assembly_problem_records WHERE ($1 OR (disposition <> 'returned' AND problem_metadata->>'closedOutcome' IS NULL)) AND ($2 = '' OR order_id IN (SELECT id FROM assembly_order_records WHERE order_number=$2))`, r.URL.Query().Get("includeClosed") == "true", r.URL.Query().Get("order")).Scan(&data)
 	if err != nil {
 		assemblyDraftFailure(w, err)
 		return
