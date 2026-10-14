@@ -422,7 +422,14 @@ func applyWarehouseAssemblyOperation(ctx context.Context, tx pgx.Tx, current jso
 }
 func verifyWarehousePicks(ctx context.Context, tx pgx.Tx, orderID string, picks []any) error {
 	var actual []string
-	rows, err := tx.Query(ctx, `SELECT op.id::text FROM assembly_warehouse_operations op WHERE op.order_id=$1::uuid AND op.kind='pick' AND NOT EXISTS(SELECT 1 FROM assembly_warehouse_operations undo WHERE undo.reverses_operation_id=op.id) ORDER BY op.occurred_at,op.id`, orderID)
+	query := `SELECT op.id::text FROM assembly_warehouse_operations op WHERE op.order_id=$1::uuid AND op.kind='pick' AND NOT EXISTS(SELECT 1 FROM assembly_warehouse_operations undo WHERE undo.reverses_operation_id=op.id)`
+	if enabled, e := disassemblyEnabled(ctx, tx); e != nil {
+		return e
+	} else if enabled {
+		query += ` AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_items i JOIN assembly_disassembly_returns r ON r.item_id=i.id WHERE i.original_operation_id=op.id)`
+	}
+	query += " ORDER BY op.occurred_at,op.id"
+	rows, err := tx.Query(ctx, query, orderID)
 	if err != nil {
 		return err
 	}

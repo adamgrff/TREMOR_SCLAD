@@ -85,7 +85,7 @@ func applyAssemblyMapping(ctx context.Context, tx pgx.Tx, current json.RawMessag
 	}
 	problem := valueMap(selected["problem"])
 	order := valueMap(selected["order"])
-	if order["source"] != "ozon" || problem["type"] != "unknown_sku" || problem["resolutionStatus"] != "awaiting" {
+	if order["source"] != "ozon" || problem["type"] != "unknown_sku" || problem["resolutionStatus"] != "awaiting" || problem["closedOutcome"] != nil || problem["disassemblySessionId"] != nil {
 		return nil, "", false, stockConflict("Сопоставление доступно для открытой проблемы SKU реального заказа.")
 	}
 	item := findOrderItem(order, op.PositionSKU)

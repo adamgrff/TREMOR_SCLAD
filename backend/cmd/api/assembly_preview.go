@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -177,7 +178,9 @@ func saveAssemblyWorkspace(db *pgxpool.Pool, w http.ResponseWriter, r *http.Requ
 			return
 		}
 		var success bool
-		if operation.Action == "start" || operation.Action == "scan" || operation.Action == "undo" || operation.Action == "finish" {
+		if operation.Action == "transfer-disassembly" || strings.HasPrefix(operation.Action, "disassembly-") {
+			request.State, message, success, err = applyDisassembly(r.Context(), tx, current, *operation, timestamp)
+		} else if operation.Action == "start" || operation.Action == "scan" || operation.Action == "undo" || operation.Action == "finish" {
 			request.State, message, success, err = applyWarehouseAssemblyOperation(r.Context(), tx, current, *operation, timestamp)
 		} else if operation.Action == "map-product" {
 			request.State, message, success, err = applyAssemblyMapping(r.Context(), tx, current, *operation, timestamp)

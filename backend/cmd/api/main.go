@@ -71,6 +71,11 @@ func main() {
 	mux.HandleFunc("GET /api/assembly/orders", func(w http.ResponseWriter, r *http.Request) { assemblyOrdersHandler(database, w, r) })
 	mux.HandleFunc("GET /api/assembly/mapping-products", func(w http.ResponseWriter, r *http.Request) { assemblyMappingProductsHandler(database, w, r) })
 	mux.HandleFunc("POST /api/assembly/problems/{problemID}/map-product", func(w http.ResponseWriter, r *http.Request) { assemblyMappingHandler(database, w, r) })
+	for _, action := range []string{"start", "scan", "finish", "pause"} {
+		mux.HandleFunc("POST /api/assembly/disassembly/{sessionID}/"+action, func(w http.ResponseWriter, r *http.Request) {
+			disassemblyHandler(database, w, r, "disassembly-"+action)
+		})
+	}
 	mux.HandleFunc("GET /api/ozon/status", ozonConnectionHandler)
 	for _, action := range []string{"start", "scan", "undo", "finish"} {
 		mux.HandleFunc("POST /api/assembly/"+action, func(w http.ResponseWriter, r *http.Request) { warehouseAssemblyHandler(database, w, r, action) })
@@ -84,7 +89,7 @@ func main() {
 	mux.HandleFunc("POST /api/assembly/problems/{problemID}/return", func(w http.ResponseWriter, r *http.Request) {
 		assemblyProblemOperationHandler(database, w, r, "return")
 	})
-	for _, action := range []string{"retry-ozon", "close-cancelled"} {
+	for _, action := range []string{"retry-ozon", "close-cancelled", "transfer-disassembly"} {
 		mux.HandleFunc("POST /api/assembly/problems/{problemID}/"+action, func(w http.ResponseWriter, r *http.Request) { assemblyProblemOperationHandler(database, w, r, action) })
 	}
 	mux.HandleFunc("GET /api/assembly/problems/{problemID}", func(w http.ResponseWriter, r *http.Request) { assemblyProblemHandler(database, w, r) })

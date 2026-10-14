@@ -115,6 +115,20 @@ draft = render()
 assert.equal(await draft.problemAction('cancelled-problem', 'close-cancelled'), true)
 assert.equal(calls.at(-1).url, '/api/assembly/problems/cancelled-problem/close-cancelled')
 
+draft = render(); mode = 'offline'
+assert.equal(await draft.problemAction('problem', 'transfer-disassembly'), false)
+const transferRequest = calls.at(-1)
+assert.equal(transferRequest.url, '/api/assembly/problems/problem/transfer-disassembly')
+mode = 'success'; draft = render(); assert.equal(await draft.retry(), true)
+assert.equal(calls.at(-1).body, transferRequest.body)
+draft = render(); mode = 'offline'
+assert.equal(await draft.disassemblyAction('session', 'scan', 'CELL:3'), false)
+const returnRequest = calls.at(-1)
+assert.equal(returnRequest.url, '/api/assembly/disassembly/session/scan')
+assert.deepEqual(Object.keys(JSON.parse(returnRequest.body)).sort(), ['code', 'requestId', 'version'])
+mode = 'success'; draft = render(); assert.equal(await draft.retry(), true)
+assert.equal(calls.at(-1).body, returnRequest.body)
+
 const dialogContext = { exports: {}, require: (id) => id === './problemTypes' ? { problemTypes: [['insufficient_stock', 'Недостаточно товара'], ['other', 'Другая проблема']] } : require(id) }
 vm.runInNewContext(compile('../src/pages/AssemblyPage/OrderProblemDialog.tsx'), dialogContext)
 const props = { positions: [{ sku: 'A', name: 'Alpha' }], initialPositionSku: 'A', onCancel() {}, onConfirm() {} }

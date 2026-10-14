@@ -16,7 +16,7 @@ function ProblemTime({ value }: { value: string }) {
   return <time className="problemOrders__time" dateTime={value}><span className="assemblyQueue__time">{timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><span className="assemblyQueue__date">{timestamp.toLocaleDateString('ru-RU')}</span></time>
 }
 
-export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck, onMap, onOzonAction }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string, problemId?: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string>; onMap?: (problemId: string, positionSku: string, productId: number) => Promise<boolean>; onOzonAction?: (problemId: string, action: 'retry-ozon' | 'close-cancelled') => Promise<string> }) {
+export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn, onStockCheck, onMap, onOzonAction, onTransfer }: { orders: ProblemOrder[]; blocked: boolean; assemblyBusy: boolean; onReturn: (number: string, problemId?: string) => Promise<boolean>; onStockCheck: (number: string, problemId?: string) => Promise<string>; onMap?: (problemId: string, positionSku: string, productId: number) => Promise<boolean>; onOzonAction?: (problemId: string, action: 'retry-ozon' | 'close-cancelled') => Promise<string>; onTransfer?: (problemId: string) => Promise<string> }) {
   const [mapping, setMapping] = useState<ProblemOrder | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
@@ -90,7 +90,7 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
           invalid_order: ['Вернуть в сборку'],
           other: ['Вернуть в сборку'],
         }[problem.type]
-        if (needsDisassembly) actions.push('Передать в разбор')
+        if (needsDisassembly) actions.push(problem.disassemblySessionId ? 'Передан в разбор' : 'Передать в разбор')
         return <details className="problemOrders__order" key={problemId ?? `${order.number}:${problem.type}:${problem.createdAt}`}>
           <summary className="problemOrders__row">
             <span><strong className="problemOrders__number">{order.number}</strong><small>{order.source !== 'ozon' && 'Исторический пример · '}{assembly ? 'Из активной сборки' : 'Из очереди заказов'}</small></span>
@@ -135,10 +135,11 @@ export default function ProblemOrders({ orders, blocked, assemblyBusy, onReturn,
                 </span>}
               </li>)}</ol>
             </div>
-            <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (['Повторить запрос Ozon', 'Закрыть отменённый заказ'].includes(action) && (!onOzonAction || !problemId || !problem.ozonOperationId || order.source !== 'ozon')) || (action === 'Сопоставить товар' && (order.source !== 'ozon' || !problemId || !onMap)) || (action === 'Вернуть в сборку' && (!orderProblemsResolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
+            <div className="problemOrders__actions">{actions.map((action) => action === 'Перейти в приёмку' ? <Link key={action} className="receivingHistory__button problemOrders__receivingLink" to="/receiving#receiving-scan">{action}</Link> : <button type="button" key={action} className={`receivingHistory__button${action === 'Вернуть в сборку' ? ' problemOrders__resume' : ''}`} disabled={blocked || (!!problem.disassemblySessionId && ['Обновить остатки', 'Вернуть в сборку', 'Сопоставить товар', 'Закрыть отменённый заказ'].includes(action)) || action === 'Передан в разбор' || (action === 'Передать в разбор' && (!onTransfer || !problemId || order.source !== 'ozon')) || (['Повторить запрос Ozon', 'Закрыть отменённый заказ'].includes(action) && (!onOzonAction || !problemId || !problem.ozonOperationId || order.source !== 'ozon')) || (action === 'Сопоставить товар' && (order.source !== 'ozon' || !problemId || !onMap)) || (action === 'Вернуть в сборку' && (!orderProblemsResolved || assemblyBusy))} title={action === 'Вернуть в сборку' ? returnHint : undefined} onClick={() => {
               if (action === 'Вернуть в сборку') void onReturn(order.number, problemId).then((saved) => { if (saved) setNotice(`${order.number}: заказ возвращён в сборку.`) })
               else if (action === 'Обновить остатки' && problem.type === 'insufficient_stock') { setNotice(`${order.number}: проверка остатков…`); void onStockCheck(order.number, problemId).then(setNotice).catch(() => setNotice('Не удалось выполнить проверку остатков. Повторите попытку.')) }
               else if (['Повторить запрос Ozon', 'Закрыть отменённый заказ'].includes(action) && problemId && onOzonAction) { setNotice(`${order.number}: проверка исходной операции…`); void onOzonAction(problemId, action === 'Повторить запрос Ozon' ? 'retry-ozon' : 'close-cancelled').then(setNotice).catch(() => setNotice('Не удалось проверить операцию. Повторите тот же запрос.')) }
+              else if (action === 'Передать в разбор' && problemId && onTransfer) void onTransfer(problemId).then(setNotice)
               else if (action === 'Сопоставить товар') setMapping({ problemId, order, problem, status: 'problem', assembly })
               else setNotice(`${order.number}: «${action}» — действие будет подключено на этапе функционала.`)
             }}>{action}</button>)}</div>

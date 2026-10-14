@@ -1,0 +1,24 @@
+.disassembly { padding: 32px; }
+.disassembly__header { display: flex; align-items: center; gap: 30px; }
+.disassembly__progress { display: flex; align-items: center; flex: 1; gap: 16px; }
+.disassembly__progress progress { flex: 1; height: 16px; accent-color: #568fe1; }
+.disassembly table { width: 100%; border-collapse: collapse; }
+.disassembly th { color: rgba(255,255,255,.8); font-size: 20px; font-weight: 700; text-align: left; padding: 14px 12px; }
+.disassembly tbody tr { height: 76px; }
+.disassembly td { padding: 14px 12px; border-top: 1px solid rgba(255,255,255,.12); }
+.disassembly small { display: block; margin-top: 5px; color: rgba(255,255,255,.5); }
+.disassembly__queue { margin-top: 16px; max-height: calc(56px + 5 * 76px); overflow: auto; }
+.disassembly__body { display: grid; grid-template-columns: 3fr 2fr; gap: 28px; margin-top: 24px; }
+.disassembly__items { max-height: calc(56px + 5 * 76px); overflow: auto; }
+.disassembly thead { position: sticky; top: 0; z-index: 1; background: #222; }
+.disassembly__scanner { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.disassembly__scanner h3 { margin: 0; font-size: 20px; }
+.disassembly__scanner form { display: flex; gap: 10px; }
+.disassembly__scanner input { min-width: 0; width: 100%; border: 1px solid #666; border-radius: 9px; background: rgba(255,255,255,.08); color: inherit; padding: 12px; font: inherit; }
+.disassembly__target { display: grid; gap: 8px; margin: 0; }
+.disassembly__target span { background: rgba(60,110,200,.5); border-radius: 8px; padding: 10px; }
+.disassembly__last { color: rgba(255,255,255,.65); }
+.disassembly__footer { display: flex; align-items: center; gap: 16px; margin-top: auto; }
+.disassembly__footer p { flex: 1; margin: 0; font-size: 15px; }
+.disassembly .disassembly__error { color: #efa3a3; }
+@media (max-width: 1100px) { .disassembly__body { grid-template-columns: 1fr; } .disassembly__header { flex-wrap: wrap; } }

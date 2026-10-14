@@ -4,6 +4,7 @@ import Header from '../../components/Header/Header'
 import ActiveAssembly, { type ActiveAssemblyState, type AssemblyProblemSnapshot, type AssemblyPreviewOrder } from './ActiveAssembly'
 import useAssemblyDraft from './useAssemblyDraft'
 import ProblemOrders from './ProblemOrders'
+import Disassembly, { type DisassemblySession } from './Disassembly'
 import OrderProblemDialog, { type OrderProblemDetails, type SavedOrderProblem } from './OrderProblemDialog'
 import { useTheme } from '../../hooks/useTheme'
 import '../ReceivingPage/ReceivingPage.css'
@@ -15,6 +16,7 @@ const formatOrderDate = (value: string) => new Date(value).toLocaleDateString('r
 
 type PreviewOrder = AssemblyPreviewOrder & { createdAt: string; status: string; stockReady?: boolean; stockMessage?: string }
 type AssemblyWorkspace = {
+  disassemblySessions?: DisassemblySession[]
   schemaVersion: 1
   activeOrder: PreviewOrder | null
   activeState: ActiveAssemblyState
@@ -225,7 +227,8 @@ export default function AssemblyPage() {
           </div>
         </section>
         <ActiveAssembly key={activeOrder?.number ?? 'idle'} order={activeOrder} state={activeState} blocked={draft.blocked || checkingStock || activeOrder?.source !== 'ozon'} onChange={() => Promise.resolve(false)} onServerAction={(action, code) => draft.assemblyAction(action, code ? { code } : {})} onComplete={() => { if (activeOrder && !draft.blocked) void draft.assemblyAction('finish') }} onProblem={(details) => activeOrder && !draft.blocked ? draft.createProblem({ source: 'assembly', orderNumber: activeOrder.number, details }) : Promise.resolve(false)} />
-        <ProblemOrders orders={problemOrders} blocked={draft.blocked || checkingStock} assemblyBusy={activeOrder !== null} onReturn={returnToAssembly} onStockCheck={refreshProblemStock} onMap={draft.mapProduct} onOzonAction={async (problemId, action) => { await draft.problemAction(problemId, action); return draft.getActionMessage() || 'Действие не завершено. Проверьте сообщение сервера.' }} />
+        <ProblemOrders orders={problemOrders} blocked={draft.blocked || checkingStock} assemblyBusy={activeOrder !== null} onReturn={returnToAssembly} onStockCheck={refreshProblemStock} onMap={draft.mapProduct} onTransfer={async (problemId) => { await draft.problemAction(problemId, 'transfer-disassembly'); return draft.getActionMessage() || 'Передача не завершена. Проверьте сообщение сервера.' }} onOzonAction={async (problemId, action) => { await draft.problemAction(problemId, action); return draft.getActionMessage() || 'Действие не завершено. Проверьте сообщение сервера.' }} />
+        <Disassembly sessions={draft.state.disassemblySessions ?? []} blocked={draft.blocked || checkingStock} onAction={draft.disassemblyAction} />
       </div>
       {problemDialogOpen && selected && <OrderProblemDialog blocked={draft.blocked || checkingStock} positions={selected.items} initialPositionSku={firstShortage?.sku ?? selected.items[0]?.sku} initialType={shortageItems.length > 0 ? 'insufficient_stock' : ''} onCancel={() => setProblemDialogOpen(false)} onConfirm={(problem) => void confirmProblem(problem)} />}
     </main>

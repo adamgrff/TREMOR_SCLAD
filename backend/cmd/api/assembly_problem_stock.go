@@ -30,6 +30,7 @@ type assemblyProblemOperation struct {
 	PositionSKU string `json:"positionSku,omitempty"`
 	ProductID   int64  `json:"productId,omitempty"`
 	Confirmed   bool   `json:"confirmed,omitempty"`
+	SessionID   string `json:"sessionId,omitempty"`
 }
 
 func assemblyProblemOperationHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request, action string) {
@@ -439,10 +440,13 @@ func applyAssemblyProblemOperation(ctx context.Context, tx pgx.Tx, current json.
 			break
 		}
 	}
-	if selected == nil || valueMap(selected["problem"])["resolutionStatus"] == "returned" {
+	if selected == nil || valueMap(selected["problem"])["resolutionStatus"] == "returned" || valueMap(selected["problem"])["closedOutcome"] != nil {
 		return nil, "", false, stockConflict("Проблема уже закрыта или не найдена.")
 	}
 	selectedProblem := valueMap(selected["problem"])
+	if selectedProblem["disassemblySessionId"] != nil {
+		return nil, "", false, stockConflict("Заказ уже передан в разбор. Продолжайте физический возврат в исходной сессии.")
+	}
 	if operation.Action == "check-stock" && selectedProblem["type"] != "insufficient_stock" {
 		return nil, "", false, stockConflict("Проверка остатков не устраняет этот тип проблемы.")
 	}
@@ -487,6 +491,17 @@ func applyAssemblyProblemOperation(ctx context.Context, tx pgx.Tx, current json.
 		}
 	}
 	if operation.Action == "return" {
+		if enabled, e := disassemblyEnabled(ctx, tx); e != nil {
+			return nil, "", false, e
+		} else if enabled {
+			var exists bool
+			if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM assembly_disassembly_sessions s JOIN assembly_order_records o ON o.id=s.order_id WHERE o.source='ozon' AND o.order_number=$1)`, textValue(order["number"])).Scan(&exists); e != nil {
+				return nil, "", false, e
+			}
+			if exists {
+				return nil, "", false, stockConflict("Заказ передан в разбор. Возврат в сборку этим действием запрещён.")
+			}
+		}
 		if state["activeOrder"] != nil {
 			return nil, "", false, stockConflict("Сначала завершите текущую сборку.")
 		}

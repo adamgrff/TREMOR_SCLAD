@@ -17,7 +17,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
 
   async function load(signal?: AbortSignal) {
     const response = await fetch(`${API_BASE_URL}/assembly-preview/draft`, { signal, cache: 'no-store' })
-    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–017.')
+    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–018.')
     const data = await response.json() as Response<T>
     if (signal?.aborted) return
     version.current = data.version
@@ -44,7 +44,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
     pending.current = { path: '/assembly/problems', method: 'POST', body: { ...intent, requestId: crypto.randomUUID(), version: version.current } }
     return retry()
   }
-  async function problemAction(problemId: string, action: 'check-stock' | 'return' | 'retry-ozon' | 'close-cancelled'): Promise<boolean> {
+  async function problemAction(problemId: string, action: 'check-stock' | 'return' | 'retry-ozon' | 'close-cancelled' | 'transfer-disassembly'): Promise<boolean> {
     if (!ready || inFlight.current || pending.current) return false
     pending.current = { path: `/assembly/problems/${encodeURIComponent(problemId)}/${action}`, method: 'POST', body: { requestId: crypto.randomUUID(), version: version.current } }
     return retry()
@@ -57,6 +57,11 @@ export default function useAssemblyDraft<T>(initialState: T) {
   async function mapProduct(problemId: string, positionSku: string, productId: number): Promise<boolean> {
     if (!ready || inFlight.current || pending.current) return false
     pending.current = { path: `/assembly/problems/${encodeURIComponent(problemId)}/map-product`, method: 'POST', body: { requestId: crypto.randomUUID(), version: version.current, positionSku, productId, confirmed: true } }
+    return retry()
+  }
+  async function disassemblyAction(sessionId: string, action: 'start' | 'scan' | 'finish' | 'pause', code?: string): Promise<boolean> {
+    if (!ready || inFlight.current || pending.current) return false
+    pending.current = { path: `/assembly/disassembly/${encodeURIComponent(sessionId)}/${action}`, method: 'POST', body: { requestId: crypto.randomUUID(), version: version.current, ...(code ? { code } : {}) } }
     return retry()
   }
   async function retry(): Promise<boolean> {
@@ -96,5 +101,5 @@ export default function useAssemblyDraft<T>(initialState: T) {
       return false
     } finally { inFlight.current = false; setSaving(false) }
   }
-  return { state, save, createProblem, problemAction, assemblyAction, mapProduct, actionNotice, getActionMessage: () => actionMessage.current, ready, saving, error, retry, blocked: !ready || saving || error !== '' }
+  return { state, save, createProblem, problemAction, assemblyAction, mapProduct, disassemblyAction, actionNotice, getActionMessage: () => actionMessage.current, ready, saving, error, retry, blocked: !ready || saving || error !== '' }
 }

@@ -445,6 +445,17 @@ func applyOzonReceipt(ctx context.Context, tx pgx.Tx, state map[string]any, op o
 		}
 	}
 	if receipt.Outcome == "cancelled" {
+		if enabled, e := disassemblyEnabled(ctx, tx); e != nil {
+			return e
+		} else if enabled {
+			var exists bool
+			if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM assembly_disassembly_sessions WHERE order_id=$1::uuid)`, op.OrderID).Scan(&exists); e != nil {
+				return e
+			}
+			if exists {
+				return nil
+			}
+		}
 		// Cancellation preserves picks and releases only the remaining (not physically picked) reserve.
 		if sameAssemblyOrder(valueMap(state["activeOrder"]), order) {
 			order = valueMap(state["activeOrder"])
