@@ -6,18 +6,18 @@ const THEME_STORAGE_KEY = 'tremor-theme'
 
 export function useTheme(defaultTheme: Theme) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY)
-
-    if (savedTheme === 'dark' || savedTheme === 'light') {
-      return savedTheme
-    }
+    try {
+      const savedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+      if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme
+    } catch { /* Theme switching remains usable when browser storage is unavailable. */ }
 
     return defaultTheme
   })
 
   useEffect(() => {
-    localStorage.setItem(THEME_STORAGE_KEY, theme)
     document.documentElement.dataset.theme = theme
+    try { localStorage.setItem(THEME_STORAGE_KEY, theme) }
+    catch { /* An optional preference must not prevent the page from rendering. */ }
   }, [theme])
 
   function toggleTheme() {

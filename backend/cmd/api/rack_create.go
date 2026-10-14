@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -20,7 +21,7 @@ func createRackHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request)
 	}
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&input) != nil {
+	if decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF {
 		writeErrorResponse(w, 400, "Некорректные параметры стеллажа")
 		return
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -59,7 +60,7 @@ func receivingQuantityHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.R
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&input) != nil || input.Quantity <= 0 || input.Quantity > 1000000000 {
+	if decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF || input.Quantity <= 0 || input.Quantity > 1000000000 {
 		writeErrorResponse(w, 400, "Количество должно быть целым числом от 1 до 1000000000")
 		return
 	}
