@@ -15,6 +15,16 @@ assert.match(render(), /A1 · CELL:2/)
 assert.match(render(), /aria-label="Код исходной ячейки"/)
 assert.match(render(), /disabled="">Завершить разбор/)
 assert.match(render(), /A · Ozon: OZON/)
+const originalItems = JSON.stringify(session.items)
+const productTable = render().match(/class="disassembly__items"[\s\S]*?<\/table>/)[0]
+assert.equal((productTable.match(/<strong>Alpha<\/strong>/g) ?? []).length, 1, 'One SKU must have one summary row across multiple source cells')
+assert.match(productTable, /disassembly__productCount">1 \/ 2/)
+assert.match(productTable, /A1 · CELL:1/)
+assert.match(productTable, /A1 · CELL:2/)
+assert.match(render(), /Было собрано/)
+assert.match(render(), /Требуется вернуть/)
+assert.match(render(), /Уже возвращено/)
+assert.equal(JSON.stringify(session.items), originalItems, 'Rendering summaries must not mutate source picks')
 session.pendingItemId = null
 assert.match(render(), /СКАНИРУЙТЕ ТОВАР/)
 session.items[1].returned = true
@@ -23,6 +33,15 @@ assert.doesNotMatch(render(), /disabled="">Завершить разбор/)
 session.status = 'completed'
 assert.doesNotMatch(render(), />REAL</)
 assert.match(render(), /Заказов на разбор пока нет/)
+assert.doesNotMatch(render(), /disassembly__completed/)
+assert.doesNotMatch(render(), /0 заказов/)
 session.status = 'waiting'
 assert.match(render(), /Начать разбор/)
-console.log('Disassembly UI checks passed: source ID separation, persisted pending item, finish gate, barcode identity and terminal queue filtering.')
+assert.match(render(), /Ещё не начат/)
+session.startedAt = '2026-10-14T10:00:00Z'
+assert.match(render(), /Отложен/)
+assert.match(render(), /Продолжить/)
+const empty = renderToStaticMarkup(React.createElement(context.exports.default, { sessions: [], blocked: false, onAction() {} }))
+assert.match(empty, /Товары и исходные ячейки появятся/)
+assert.match(empty, /disabled=""[^>]*\/?>/)
+console.log('Disassembly UI checks passed: SKU totals, source cell details, explicit quantities, pause status, pending item, finish gate, immutable inputs and terminal queue filtering.')
