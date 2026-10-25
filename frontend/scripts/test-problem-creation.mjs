@@ -129,7 +129,7 @@ assert.deepEqual(Object.keys(JSON.parse(returnRequest.body)).sort(), ['code', 'r
 mode = 'success'; draft = render(); assert.equal(await draft.retry(), true)
 assert.equal(calls.findLast(call => call.method === 'POST').body, returnRequest.body)
 
-const dialogContext = { exports: {}, require: (id) => id === './problemTypes' ? { problemTypes: [['insufficient_stock', 'Недостаточно товара'], ['other', 'Другая проблема']] } : require(id) }
+const dialogContext = { exports: {}, require: (id) => id === '../../components/useModalFocusReturn' ? { __esModule: true, default() {} } : id === './problemTypes' ? { problemTypes: [['insufficient_stock', 'Недостаточно товара'], ['other', 'Другая проблема']] } : require(id) }
 vm.runInNewContext(compile('../src/pages/AssemblyPage/OrderProblemDialog.tsx'), dialogContext)
 const props = { positions: [{ sku: 'A', name: 'Alpha' }], initialPositionSku: 'A', onCancel() {}, onConfirm() {} }
 const queueDialog = renderToStaticMarkup(React.createElement(dialogContext.exports.default, { ...props, initialType: 'insufficient_stock' }))

@@ -714,7 +714,7 @@ function ReceivingPage() {
         className="receivingPage__content"
         aria-label="Приёмка товаров"
       >
-        <div className="receivingPage__scanPanel" id="receiving-scan">
+        <div className="receivingPage__scanPanel ds-v1 ui-v1-control-panel" id="receiving-scan">
           <svg
             className="receivingPage__scanIcon"
             viewBox="0 0 24 24"
@@ -733,7 +733,7 @@ function ReceivingPage() {
           </svg>
 
           <div className="receivingPage__scanText">
-            <h1 className="receivingPage__scanTitle">
+            <h1 className="receivingPage__scanTitle ds-v1 ui-v1-type-section">
               СКАНИРУЙТЕ ТОВАР
             </h1>
 
@@ -743,7 +743,7 @@ function ReceivingPage() {
               onSubmit={handleProductScan}
             >
               <input
-                className="receivingPage__scanInput"
+                className="receivingPage__scanInput ds-v1 ui-v1-input"
                 aria-label="Код товара или ячейки"
                 autoComplete="off"
                 autoFocus
@@ -757,7 +757,8 @@ function ReceivingPage() {
               />
 
               <button
-                className="receivingPage__scanSubmit"
+                className="receivingPage__scanSubmit ds-v1 ui-v1-action ui-v1-action--primary"
+                aria-busy={isScanBusy}
                 type="submit"
                 disabled={isBusy || isFinished}
               >
@@ -768,7 +769,7 @@ function ReceivingPage() {
             </form>
 
             {scanMessage && (
-              <p className="receivingPage__scanMessage" role="status">
+              <p className="receivingPage__scanMessage ds-v1 ui-v1-type-secondary" role="status">
                 {scanMessage}
               </p>
             )}
@@ -783,19 +784,19 @@ function ReceivingPage() {
 
         <div className="receivingPage__workspace">
           <section
-            className="receivingPage__panel receivingPage__pending"
+            className="receivingPage__panel receivingPage__pending ds-v1 ui-v1-window"
             aria-labelledby="receiving-pending-title"
           >
             <div className="receivingPage__panelHeader">
               <div>
                 <h2
-                  className="receivingPage__panelTitle"
+                  className="receivingPage__panelTitle ds-v1 ui-v1-page-title"
                   id="receiving-pending-title"
                 >
                   ОЖИДАЮТ ЯЧЕЙКУ
                 </h2>
 
-                <p className="receivingPage__panelSubtitle">
+                <p className="receivingPage__panelSubtitle ds-v1 ui-v1-type-secondary">
                   {hasScannedItems
                     ? 'Товары готовы к размещению'
                     : 'Группа пуста - можно продолжать сканирование'}
@@ -804,7 +805,7 @@ function ReceivingPage() {
 
             </div>
 
-            <table className="receivingPage__pendingTable">
+            <table className="receivingPage__pendingTable ds-v1 ui-v1-table">
               <thead>
                 <tr>
                   <th scope="col">ТОВАР</th>
@@ -820,8 +821,8 @@ function ReceivingPage() {
                     <tr key={item.code}>
                       <td>{item.name}</td>
                       <td>{item.code}</td>
-                      <td><button type="button" className="receivingHistory__button" disabled={isBusy || isFinished} aria-label={`Изменить количество ${item.code}`} onClick={() => setQuantityItem(item)}>{item.quantity} ✎</button></td>
-                      <td><button type="button" className="receivingHistory__button receivingHistory__deleteButton receivingHistory__iconButton" disabled={isBusy || isFinished} aria-label={`Удалить ${item.code} из ожидающих`} title="Удалить товар" onClick={() => void handleRemovePendingItem(item.code)}>
+                      <td><button type="button" className="receivingHistory__button ds-v1 ui-v1-button" disabled={isBusy || isFinished} aria-label={`Изменить количество ${item.code}`} onClick={() => setQuantityItem(item)}>{item.quantity} ✎</button></td>
+                      <td><button type="button" className="receivingHistory__button receivingHistory__deleteButton receivingHistory__iconButton ds-v1 ui-v1-button ui-v1-icon-button ui-v1-button--delete" disabled={isBusy || isFinished} aria-label={`Удалить ${item.code} из ожидающих`} title="Удалить товар" onClick={() => void handleRemovePendingItem(item.code)}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg>
                       </button></td>
                     </tr>
@@ -829,7 +830,7 @@ function ReceivingPage() {
                 ) : (
                   <tr>
                     <td
-                      className="receivingPage__pendingEmpty"
+                      className="receivingPage__pendingEmpty ds-v1 ui-v1-type-secondary"
                       colSpan={4}
                     >
                       {isPlaced
@@ -843,47 +844,47 @@ function ReceivingPage() {
           </section>
 
           <aside
-            className="receivingPage__panel receivingPage__context"
+            className="receivingPage__panel receivingPage__context ds-v1 ui-v1-control-panel"
             aria-label="Сведения о сканировании"
           >
             <section className="receivingPage__contextSection">
-              <h2 className="receivingPage__panelTitle">
+              <h2 className="receivingPage__panelTitle ds-v1 ui-v1-type-section">
                 ПОСЛЕДНИЙ СКАН
               </h2>
 
-              <p className="receivingPage__contextValue">
+              <p className="receivingPage__contextValue ds-v1 ui-v1-type-primary ui-v1-type-semibold">
                 {lastScanText}
               </p>
 
-              <p className="receivingPage__contextHint">
+              <p className="receivingPage__contextHint ds-v1 ui-v1-type-secondary">
                 {lastScanHint}
               </p>
             </section>
 
             <section className="receivingPage__contextSection">
-              <h3 className="receivingPage__contextLabel">
+              <h3 className="receivingPage__contextLabel ds-v1 ui-v1-type-secondary">
                 Рекомендуемая ячейка
               </h3>
 
-              <p className="receivingPage__contextValue">—</p>
+              <p className="receivingPage__contextValue ds-v1 ui-v1-type-primary ui-v1-type-semibold">—</p>
 
-              <p className="receivingPage__contextHint">
+              <p className="receivingPage__contextHint ds-v1 ui-v1-type-secondary">
                 Автоматический подбор ячейки пока не подключён.
               </p>
             </section>
 
             <section className="receivingPage__contextSection">
-              <h3 className="receivingPage__contextLabel">
+              <h3 className="receivingPage__contextLabel ds-v1 ui-v1-type-secondary">
                 Текущая группа
               </h3>
 
-              <p className="receivingPage__contextValue">
+              <p className="receivingPage__contextValue ds-v1 ui-v1-type-primary ui-v1-type-semibold">
                 {hasScannedItems
                   ? `${scannedTotal} ${getUnitWord(scannedTotal)}`
                   : '0 единиц'}
               </p>
 
-              <p className="receivingPage__contextHint">
+              <p className="receivingPage__contextHint ds-v1 ui-v1-type-secondary">
                 {hasScannedItems
                   ? 'Отсканируйте QR ячейки'
                   : 'Сначала отсканируйте товар'}
@@ -893,20 +894,20 @@ function ReceivingPage() {
         </div>
 
         <section
-          className="receivingPage__panel receivingPage__placed"
+          className="receivingPage__panel receivingPage__placed ds-v1 ui-v1-window"
           id="receiving-placed"
           aria-labelledby="receiving-placed-title"
         >
           <div className="receivingPage__placedHeader">
             <div>
               <h2
-                className="receivingPage__panelTitle"
+                className="receivingPage__panelTitle ds-v1 ui-v1-page-title"
                 id="receiving-placed-title"
               >
                 УЖЕ РАЗМЕЩЕНО
               </h2>
 
-              <p className="receivingPage__placedHint">
+              <p className="receivingPage__placedHint ds-v1 ui-v1-type-secondary">
                 {isFinished
                   ? 'Приёмка завершена'
                   : placedItems.length > 0
@@ -917,7 +918,8 @@ function ReceivingPage() {
 
             <div className="receivingPage__placedActions">
               <button
-                className="receivingPage__undoButton"
+                className="receivingPage__undoButton ds-v1 ui-v1-action ui-v1-action--negative"
+                aria-busy={isUndoing}
                 type="button"
                 disabled={
                   !canUndoPlacement || isBusy || isFinished
@@ -929,16 +931,18 @@ function ReceivingPage() {
 
               {isFinished ? (
                 <button
-                  className="receivingPage__finishButton"
+                  className="receivingPage__finishButton ds-v1 ui-v1-action ui-v1-action--primary"
                   type="button"
                   disabled={isBusy}
+                  aria-busy={isCreatingSession}
                   onClick={handleStartNewReceiving}
                 >
                   НОВАЯ ПРИЁМКА
                 </button>
               ) : (
                 <button
-                  className="receivingPage__finishButton"
+                  className="receivingPage__finishButton receivingPage__finishAction ds-v1 ui-v1-action ui-v1-action--primary"
+                  aria-busy={isFinishing}
                   type="button"
                   disabled={!canFinish}
                   onClick={handleFinishReceiving}
@@ -949,7 +953,7 @@ function ReceivingPage() {
             </div>
           </div>
 
-          <table className="receivingPage__placedTable">
+          <table className="receivingPage__placedTable ds-v1 ui-v1-table">
             <thead>
               <tr>
                 <th scope="col">ТОВАР</th>
@@ -974,7 +978,7 @@ function ReceivingPage() {
               ) : (
                 <tr>
                   <td
-                    className="receivingPage__placedEmpty"
+                    className="receivingPage__placedEmpty ds-v1 ui-v1-type-secondary"
                     colSpan={5}
                   >
                     Размещения этой приёмки появятся после сканирования QR ячейки

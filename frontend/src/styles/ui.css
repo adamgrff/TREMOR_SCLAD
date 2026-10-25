@@ -1,0 +1,829 @@
+@import './tokens.css';
+
+/* I5a: opt in only the outer Window surface; inner roles keep their styles. */
+html[data-theme="dark"] .ds-v1.ui-v1-window {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--ds-v1-padding-window);
+  border: var(--ds-v1-window-border-width) solid transparent;
+  border-radius: var(--ds-v1-radius-large);
+  background: var(--ds-v1-surface-window);
+  backdrop-filter: blur(var(--ds-v1-blur-window));
+  box-shadow: var(--ds-v1-shadow-window);
+}
+
+/* I5c: opt in the existing Control Panel container, without styling its content. */
+html[data-theme="dark"] .ds-v1.ui-v1-control-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--ds-v1-padding-control-panel);
+  border: var(--ds-v1-control-panel-border-width) solid var(--ds-v1-border-color-control-panel);
+  border-radius: var(--ds-v1-radius-medium);
+  background: var(--ds-v1-surface-control-panel);
+  backdrop-filter: blur(var(--ds-v1-blur-control-panel));
+  box-shadow: var(--ds-v1-shadow-control-panel);
+}
+
+/* I11: a Content Section adds no inner card; rhythm/dividers stay local. */
+html[data-theme="dark"] .ds-v1.ui-v1-content-section {
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* I6a: native table rows grow beyond these minimum heights when content wraps. */
+html[data-theme="dark"] .ds-v1.ui-v1-table {
+  --ds-v1-table-heading-min-height: 64px;
+  --ds-v1-table-row-min-height: 88px;
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+  color: var(--ds-v1-color-text-primary);
+  font-family: 'Tremor Noto Sans v1', sans-serif;
+  font-size: var(--ds-v1-primary-font-size);
+  font-weight: var(--ds-v1-primary-font-weight);
+  font-synthesis: none;
+  line-height: var(--ds-v1-primary-line-height);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-table > thead,
+html[data-theme="dark"] .ds-v1.ui-v1-table > thead > tr {
+  background: transparent;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-table > thead > tr > th,
+html[data-theme="dark"] .ds-v1.ui-v1-table > tbody > tr > td {
+  box-sizing: border-box;
+  text-align: left;
+  vertical-align: middle;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-table > thead > tr > th {
+  height: var(--ds-v1-table-heading-min-height);
+  padding: 6px var(--ds-v1-space-12);
+  border-bottom: 2px solid var(--ds-v1-border-color-strong);
+  background: transparent;
+  font-size: var(--ds-v1-column-heading-font-size);
+  font-weight: var(--ds-v1-column-heading-font-weight);
+  line-height: var(--ds-v1-column-heading-line-height);
+  text-transform: none;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-table > tbody > tr {
+  height: var(--ds-v1-table-row-min-height);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-table > tbody > tr > td {
+  padding: var(--ds-v1-space-12);
+  border-bottom: 1px solid var(--ds-v1-border-color-quiet);
+}
+
+/* I7: status, quantity and progress roles, opt in only where these roles exist. */
+html[data-theme="dark"] .ds-v1.ui-v1-badge {
+  --ds-v1-badge-base: var(--ds-v1-color-status-neutral);
+  --ds-v1-badge-foreground: var(--ds-v1-color-status-neutral-foreground);
+  display: inline-block;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 100%;
+  padding: 5px var(--ds-v1-space-8);
+  border: 0;
+  border-radius: var(--ds-v1-radius-small);
+  background: color-mix(in srgb, var(--ds-v1-badge-base) calc(var(--ds-v1-badge-opacity) * 100%), transparent);
+  color: var(--ds-v1-badge-foreground);
+  font: 400 20px/28px 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+  text-align: left;
+  vertical-align: middle;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-badge--waiting {
+  --ds-v1-badge-base: var(--ds-v1-color-status-waiting);
+  --ds-v1-badge-foreground: var(--ds-v1-color-status-waiting-foreground);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-badge--success {
+  --ds-v1-badge-base: var(--ds-v1-color-status-success);
+  --ds-v1-badge-foreground: var(--ds-v1-color-status-success-foreground);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-badge--error {
+  --ds-v1-badge-base: var(--ds-v1-color-status-error);
+  --ds-v1-badge-foreground: var(--ds-v1-color-status-error-foreground);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-badge--active {
+  --ds-v1-badge-base: var(--ds-v1-color-accent-blue);
+  --ds-v1-badge-foreground: var(--ds-v1-color-status-blue-foreground);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-counter {
+  display: inline-grid;
+  box-sizing: border-box;
+  place-items: center;
+  align-self: center;
+  flex-shrink: 0;
+  width: max-content;
+  height: auto;
+  min-width: 40px;
+  min-height: 40px;
+  aspect-ratio: 1;
+  padding: var(--ds-v1-space-4);
+  border: 0;
+  border-radius: var(--ds-v1-radius-small);
+  background: color-mix(in srgb, var(--ds-v1-color-status-neutral) 24%, transparent);
+  color: var(--ds-v1-color-text-primary);
+  font: 600 22px/30px 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+  white-space: nowrap;
+  text-align: center;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-counter--page-title {
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  aspect-ratio: auto;
+  padding: 0 var(--ds-v1-space-8);
+  background: var(--ds-v1-surface-page-title-counter);
+  font-size: var(--ds-v1-secondary-font-size);
+  font-weight: var(--ds-v1-secondary-font-weight);
+  line-height: var(--ds-v1-secondary-line-height);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress {
+  --ds-v1-progress-fill: var(--ds-v1-color-accent-blue);
+  box-sizing: border-box;
+  min-width: 0;
+  height: 28px;
+  padding: var(--ds-v1-space-4);
+  border: 3px solid var(--ds-v1-border-color-strong);
+  border-radius: var(--ds-v1-radius-pill);
+  background: transparent;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress--complete {
+  --ds-v1-progress-fill: var(--ds-v1-color-status-success);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress > .ui-v1-progress__fill {
+  min-width: 0;
+  height: 100%;
+  border-radius: var(--ds-v1-radius-pill);
+  background: var(--ds-v1-progress-fill);
+  transition: width 220ms cubic-bezier(.2, 0, 0, 1), background-color 220ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress.ui-v1-progress--compact {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  margin-top: var(--ds-v1-space-12);
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .10);
+  accent-color: var(--ds-v1-progress-fill);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress--compact::-webkit-progress-bar {
+  border-radius: var(--ds-v1-radius-pill);
+  background: transparent;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress--compact::-webkit-progress-value {
+  min-width: 0;
+  border-radius: var(--ds-v1-radius-pill);
+  background: var(--ds-v1-progress-fill);
+  transition: width 220ms cubic-bezier(.2, 0, 0, 1), background-color 220ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress--compact::-moz-progress-bar {
+  border-radius: var(--ds-v1-radius-pill);
+  background: var(--ds-v1-progress-fill);
+  transition: width 220ms cubic-bezier(.2, 0, 0, 1), background-color 220ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-v1-space-16);
+  align-items: center;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress-caption > h3 {
+  margin: 0;
+  color: var(--ds-v1-color-text-primary);
+  font: 600 22px/30px 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+  text-transform: none;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-progress-caption > span {
+  color: var(--ds-v1-color-text-secondary);
+  font: 400 20px/28px 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .ds-v1.ui-v1-progress > .ui-v1-progress__fill,
+  html[data-theme="dark"] .ds-v1.ui-v1-progress--compact::-webkit-progress-value {
+    transition-duration: 0ms;
+  }
+  html[data-theme="dark"] .ds-v1.ui-v1-progress--compact::-moz-progress-bar {
+    transition-duration: 0ms;
+  }
+}
+
+/* I8: new presentation wrappers are layout-transparent in the legacy theme. */
+html:not([data-theme="dark"]) .ui-v1-modal__body { display: contents; }
+
+html[data-theme="dark"] .ds-v1.ui-v1-modal {
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(960px, calc((100vw - 48px) / var(--site-scale, 1)));
+  max-height: calc((100dvh - 48px) / var(--site-scale, 1));
+  padding: 24px 40px;
+  border: 1px solid var(--ds-v1-border-color-strong);
+  border-radius: var(--ds-v1-radius-medium);
+  background: #181818;
+  color: var(--ds-v1-color-text-primary);
+  box-shadow: none;
+  overflow: hidden;
+  font: 400 22px/30px 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+}
+html[data-theme="dark"] .ds-v1.ui-v1-modal[open] { display: flex; flex-direction: column; animation: uiV1ModalOpen 220ms cubic-bezier(.2,0,0,1); }
+html[data-theme="dark"] .ds-v1.ui-v1-modal--confirmation { max-width: min(640px, calc((100vw - 48px) / var(--site-scale, 1))); }
+html[data-theme="dark"] .ds-v1.ui-v1-modal::backdrop { background: rgba(0,0,0,.70); backdrop-filter: none; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal > form { display: flex; flex-direction: column; min-height: 0; width: 100%; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal h2 { flex-shrink: 0; margin: 0 0 16px; font: 700 28px/36px 'Tremor Noto Sans v1', sans-serif; text-transform: none; overflow-wrap: anywhere; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-modal__body {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 6px 24px 6px 6px;
+  margin: -6px;
+  scrollbar-gutter: stable;
+  scrollbar-color: #777 #181818;
+  scrollbar-width: auto;
+  overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-modal__body::-webkit-scrollbar { width: 14px; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-modal__body::-webkit-scrollbar-track { background: #181818; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-modal__body::-webkit-scrollbar-thumb { background: #777; border: 4px solid #181818; border-radius: 999px; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-modal__body > p { margin: 0 0 12px; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-modal__body > p:last-child { margin-bottom: 0; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-modal__body > label { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-input { width: 100%; min-width: 0; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-modal__textarea { box-sizing: border-box; width: 100%; padding: 8px 12px; border: 1px solid var(--ds-v1-border-color-input); border-radius: 8px; background: var(--ds-v1-surface-input); color: inherit; font: inherit; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .ui-v1-modal__body > .skuMapping__conformity { flex-direction: row; align-items: flex-start; gap: 12px; font-size: 20px; line-height: 28px; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal input[type="checkbox"] { box-sizing: border-box; flex: 0 0 20px; width: 20px; height: 20px; margin: 4px 0 0; accent-color: var(--ds-v1-color-accent-blue); }
+html[data-theme="dark"] .ds-v1.ui-v1-modal .receivingHistory__dialogActions { flex-shrink: 0; gap: 12px; margin-top: 24px; justify-content: flex-end; }
+html[data-theme="dark"] .ds-v1.ui-v1-button.ui-v1-button--destructive:not(:disabled) { border-color: var(--ds-v1-color-status-error); color: var(--ds-v1-color-status-error-foreground); background: var(--ds-v1-surface-input); }
+html[data-theme="dark"] .ds-v1.ui-v1-button.ui-v1-button--destructive:focus-visible:not(:disabled) { background: var(--ds-v1-surface-input); }
+html[data-theme="dark"] .ds-v1.ui-v1-button.ui-v1-button--destructive:hover:not(:disabled) { background: rgba(239,125,125,.16); }
+
+html[data-theme="dark"] .ds-v1.ui-v1-feedback { color: var(--ds-v1-color-text-secondary); font: 400 20px/28px 'Tremor Noto Sans v1', sans-serif; font-synthesis: none; overflow-wrap: anywhere; }
+html[data-theme="dark"] .ds-v1.ui-v1-feedback--error { color: var(--ds-v1-color-status-error); }
+html[data-theme="dark"] .ds-v1.ui-v1-feedback--success { color: var(--ds-v1-color-status-success); }
+html[data-theme="dark"] .ds-v1.ui-v1-feedback--error > span { color: inherit; }
+html[data-theme="dark"] .ds-v1.ui-v1-feedback--empty { text-align: center; }
+html[data-theme="dark"] .ds-v1.ui-v1-feedback--empty > :is(strong,p) { font: inherit; color: inherit; }
+html[data-theme="dark"] .ds-v1.ui-v1-feedback > .ui-v1-button { margin-inline-start: 16px; }
+
+html[data-theme="dark"] .ds-v1.ui-v1-error-tooltip { position: fixed; z-index: 10001; box-sizing: border-box; width: max-content; max-width: min(360px, calc(100vw / var(--site-scale, 1) - 24px)); padding: 10px 12px; border: 1px solid var(--ds-v1-border-color-control-panel); border-radius: 8px; background: #181818; color: var(--ds-v1-color-status-error-foreground); font: 400 18px/24px 'Tremor Noto Sans v1', sans-serif; font-synthesis: none; overflow-wrap: anywhere; box-shadow: none; animation: uiV1TooltipOpen 150ms cubic-bezier(.2,0,0,1); }
+html[data-theme="dark"] .ds-v1.ui-v1-error-tooltip[data-closing="true"] { animation: none; opacity: 0; pointer-events: none; transition: opacity 150ms cubic-bezier(.2,0,0,1); }
+html[data-theme="dark"] .ui-v1-error-tooltip-trigger:focus-visible { outline: 1px solid rgba(255,255,255,.55); outline-offset: 2px; }
+@keyframes uiV1ModalOpen { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+@keyframes uiV1TooltipOpen { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .ds-v1.ui-v1-modal[open], html[data-theme="dark"] .ds-v1.ui-v1-error-tooltip { animation: none; }
+  html[data-theme="dark"] .ds-v1.ui-v1-error-tooltip[data-closing="true"] { transition: none; }
+}
+
+/* Opt-in visual roles only. Page composition remains in page styles. */
+.ui-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  color: var(--ui-text-primary);
+  background: var(--ui-surface-panel);
+  border-radius: var(--ui-radius-panel);
+  box-shadow: var(--ui-shadow-panel);
+}
+.ui-section-title {
+  margin: 0;
+  font-size: var(--ui-size-section-title);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.ui-section-description {
+  flex-shrink: 0;
+  margin: 10px 0 28px;
+  color: var(--ui-text-muted);
+  font-size: var(--ui-size-body);
+  line-height: 1.4;
+}
+.ui-section-description--receiving {
+  margin: 10px 0 0;
+  font-size: var(--ui-size-description-receiving);
+  font-weight: 700;
+}
+.ui-text { font-size: var(--ui-size-body); line-height: 1.4; }
+.ui-text--compact { font-size: var(--ui-size-body-compact); }
+.ui-text--muted { color: var(--ui-text-muted); }
+.ui-text--error { color: var(--ui-text-error); }
+.ui-text--success { color: var(--ui-text-success); }
+.ui-meta { color: var(--ui-text-muted); font-size: var(--ui-size-meta); }
+.ui-meta--cell { color: var(--ui-text-muted-history); font-size: var(--ui-size-meta-cell); }
+.ui-meta--history { color: var(--ui-text-muted-history); font-size: var(--ui-size-meta-history); }
+.ui-button {
+  padding: 8px 14px;
+  border: 1px solid var(--ui-border-control);
+  border-radius: var(--ui-radius-button);
+  background: var(--ui-surface-control);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.ui-button:hover:not(:disabled), .ui-button:focus-visible {
+  background: var(--ui-surface-control-hover);
+}
+.ui-button:disabled { opacity: .4; cursor: not-allowed; }
+.ui-button--danger { border-color: #f18d8d; color: var(--ui-text-error); }
+.ui-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  border-radius: 9px;
+  border-color: var(--ui-border-control);
+  color: inherit;
+  transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+}
+.ui-action {
+  border: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.ui-action--primary {
+  padding: 5px 10px;
+  color: rgba(0, 0, 0, .75);
+  background: rgba(255, 255, 255, .75);
+  border-radius: var(--ui-radius-pill-button);
+}
+.ui-action--assembly { padding: 10px 22px; cursor: default; }
+.ui-action--secondary { padding: 5px 0; color: rgba(255, 255, 255, .75); background: transparent; }
+.ui-action:disabled { cursor: not-allowed; }
+.ui-action--assembly:disabled { opacity: .4; }
+.ui-input--dialog {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--ui-border-control);
+  border-radius: var(--ui-radius-field-dialog);
+  background: var(--ui-surface-field-dialog);
+  color: #fff;
+  font: inherit;
+}
+.ui-input--scan {
+  box-sizing: border-box;
+  width: min(320px, 100%);
+  padding: 8px 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .35);
+  border-radius: var(--ui-radius-field-scan);
+  font: inherit;
+  font-size: 16px;
+}
+.ui-input--scan::placeholder { color: rgba(255, 255, 255, .65); }
+.ui-input--scan:focus-visible { outline: 2px solid rgba(255, 255, 255, .8); outline-offset: 2px; }
+.ui-input--scan-large { width: 100%; margin-top: 20px; padding: 12px; font-size: 18px; }
+.ui-input--scan-large:disabled { opacity: .6; }
+
+/* Technical alias: do not register the legacy "Noto Sans" family. */
+@font-face {
+  font-family: 'Tremor Noto Sans v1';
+  src: url('../assets/fonts/noto-sans-v1/NotoSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tremor Noto Sans v1';
+  src: url('../assets/fonts/noto-sans-v1/NotoSans-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tremor Noto Sans v1';
+  src: url('../assets/fonts/noto-sans-v1/NotoSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* The opt-in marker and the role belong to the same element. */
+html[data-theme="dark"] .ds-v1.ui-v1-page-title {
+  box-sizing: border-box;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: var(--ds-v1-space-4) var(--ds-v1-space-12);
+  border: 0;
+  border-radius: var(--ds-v1-radius-pill);
+  background: var(--ds-v1-surface-page-title);
+  color: var(--ds-v1-color-text-inverse);
+  font-family: 'Tremor Noto Sans v1', sans-serif;
+  font-size: var(--ds-v1-page-title-font-size);
+  font-weight: var(--ds-v1-page-title-font-weight);
+  font-synthesis: none;
+  line-height: var(--ds-v1-page-title-line-height);
+  text-transform: uppercase;
+  backdrop-filter: blur(var(--ds-v1-blur-page-title));
+  box-shadow: none;
+}
+
+/* I3a: opt in individual controls; legacy buttons and dialogs stay unchanged. */
+html[data-theme="dark"] .ds-v1.ui-v1-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 48px;
+  padding: 8px 14px;
+  border: 1px solid var(--ds-v1-border-color-input);
+  border-radius: var(--ds-v1-radius-small);
+  background: var(--ds-v1-surface-input);
+  color: var(--ds-v1-color-text-primary);
+  font-family: 'Tremor Noto Sans v1', sans-serif;
+  font-size: var(--ds-v1-primary-font-size);
+  font-weight: var(--ds-v1-primary-font-weight);
+  font-synthesis: none;
+  line-height: var(--ds-v1-primary-line-height);
+  white-space: nowrap;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(.2, 0, 0, 1),
+    border-color 150ms cubic-bezier(.2, 0, 0, 1),
+    color 150ms cubic-bezier(.2, 0, 0, 1),
+    transform 80ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-icon-button {
+  width: 48px;
+  min-width: 48px;
+  padding: 14px;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-sort-button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 2px;
+}
+
+/* Keep the existing text arrow in the light theme. */
+.ui-v1-sort-button > svg {
+  display: none;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-sort-button > span {
+  display: none;
+}
+
+html[data-theme="dark"] .ds-v1:is(.ui-v1-icon-button, .ui-v1-sort-button) > svg {
+  display: block;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .06);
+  border-color: var(--ds-v1-border-color-strong);
+}
+
+/* Preserve the existing local keyboard-focus feedback and native outline. */
+html[data-theme="dark"] .ds-v1.ui-v1-button:focus-visible:not(:disabled) {
+  background: rgba(255, 255, 255, .2);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-button--delete:hover:not(:disabled) {
+  border-color: var(--ds-v1-color-status-error);
+  color: var(--ds-v1-color-status-error);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-button:active:not(:disabled) {
+  transform: translateY(2px);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-button:disabled {
+  background: rgba(154, 154, 154, .06);
+  border-color: var(--ds-v1-border-color-quiet);
+  color: var(--ds-v1-color-text-meta);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-button:disabled[aria-busy="true"] {
+  background: var(--ds-v1-surface-input);
+  border-color: var(--ds-v1-border-color-input);
+  color: var(--ds-v1-color-text-primary);
+  cursor: wait;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .ds-v1.ui-v1-button {
+    transition: none;
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* I3b: Primary/Negative opt in on individual controls; native focus is preserved. */
+html[data-theme="dark"] .ds-v1.ui-v1-action {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 52px;
+  border: 0;
+  border-radius: var(--ds-v1-radius-pill);
+  font-family: 'Tremor Noto Sans v1', sans-serif;
+  font-size: var(--ds-v1-primary-font-size);
+  font-weight: var(--ds-v1-font-weight-semibold);
+  font-synthesis: none;
+  line-height: var(--ds-v1-primary-line-height);
+  white-space: nowrap;
+  box-shadow: none;
+  opacity: 1;
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(.2, 0, 0, 1),
+    color 150ms cubic-bezier(.2, 0, 0, 1),
+    transform 80ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action--primary {
+  padding: 11px 22px;
+  background: var(--ds-v1-surface-page-title);
+  color: var(--ds-v1-color-text-inverse);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action--negative {
+  padding: 11px 16px;
+  background: transparent;
+  color: var(--ds-v1-color-text-primary);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action--primary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .90);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action--negative:hover:not(:disabled) {
+  background: rgba(239, 125, 125, .16);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action:active:not(:disabled) {
+  transform: translateY(2px);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action:disabled {
+  cursor: not-allowed;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action--primary:disabled {
+  background: var(--ds-v1-color-status-neutral);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action--negative:disabled {
+  background: transparent;
+  color: var(--ds-v1-color-text-meta);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action:disabled[aria-busy="true"] {
+  cursor: wait;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action--primary:disabled[aria-busy="true"] {
+  background: var(--ds-v1-surface-page-title);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-action--negative:disabled[aria-busy="true"] {
+  color: var(--ds-v1-color-text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .ds-v1.ui-v1-action {
+    transition: none;
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-action:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* I4a: individual input opt-in; width and existing focus remain local. */
+html[data-theme="dark"] .ds-v1.ui-v1-input {
+  box-sizing: border-box;
+  height: 48px;
+  padding: var(--ds-v1-space-8) var(--ds-v1-space-12);
+  border: 1px solid var(--ds-v1-border-color-input);
+  border-radius: var(--ds-v1-radius-small);
+  background: var(--ds-v1-surface-input);
+  color: var(--ds-v1-color-text-primary);
+  font-family: 'Tremor Noto Sans v1', sans-serif;
+  font-size: var(--ds-v1-primary-font-size);
+  font-weight: var(--ds-v1-primary-font-weight);
+  font-synthesis: none;
+  line-height: var(--ds-v1-primary-line-height);
+  box-shadow: none;
+  transition: background-color 150ms cubic-bezier(.2, 0, 0, 1),
+    border-color 150ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-input::placeholder {
+  color: var(--ds-v1-color-text-meta);
+  opacity: 1;
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-input:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .04);
+  border-color: var(--ds-v1-border-color-strong);
+}
+
+html[data-theme="dark"] .ds-v1.ui-v1-input:disabled {
+  background: rgba(154, 154, 154, .06);
+  border-color: var(--ds-v1-border-color-quiet);
+  color: var(--ds-v1-color-text-meta);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .ds-v1.ui-v1-input {
+    transition: none;
+  }
+}
+
+/* I4c.1: closed native Select; keep the platform arrow and picker. */
+html[data-theme="dark"] .ds-v1.ui-v1-select {
+  padding-right: var(--ds-v1-space-40);
+}
+
+/* I4c.3: explicit pilot only; unsupported browsers retain the native picker. */
+@supports (appearance: base-select) and selector(::picker(select)) {
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable,
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable::picker(select) {
+    appearance: base-select;
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable::picker-icon {
+    width: 18px;
+    flex-shrink: 0;
+    color: currentColor;
+    font-size: 18px;
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable:open {
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable::picker(select) {
+    box-sizing: border-box;
+    width: anchor-size(width);
+    min-width: anchor-size(width);
+    max-height: min(432px, 70vh);
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    border: 1px solid var(--ds-v1-border-color-input);
+    border-radius: var(--ds-v1-radius-small);
+    background: var(--ds-v1-surface-control-panel);
+    backdrop-filter: blur(var(--ds-v1-blur-control-panel));
+    color: var(--ds-v1-color-text-primary);
+    font-family: 'Tremor Noto Sans v1', sans-serif;
+    font-size: var(--ds-v1-primary-font-size);
+    font-weight: var(--ds-v1-primary-font-weight);
+    font-synthesis: none;
+    line-height: var(--ds-v1-primary-line-height);
+    box-shadow: var(--ds-v1-shadow-control-panel);
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable option {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 9px var(--ds-v1-space-12);
+    border: 0;
+    background: transparent;
+    color: var(--ds-v1-color-text-primary);
+    font: inherit;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable option::checkmark {
+    display: none;
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable option:checked {
+    background: rgba(77, 148, 255, .14);
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable option:hover {
+    background: rgba(255, 255, 255, .06);
+  }
+
+  html[data-theme="dark"] .ds-v1.ui-v1-select--customizable option:checked:hover {
+    background: rgba(77, 148, 255, .20);
+  }
+
+  @media (forced-colors: active) {
+    html[data-theme="dark"] .ds-v1.ui-v1-select--customizable option:checked {
+      background: Highlight;
+      color: HighlightText;
+    }
+  }
+}
+
+/* I12.3: explicit typography roles; never inherited from a whole page. */
+html[data-theme="dark"] .ds-v1.ui-v1-type-section {
+  font: var(--ds-v1-section-title-font-weight) var(--ds-v1-section-title-font-size)/var(--ds-v1-section-title-line-height) 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+  color: var(--ds-v1-color-text-primary);
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+  letter-spacing: normal;
+}
+html[data-theme="dark"] .ds-v1.ui-v1-type-column {
+  font: var(--ds-v1-column-heading-font-weight) var(--ds-v1-column-heading-font-size)/var(--ds-v1-column-heading-line-height) 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+  color: var(--ds-v1-color-text-primary);
+  overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .ds-v1.ui-v1-type-primary {
+  font: var(--ds-v1-primary-font-weight) var(--ds-v1-primary-font-size)/var(--ds-v1-primary-line-height) 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+  color: var(--ds-v1-color-text-primary);
+  overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .ds-v1.ui-v1-type-secondary {
+  font: var(--ds-v1-secondary-font-weight) var(--ds-v1-secondary-font-size)/var(--ds-v1-secondary-line-height) 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+  color: var(--ds-v1-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .ds-v1.ui-v1-type-meta {
+  font: var(--ds-v1-meta-font-weight) var(--ds-v1-meta-font-size)/var(--ds-v1-meta-line-height) 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+  color: var(--ds-v1-color-text-meta);
+  overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .ds-v1.ui-v1-type-semibold { font-weight: var(--ds-v1-font-weight-semibold); }
+
+/* I12.3.1: captions align with capsule text; other heading roles stay untouched. */
+html[data-theme="dark"] .ds-v1.ui-v1-page-title + :is(.receivingPage__panelSubtitle, .receivingPage__placedHint, .productCatalog__hint, .assemblyQueue__subtitle).ds-v1,
+html[data-theme="dark"] #receiving-history-title.ui-v1-page-title + .receivingHistory__toolbar > .receivingHistory__hint.ds-v1,
+html[data-theme="dark"] .assemblyQueue__heading:has(> .ds-v1.ui-v1-page-title) + .assemblyQueue__subtitle.ds-v1,
+html[data-theme="dark"] .problemOrders__title:has(> .ds-v1.ui-v1-page-title) + .assemblyQueue__subtitle.ds-v1 {
+  padding-left: var(--ds-v1-space-12);
+  margin-top: var(--ds-v1-gap-title-context);
+}
+
+/* I12.4: keep the approved destructive normal palette while its request is busy. */
+html[data-theme="dark"] .ds-v1.ui-v1-button.ui-v1-button--destructive:disabled[aria-busy="true"] {
+  background: var(--ds-v1-surface-input);
+  border-color: var(--ds-v1-color-status-error);
+  color: var(--ds-v1-color-status-error-foreground);
+}

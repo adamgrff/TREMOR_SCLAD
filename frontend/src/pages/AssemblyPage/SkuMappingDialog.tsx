@@ -1,3 +1,4 @@
+import useModalFocusReturn from '../../components/useModalFocusReturn'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { API_BASE_URL } from '../../config/api'
 import type { AssemblyPreviewOrder } from './ActiveAssembly'
@@ -9,6 +10,7 @@ export default function SkuMappingDialog({ order, problem, blocked, onCancel, on
   onCancel: () => void; onConfirm: (sku: string, productId: number) => Promise<boolean>
 }) {
   const ref = useRef<HTMLDialogElement>(null)
+  useModalFocusReturn(ref)
   const positions = order.items.filter(item => problem.creationContext?.affectedPositions.some(p => p.sku === item.sku))
   const [sku, setSku] = useState(positions.find(item => !item.productId)?.sku ?? positions[0]?.sku ?? '')
   const [products, setProducts] = useState<Product[]>([])
@@ -38,30 +40,32 @@ export default function SkuMappingDialog({ order, problem, blocked, onCancel, on
     setError('')
     if (!await onConfirm(sku, product.id)) setError('Сопоставление не подтверждено. Проверьте сообщение сервера над окнами страницы; при обрыве связи нажмите «Повторить» там же.')
   }
-  return <dialog ref={ref} className="receivingHistory__dialog assemblyProblemDialog" aria-labelledby="sku-mapping-title" onCancel={event => { event.preventDefault(); if (!blocked) onCancel() }}>
+  return <dialog ref={ref} className="receivingHistory__dialog assemblyProblemDialog ds-v1 ui-v1-modal ui-v1-modal--form" aria-labelledby="sku-mapping-title" onCancel={event => { event.preventDefault(); if (document.documentElement.dataset.theme === 'dark') return; if (!blocked) onCancel() }}>
     <form onSubmit={event => void submit(event)}>
       <h2 id="sku-mapping-title">Сопоставить товар</h2>
+      <div className="ui-v1-modal__body">
       <p>Заказ {order.number}. Выберите соответствующий складской товар. После сохранения сервер проверит остатки и остальные проблемы заказа.</p>
       <label className="assemblyProblemDialog__field">Позиция Ozon
-        <select value={sku} disabled={blocked} required onChange={event => { setSku(event.target.value); setConfirmed(false) }}>
+        <select className="ds-v1 ui-v1-input ui-v1-select" value={sku} disabled={blocked} required onChange={event => { setSku(event.target.value); setConfirmed(false) }}>
           {positions.map(item => <option value={item.sku} key={item.sku}>{item.name} · {item.sku}{item.ozonSku ? ` · SKU Ozon: ${item.ozonSku}` : ''}</option>)}
         </select>
       </label>
       <label className="assemblyProblemDialog__field">Поиск складского товара
-        <input type="search" autoFocus value={query} disabled={blocked || loading} placeholder="Название или SKU" onChange={event => setQuery(event.target.value)} />
+        <input className="ds-v1 ui-v1-input" type="search" autoFocus value={query} disabled={blocked || loading} placeholder="Название или SKU" onChange={event => setQuery(event.target.value)} />
       </label>
       <label className="assemblyProblemDialog__field">Складской товар
-        <select value={productId} required disabled={blocked || loading} onChange={event => { setProductId(event.target.value); setConfirmed(false) }}>
+        <select className="ds-v1 ui-v1-input ui-v1-select" value={productId} required disabled={blocked || loading} onChange={event => { setProductId(event.target.value); setConfirmed(false) }}>
           <option value="">{loading ? 'Загрузка…' : 'Выбрать товар'}</option>
           {filtered.map(p => <option value={p.id} key={p.id}>{p.name} · {p.sku}</option>)}
         </select>
       </label>
       {product && <p>{product.name} · {product.sku}</p>}
       <label className="skuMapping__conformity"><input type="checkbox" checked={confirmed} disabled={blocked || !product} onChange={event => setConfirmed(event.target.checked)} /> Я проверил соответствие позиции Ozon выбранному товару.</label>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert" className="ds-v1 ui-v1-feedback ui-v1-feedback--error">{error}</p>}
+      </div>
       <div className="receivingHistory__dialogActions">
-        <button type="button" className="receivingHistory__button" disabled={blocked} onClick={onCancel}>Отмена</button>
-        <button type="submit" className="receivingHistory__button skuMapping__confirm" disabled={blocked || loading || !product || !sku || !confirmed}>Сохранить и проверить</button>
+        <button type="button" className="receivingHistory__button ds-v1 ui-v1-button" disabled={blocked} onClick={onCancel}>Отмена</button>
+        <button type="submit" className="receivingHistory__button skuMapping__confirm ds-v1 ui-v1-button" disabled={blocked || loading || !product || !sku || !confirmed}>Сохранить и проверить</button>
       </div>
     </form>
   </dialog>

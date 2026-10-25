@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import OrderProblemDialog, { type OrderProblemDetails } from './OrderProblemDialog'
 import useScanErrorFeedback from './useScanErrorFeedback'
 
@@ -9,11 +9,74 @@ export type AssemblyProblemSnapshot = { details: OrderProblemDetails; picks: Pre
 export type ActiveAssemblyState = { picks: PreviewPick[]; confirmedCell: string | null; confirmedCellId?: number | null; shipmentConfirmed: boolean; lastScan: string; log: string; error: boolean }
 
 
-export default function ActiveAssembly({ order, state, onChange, onComplete, onProblem, onServerAction, blocked }: {
+// Presentation of existing scan states only; no scan state or transition timers are introduced.
+function AssemblyStepIndicator({ step, shipmentConfirmed }: { step: 'cell' | 'product' | 'shipment'; shipmentConfirmed: boolean }) {
+  const activeIndex = shipmentConfirmed ? 3 : step === 'cell' ? 0 : step === 'product' ? 1 : 2
+  const row = useRef<HTMLDivElement>(null)
+  const capsules = useRef<Array<HTMLSpanElement | null>>([])
+  const contours = useRef<Array<SVGRectElement | null>>([])
+  const previous = useRef(activeIndex)
+  const [widths, setWidths] = useState([0, 0, 0])
+  useLayoutEffect(() => {
+    let disposed = false
+    function measure() {
+      if (disposed || !row.current || !row.current.clientWidth) return
+      const scale = parseFloat(getComputedStyle(document.documentElement).zoom) || 1
+      const next = capsules.current.map(capsule => (capsule?.getBoundingClientRect().width ?? 0) / scale)
+      setWidths(current => next.every((width, index) => Math.abs(width - current[index]) < .05) ? current : next)
+      // Reveal only within this horizontal strip, without moving focus or the page.
+      const current = capsules.current[Math.min(activeIndex, 2)]
+      if (!current) return
+      const left = current.offsetLeft, right = left + current.offsetWidth
+      if (left < row.current.scrollLeft) row.current.scrollLeft = left
+      else if (right > row.current.scrollLeft + row.current.clientWidth) row.current.scrollLeft = right - row.current.clientWidth
+    }
+    const resize = new ResizeObserver(measure)
+    if (row.current) resize.observe(row.current)
+    for (const capsule of capsules.current) if (capsule) resize.observe(capsule)
+    measure()
+    void document.fonts.ready.then(measure)
+    return () => { disposed = true; resize.disconnect() }
+  }, [activeIndex])
+  useLayoutEffect(() => {
+    const changed = previous.current !== activeIndex
+    previous.current = activeIndex
+    const motion = matchMedia('(prefers-reduced-motion: reduce)')
+    if (!changed || document.documentElement.dataset.theme !== 'dark' || motion.matches) return
+    const contour = contours.current[activeIndex]
+    if (!contour) return
+    const animation = contour.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 300, easing: 'cubic-bezier(.2,0,0,1)' })
+    const reduce = () => { if (motion.matches) animation.cancel() }
+    motion.addEventListener('change', reduce)
+    return () => { motion.removeEventListener('change', reduce); animation.cancel() }
+  }, [activeIndex])
+  const labels = ['1 · Ячейка', '2 · Товар', '3 · Отправление']
+  return <div ref={row} className="ds-v1 ui-v1-steps" role="list" aria-label="Этапы сканирования" tabIndex={0}>
+    {labels.map((label, index) => {
+      const status = index < activeIndex ? 'completed' : index === activeIndex ? 'active' : 'future'
+      return <span className="ui-v1-steps__group" key={label}>
+        <span ref={element => { capsules.current[index] = element }} className="ui-v1-steps__capsule" role="listitem" data-state={status} aria-current={status === 'active' ? 'step' : undefined} aria-label={`${label}: ${status === 'active' ? 'текущий этап' : status === 'completed' ? 'пройден' : 'предстоит'}`}>
+          <svg className="ui-v1-steps__contour" aria-hidden="true" width={widths[index]} height="46">
+            <rect className="ui-v1-steps__gray" x="1" y="1" width={Math.max(0, widths[index] - 2)} height="44" rx="22" />
+            <rect ref={element => { contours.current[index] = element }} className="ui-v1-steps__blue" x="1" y="1" width={Math.max(0, widths[index] - 2)} height="44" rx="22" pathLength="1" strokeDasharray="1" />
+          </svg>
+          <span>{label}</span>
+        </span>
+        {index < 2 && <span className="ui-v1-steps__connector" data-completed={index < activeIndex} aria-hidden="true">
+          <svg className="ui-v1-steps__arrow" width="20" height="20" viewBox="0 0 20 20"><path d="M4 10h12m-5-5 5 5-5 5" /></svg>
+          <span className="ui-v1-steps__dot" />
+        </span>}
+      </span>
+    })}
+  </div>
+}
+
+export default function ActiveAssembly({ order, state, onChange, onComplete, onProblem, onServerAction, blocked, busy = false }: {
   order: AssemblyPreviewOrder | null
   state: ActiveAssemblyState
   onChange: (state: ActiveAssemblyState) => Promise<boolean>
   blocked: boolean
+  busy?: boolean
   onComplete: () => void
   onProblem: (details: OrderProblemDetails) => Promise<boolean>
   onServerAction?: (action: 'scan' | 'undo', code?: string) => Promise<boolean>
@@ -93,18 +156,18 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
     await saveScanState({ ...state, picks: picks.slice(0, -1), confirmedCell: last.cell, shipmentConfirmed: false, error: false, log: `Отменён последний отбор: ${last.sku}, 1 шт. из ${last.cell}.` })
   }
 
-  return <section className="receivingPage__panel activeAssembly" aria-labelledby="active-assembly-title">
+  return <section className="receivingPage__panel activeAssembly ds-v1 ui-v1-window" aria-labelledby="active-assembly-title">
     {overlay}
     <div className="activeAssembly__header">
-      <h2 className="receivingPage__panelTitle" id="active-assembly-title">{order ? `ЗАКАЗ № ${order.number}` : 'АКТИВНАЯ СБОРКА'}</h2>
-      <div className={`activeAssembly__progress${progress === 100 ? ' activeAssembly__progress--complete' : ''}`} role="progressbar" aria-label="Прогресс сборки заказа" aria-valuemin={0} aria-valuemax={required || 1} aria-valuenow={collected} aria-valuetext={`Собрано ${collected} из ${required} единиц`}>
-        <div className="activeAssembly__progressFill" style={{ width: `${progress}%` }} />
+      <h2 className={`receivingPage__panelTitle ds-v1 ${order ? 'ui-v1-type-column' : 'ui-v1-page-title'}`} id="active-assembly-title">{order ? `ЗАКАЗ № ${order.number}` : 'АКТИВНАЯ СБОРКА'}</h2>
+      <div className={`activeAssembly__progress ds-v1 ui-v1-progress${progress === 100 ? ' activeAssembly__progress--complete ui-v1-progress--complete' : ''}`} role="progressbar" aria-label="Прогресс сборки заказа" aria-valuemin={0} aria-valuemax={required || 1} aria-valuenow={collected} aria-valuetext={`Собрано ${collected} из ${required} единиц`}>
+        <div className="activeAssembly__progressFill ui-v1-progress__fill" style={{ width: `${progress}%` }} />
       </div>
     </div>
-    {!order ? <div className="activeAssembly__empty">Выберите заказ в очереди и нажмите «Начать сборку».</div> : <>
+    {!order ? <div className="activeAssembly__empty ds-v1 ui-v1-feedback ui-v1-feedback--empty">Выберите заказ в очереди и нажмите «Начать сборку».</div> : <>
       <div className="activeAssembly__workspace">
         <div className="activeAssembly__tableScroll" role="region" aria-label="Товары активной сборки" tabIndex={0}>
-          <table className="activeAssembly__table">
+          <table className="activeAssembly__table ds-v1 ui-v1-table">
             <colgroup><col /><col style={{ width: '160px' }} /><col style={{ width: '160px' }} /></colgroup>
             <thead><tr><th>Товар / SKU</th><th>Нужно</th><th>Собрано</th></tr></thead>
             <tbody>{order.items.map((item) => {
@@ -116,36 +179,37 @@ export default function ActiveAssembly({ order, state, onChange, onComplete, onP
             })}</tbody>
           </table>
         </div>
-        <div className="activeAssembly__scanPanel">
+        <div className="activeAssembly__scanPanel ds-v1 ui-v1-control-panel">
+          <AssemblyStepIndicator step={step} shipmentConfirmed={shipmentConfirmed} />
           <div className="activeAssembly__scanHeading">
-            <h3 className="receivingPage__panelTitle" id="active-assembly-scan-heading">{heading}</h3>
-            {step === 'cell' && <span className="activeAssembly__cellBadge" title={expectedPlan ? `${expectedPlan.warehouse} · ${expectedPlan.scanCode}` : undefined}>{expectedCell}{order.source === 'ozon' && expectedPlan && ` · ${expectedPlan.scanCode}`}</span>}
+            <h3 className="receivingPage__panelTitle ds-v1 ui-v1-type-section" id="active-assembly-scan-heading">{heading}</h3>
+            {step === 'cell' && <span className="activeAssembly__cellBadge" title={expectedCell || undefined}>{expectedCell}</span>}
           </div>
           <form onSubmit={(event) => void submitScan(event)}>
-            <input ref={inputRef} value={scan} onChange={(event) => setScan(event.target.value)} id="active-assembly-scan" aria-labelledby="active-assembly-scan-heading" className="receivingPage__scanInput activeAssembly__scanInput" placeholder={step === 'cell' ? 'Код ячейки' : step === 'product' ? 'Код товара' : 'Код отправления'} autoComplete="off" disabled={shipmentConfirmed || blocked} />
+            <input ref={inputRef} value={scan} onChange={(event) => setScan(event.target.value)} id="active-assembly-scan" aria-labelledby="active-assembly-scan-heading" className="receivingPage__scanInput activeAssembly__scanInput ds-v1 ui-v1-input" placeholder={step === 'cell' ? 'Код ячейки' : step === 'product' ? 'Код товара' : 'Код отправления'} autoComplete="off" disabled={shipmentConfirmed || blocked} />
           </form>
           {step === 'product' && <ul className="activeAssembly__cellItems" aria-label={`Товары из ячейки ${confirmedCell}`}>
             {cellItems.map((item) => {
               const done = count(item.sku, item.cell, item.cellId) >= item.required
               return <li key={item.sku} className={done ? 'activeAssembly__cellItem activeAssembly__cellItem--done' : 'activeAssembly__cellItem'}>
-                <div><strong>{item.name}</strong><span>{item.sku}</span></div>
+                <div><strong className="ds-v1 ui-v1-type-primary ui-v1-type-semibold">{item.name}</strong><span className="ds-v1 ui-v1-type-secondary">{item.sku}</span></div>
                 <span className="activeAssembly__cellCount">{count(item.sku, item.cell, item.cellId)}/{item.required}</span>
                 {done && <span className="activeAssembly__check" aria-label="Позиция собрана">✓</span>}
               </li>
             })}
           </ul>}
           {step === 'shipment' && <div className={`activeAssembly__shipment${shipmentConfirmed ? ' activeAssembly__shipment--confirmed' : ''}`}>
-            {shipmentConfirmed ? <><strong>✓ КОРОБКА ПОДТВЕРЖДЕНА</strong><p>Отправление: {order.number}</p></> : <p>Приклейте этикетку Ozon и отсканируйте код отправления.</p>}
+            {shipmentConfirmed ? <><strong className="ds-v1 ui-v1-feedback ui-v1-feedback--success">✓ КОРОБКА ПОДТВЕРЖДЕНА</strong><p className="ds-v1 ui-v1-type-secondary">Отправление: {order.number}</p></> : <p className="ds-v1 ui-v1-type-primary">Приклейте этикетку Ozon и отсканируйте код отправления.</p>}
           </div>}
-          <div className="activeAssembly__lastScan"><h3>Последний успешный скан</h3><p>{lastScan}</p></div>
+          <div className="activeAssembly__lastScan"><h3 className="ds-v1 ui-v1-type-secondary">Последний успешный скан</h3><p className="ds-v1 ui-v1-type-primary ui-v1-type-semibold">{lastScan}</p></div>
         </div>
       </div>
       <div className="activeAssembly__footer">
-        <div className={`activeAssembly__scanLog${error ? ' activeAssembly__scanLog--error' : ''}`} role="status">{log}</div>
+        <div className={`activeAssembly__scanLog ds-v1 ui-v1-feedback${error ? ' activeAssembly__scanLog--error ui-v1-feedback--error' : ''}`} role="status">{log}</div>
         <div className="activeAssembly__actions">
-          <button className="receivingPage__undoButton" type="button" disabled={picks.length === 0 || blocked} onClick={() => void undoPick()}>Отмена</button>
-          <button className="assemblyQueue__problem" type="button" disabled={blocked} onClick={() => setProblemOpen(true)}>Проблема</button>
-          <button className="receivingPage__finishButton assemblyQueue__start" type="button" disabled={!shipmentConfirmed || !allCollected || blocked} onClick={onComplete}>Завершить сборку</button>
+          <button className="receivingPage__undoButton ds-v1 ui-v1-action ui-v1-action--negative" aria-busy={busy} type="button" disabled={picks.length === 0 || blocked} onClick={() => void undoPick()}>Отмена</button>
+          <button className="assemblyQueue__problem ds-v1 ui-v1-action ui-v1-action--negative" type="button" aria-busy={busy} disabled={blocked} onClick={() => setProblemOpen(true)}>Проблема</button>
+          <button className="receivingPage__finishButton assemblyQueue__start ds-v1 ui-v1-action ui-v1-action--primary" type="button" aria-busy={busy} disabled={!shipmentConfirmed || !allCollected || blocked} onClick={onComplete}>Завершить сборку</button>
         </div>
       </div>
       {problemOpen && <OrderProblemDialog blocked={blocked} positions={order.items} initialPositionSku={activeSku ?? order.items[0]?.sku} onCancel={() => setProblemOpen(false)} onConfirm={(details) => { void onProblem(details).then((saved) => { if (saved) setProblemOpen(false) }) }} />}

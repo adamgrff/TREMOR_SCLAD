@@ -1,3 +1,4 @@
+import useModalFocusReturn from '../../components/useModalFocusReturn'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { problemTypes, allProblemTypes } from './problemTypes'
 
@@ -18,6 +19,7 @@ export default function OrderProblemDialog({ initialType = '', positions = [], i
   onConfirm: (details: OrderProblemDetails) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  useModalFocusReturn(dialogRef)
   const [type, setType] = useState<OrderProblemType | ''>(initialType)
   const [comment, setComment] = useState('')
   const [positionSku, setPositionSku] = useState(initialPositionSku)
@@ -33,28 +35,30 @@ export default function OrderProblemDialog({ initialType = '', positions = [], i
     if (positions.length > 0 && positionRequired && !positionSku) return
     onConfirm({ type, comment: type === 'other' ? comment.trim() : '', ...(positions.length > 0 && positionSku ? { positionSku } : {}) })
   }
-  return <dialog ref={dialogRef} className="receivingHistory__dialog assemblyProblemDialog" aria-labelledby="order-problem-title" aria-describedby="order-problem-description" onCancel={(event) => { event.preventDefault(); onCancel() }}>
+  return <dialog ref={dialogRef} className="receivingHistory__dialog assemblyProblemDialog ds-v1 ui-v1-modal ui-v1-modal--form" aria-labelledby="order-problem-title" aria-describedby="order-problem-description" onCancel={(event) => { event.preventDefault(); if (document.documentElement.dataset.theme === 'dark') return; onCancel() }}>
     <form onSubmit={submit}>
       <h2 id="order-problem-title">Отправить заказ в проблемные?</h2>
+      <div className="ui-v1-modal__body">
       <p id="order-problem-description">Данный заказ будет отправлен в раздел «Проблемные».</p>
       <label className="assemblyProblemDialog__field">Тип проблемы
-        <select value={type} required autoFocus disabled={blocked} onChange={(event) => setType(event.target.value as OrderProblemType | '')}>
+        <select className="ds-v1 ui-v1-input ui-v1-select" value={type} required autoFocus disabled={blocked} onChange={(event) => setType(event.target.value as OrderProblemType | '')}>
           <option value="" disabled>Выбрать</option>
           {problemTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
       </label>
       {type === 'other' && <label className="assemblyProblemDialog__field">Комментарий
-        <textarea value={comment} required disabled={blocked} rows={3} maxLength={2000} onChange={(event) => setComment(event.target.value)} />
+        <textarea className="ui-v1-modal__textarea ds-v1 ui-v1-input" value={comment} required disabled={blocked} rows={3} maxLength={2000} onChange={(event) => setComment(event.target.value)} />
       </label>}
       {positions.length > 0 && type && <label className="assemblyProblemDialog__field">Позиция{!positionRequired && ' (необязательно)'}
-        <select value={positionSku} required={positionRequired} disabled={blocked} onChange={(event) => setPositionSku(event.target.value)}>
+        <select className="ds-v1 ui-v1-input ui-v1-select" value={positionSku} required={positionRequired} disabled={blocked} onChange={(event) => setPositionSku(event.target.value)}>
           <option value="">{positionRequired ? 'Выбрать позицию' : 'Заказ целиком'}</option>
           {positions.map((position) => <option key={position.sku} value={position.sku}>{position.name} · {position.sku}</option>)}
         </select>
       </label>}
+      </div>
       <div className="receivingHistory__dialogActions">
-        <button className="receivingHistory__button" type="button" onClick={onCancel}>Отмена</button>
-        <button className="receivingHistory__button assemblyProblemDialog__confirm" type="submit" disabled={blocked || !type || (positionRequired && !positionSku) || (type === 'other' && !comment.trim())}>Отправить в проблемные</button>
+        <button className="receivingHistory__button ds-v1 ui-v1-button" type="button" onClick={onCancel}>Отмена</button>
+        <button className="receivingHistory__button assemblyProblemDialog__confirm ds-v1 ui-v1-button ui-v1-button--destructive" type="submit" disabled={blocked || !type || (positionRequired && !positionSku) || (type === 'other' && !comment.trim())}>Отправить в проблемные</button>
       </div>
     </form>
   </dialog>

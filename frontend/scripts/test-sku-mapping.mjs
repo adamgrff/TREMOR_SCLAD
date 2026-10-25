@@ -12,7 +12,7 @@ const hooks = {
   useEffect(fn) { if (!initialized) { initialized = true; fn() } },
 }
 const context = { exports: {}, AbortController,
-  require: id => id === 'react' ? hooks : id.includes('config/api') ? { API_BASE_URL: '/api' } : require(id),
+  require: id => id === '../../components/useModalFocusReturn' ? { __esModule: true, default() {} } : id === 'react' ? hooks : id.includes('config/api') ? { API_BASE_URL: '/api' } : require(id),
   fetch: async url => { assert.equal(url, '/api/assembly/mapping-products'); return { ok: true, json: async () => ({ products: [{ id: 42, sku: 'WAREHOUSE', name: 'Warehouse item' }] }) } },
 }
 const code = ts.transpileModule(readFileSync(new URL('../src/pages/AssemblyPage/SkuMappingDialog.tsx', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText

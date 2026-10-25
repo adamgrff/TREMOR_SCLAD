@@ -16,7 +16,22 @@ const render = () => renderToStaticMarkup(React.createElement(context.exports.de
 assert.match(render(), /activeAssembly__cellCount">1\/2/)
 assert.doesNotMatch(render(), /activeAssembly__cellCount">2\/2/)
 state.confirmedCell = null; state.confirmedCellId = null
-assert.match(render(), /A1 · CELL:3/)
+const cellBadge = () => render().match(/<span class="activeAssembly__cellBadge"[^>]*>.*?<\/span>/)?.[0]
+for (const cell of ['A1', 'B12', 'C-07']) {
+  order.items[0].pickingPlan[1].cell = cell
+  assert.equal(cellBadge(), `<span class="activeAssembly__cellBadge" title="${cell}">${cell}</span>`)
+}
+for (const cell of ['', undefined]) {
+  order.items[0].pickingPlan[1].cell = cell
+  assert.equal(cellBadge(), '<span class="activeAssembly__cellBadge"></span>')
+}
+order.items[0].pickingPlan[1].cell = 'A1'
+order.items[0].pickingPlan[0] = { ...plan(1, 2, 1), cell: 'D9' }
+order.suggestedCellId = 1
+assert.equal(cellBadge(), '<span class="activeAssembly__cellBadge" title="D9">D9</span>')
+order.suggestedCellId = 3
+assert.equal(cellBadge(), '<span class="activeAssembly__cellBadge" title="A1">A1</span>')
+order.items[0].pickingPlan[0] = plan(1, 1, 1)
 state.picks.push({ sku: 'A', cell: 'A1', cellId: 3 }); order.items[0].pickingPlan[1].picked = 2
 assert.match(render(), /activeAssembly__row--done/)
 assert.match(render(), /СКАНИРУЙТЕ ОТПРАВЛЕНИЕ/)

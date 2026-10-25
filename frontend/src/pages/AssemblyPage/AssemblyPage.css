@@ -22,6 +22,31 @@
 .activeAssembly__row--done { color: #9a9a9a; background: rgba(255, 255, 255, .04); }
 .activeAssembly__collectedValue { display: flex; align-items: center; gap: 12px; }
 .activeAssembly__table .activeAssembly__check { display: grid; margin: 0; color: #a8dfb5; font-size: 16px; }
+/* I6d: the existing order table opts in without changing scan-panel items. */
+html[data-theme="dark"] .activeAssembly__table.ui-v1-table {
+  min-width: 0;
+}
+
+html[data-theme="dark"] .activeAssembly__table.ui-v1-table > tbody > tr > td > strong {
+  font-size: inherit;
+  font-weight: var(--ds-v1-font-weight-semibold);
+}
+
+html[data-theme="dark"] .activeAssembly__table.ui-v1-table > tbody > tr > td:first-child > span {
+  margin-top: var(--ds-v1-space-4);
+  color: var(--ds-v1-color-text-secondary);
+  font-size: var(--ds-v1-secondary-font-size);
+  font-weight: var(--ds-v1-secondary-font-weight);
+  line-height: var(--ds-v1-secondary-line-height);
+}
+
+/* Retain the completed-position indicator's font, size, colour and centering. */
+html[data-theme="dark"] .activeAssembly__table.ui-v1-table .activeAssembly__check {
+  font: 16px/1.4 'Noto Sans', Arial, sans-serif;
+  text-align: start;
+  overflow-wrap: normal;
+}
+
 .activeAssembly__scanPanel { min-width: 0; display: flex; flex-direction: column; border-left: 1px solid rgba(255, 255, 255, .2); padding-left: 40px; }
 .activeAssembly__scanInput { width: 100%; margin-top: 20px; padding: 12px; font-size: 18px; }
 .activeAssembly__lastScan { margin-top: 28px; }
@@ -31,6 +56,7 @@
 .activeAssembly__scanLog p { margin: 0 0 8px; }
 .activeAssembly__scanLog p + p { color: #9a9a9a; }
 .activeAssembly__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 16px; flex-shrink: 0; margin-left: auto; }
+html[data-theme="dark"] .activeAssembly__actions:has(> .ds-v1.ui-v1-action) { gap: 12px; }
 .activeAssembly__footer { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 24px; }
 .activeAssembly__scanHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .activeAssembly__cellBadge { padding: 5px 12px; border-radius: 10px; background: rgba(0, 111, 255, .85); font-size: 24px; font-weight: 700; }
@@ -89,6 +115,57 @@
 .assemblyQueue__search--open .assemblyQueue__searchButton { border-radius: 0 9px 9px 0; background: #252525; }
 .assemblyQueue__searchMessage { position: absolute; left: 13px; top: 42px; z-index: 3; white-space: nowrap; font-size: 14px; color: #ffb6b6; }
 @media (prefers-reduced-motion: reduce) { .assemblyQueue__searchField { transition: none; } }
+
+/* I4b: existing expandable search, dark theme only; handlers remain local. */
+html[data-theme="dark"] .assemblyQueue__search.ds-v1 {
+  width: 48px;
+  height: 48px;
+  margin-left: 0;
+  transition: margin-left 220ms cubic-bezier(.4, 0, .2, 1);
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1.assemblyQueue__search--open {
+  margin-left: 220px;
+}
+
+html[data-theme="dark"] .assemblyQueue__listActions:has(> .assemblyQueue__search.ds-v1) {
+  margin-left: auto;
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1 .assemblyQueue__searchField {
+  right: 48px;
+  height: 48px;
+  transition: width 220ms cubic-bezier(.4, 0, .2, 1),
+    opacity 150ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1 .ui-v1-input {
+  width: 220px;
+  border-right: 0;
+  border-radius: var(--ds-v1-radius-small) 0 0 var(--ds-v1-radius-small);
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1.assemblyQueue__search--open .ui-v1-icon-button {
+  border-radius: 0 var(--ds-v1-radius-small) var(--ds-v1-radius-small) 0;
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1 .assemblyQueue__searchMessage {
+  top: calc(100% + 6px);
+  color: var(--ds-v1-color-status-error);
+  font-family: 'Tremor Noto Sans v1', sans-serif;
+  font-size: var(--ds-v1-meta-font-size);
+  font-weight: var(--ds-v1-meta-font-weight);
+  font-synthesis: none;
+  line-height: var(--ds-v1-meta-line-height);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .assemblyQueue__search.ds-v1,
+  html[data-theme="dark"] .assemblyQueue__search.ds-v1 .assemblyQueue__searchField {
+    transition: none;
+  }
+}
+
 .assemblyQueue__subtitle { margin: 10px 0 28px; color: #9a9a9a; font-size: 18px; line-height: 1.4; }
 .assemblyQueue__orders, .assemblyQueue__contents { width: 100%; border-collapse: collapse; font-size: 18px; line-height: 1.4; }
 .assemblyQueue th { text-align: left; padding: 12px 10px; border-bottom: 2px solid rgba(255, 255, 255, .35); font-weight: 700; }
@@ -169,4 +246,220 @@
   .assemblyQueue__list { height: 648px; box-sizing: border-box; contain: none; border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, .2); }
   .assemblyQueue__footer { flex-wrap: wrap; }
   .assemblyQueue__start { margin-left: auto; }
+}
+
+/* I6e: only the two queue tables; Window and search geometry remain local above. */
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table {
+  min-width: 0;
+}
+
+html[data-theme="dark"] :is(.assemblyQueue__orders, .assemblyQueue__contents).ui-v1-table > tbody > tr > td {
+  font-size: inherit;
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table button {
+  min-width: 0;
+  max-width: 100%;
+  gap: var(--ds-v1-space-4);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table button > strong,
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table > tbody > tr > td > strong {
+  font-size: inherit;
+  font-weight: var(--ds-v1-font-weight-semibold);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table button > span,
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__date,
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table > tbody > tr > td:first-child > span {
+  color: var(--ds-v1-color-text-secondary);
+  font-size: var(--ds-v1-secondary-font-size);
+  font-weight: var(--ds-v1-secondary-font-weight);
+  line-height: var(--ds-v1-secondary-line-height);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__date,
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table > tbody > tr > td:first-child > span {
+  margin-top: var(--ds-v1-space-4);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__time {
+  flex-wrap: wrap;
+  row-gap: var(--ds-v1-space-4);
+  white-space: normal;
+}
+
+/* I10b: specialized waiting metric; its four existing colours remain unchanged. */
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__time:has(> .assemblyQueue__wait) {
+  row-gap: var(--ds-v1-space-8);
+}
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__wait {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: max-content;
+  height: 28px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--ds-v1-radius-small);
+  font: 400 var(--ds-v1-meta-font-size)/var(--ds-v1-meta-line-height) 'Tremor Noto Sans v1', sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: start;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr {
+  transition: background-color 150ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr.assemblyQueue__selected {
+  background: rgba(77, 148, 255, .14);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr.assemblyQueue__selected:hover {
+  background: rgba(77, 148, 255, .20);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__selected > td:first-child {
+  box-shadow: inset 3px 0 var(--ds-v1-color-accent-blue);
+}
+
+/* Keep the existing stock-warning glyph independent of the table font. */
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table .assemblyQueue__shortageIcon {
+  font: 700 12px/1.4 'Noto Sans', Arial, sans-serif;
+  text-align: start;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr {
+    transition: none;
+  }
+}
+
+/* I5b.1: move only the outer insets to Window, retaining the old content boxes.
+   For outer width W and inset P, the first track is W/3 - P. */
+html[data-theme="dark"] .assemblyQueue.ds-v1.ui-v1-window {
+  --assembly-window-inset: var(--ds-v1-space-40);
+  position: relative;
+  grid-template-columns: minmax(0, calc((100% - var(--assembly-window-inset)) / 3)) minmax(0, 1fr);
+}
+
+html[data-theme="dark"] .assemblyQueue.ui-v1-window > .assemblyQueue__list {
+  padding: 0 var(--assembly-window-inset) 0 0;
+  border-right-color: transparent;
+}
+
+html[data-theme="dark"] .assemblyQueue.ui-v1-window > .assemblyQueue__details {
+  padding: 0 0 0 var(--assembly-window-inset);
+}
+
+/* Paint the existing divider across the full Window, outside the moved insets. */
+html[data-theme="dark"] .assemblyQueue.ui-v1-window::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: calc(200% / 3);
+  bottom: 0;
+  width: 0;
+  border-right: 1px solid rgba(255, 255, 255, .2);
+  pointer-events: none;
+}
+
+@media (max-width: 1100px) {
+  html[data-theme="dark"] .assemblyQueue.ds-v1.ui-v1-window {
+    --assembly-window-inset: var(--ds-v1-space-24);
+    padding: var(--ds-v1-space-24);
+  }
+}
+
+@media (max-width: 800px) {
+  html[data-theme="dark"] .assemblyQueue.ds-v1.ui-v1-window {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-theme="dark"] .assemblyQueue.ui-v1-window > .assemblyQueue__list {
+    height: calc(648px - var(--ds-v1-space-24));
+    padding: 0 0 var(--ds-v1-space-24);
+    border-bottom-color: transparent;
+  }
+
+  html[data-theme="dark"] .assemblyQueue.ui-v1-window > .assemblyQueue__details {
+    padding: var(--ds-v1-space-24) 0 0;
+  }
+
+  html[data-theme="dark"] .assemblyQueue.ui-v1-window::after {
+    right: 0;
+    bottom: auto;
+    left: 0;
+    box-sizing: border-box;
+    width: auto;
+    height: 648px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .2);
+  }
+}
+
+/* I10a: presentation-only scan steps, hidden in the unchanged light theme. */
+.ui-v1-steps { display: none; }
+html[data-theme="dark"] .activeAssembly .ds-v1.ui-v1-steps {
+  position: relative; display: flex; align-items: center; width: 100%; min-width: 0; max-width: 100%;
+  margin: 0 0 var(--ds-v1-space-12); padding: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scrollbar-color: #777 transparent;
+  font: 600 var(--ds-v1-primary-font-size)/var(--ds-v1-primary-line-height) 'Tremor Noto Sans v1', sans-serif;
+}
+html[data-theme="dark"] .ui-v1-steps:focus-visible { outline: 1px solid var(--ds-v1-border-color-strong); outline-offset: 3px; }
+html[data-theme="dark"] .ui-v1-steps__group { display: flex; flex: 0 0 auto; align-items: center; }
+html[data-theme="dark"] .ui-v1-steps__capsule {
+  position: relative; display: inline-flex; flex: 0 0 auto; align-items: center; box-sizing: border-box;
+  height: 46px; padding: 8px 14px; border-radius: var(--ds-v1-radius-pill); white-space: nowrap;
+  color: var(--ds-v1-color-text-secondary); background: transparent;
+  transition: color 150ms cubic-bezier(.2,0,0,1);
+}
+html[data-theme="dark"] .ui-v1-steps__capsule[data-state="active"] { color: var(--ds-v1-color-text-primary); }
+html[data-theme="dark"] .ui-v1-steps__contour { position: absolute; inset: 0; pointer-events: none; }
+html[data-theme="dark"] .ui-v1-steps__contour rect { fill: none; stroke-width: 2; opacity: 0; transition: opacity 150ms cubic-bezier(.2,0,0,1); }
+html[data-theme="dark"] .ui-v1-steps__gray { stroke: var(--ds-v1-border-color-control-panel); }
+html[data-theme="dark"] .ui-v1-steps__blue { stroke: var(--ds-v1-color-accent-blue); stroke-dashoffset: 0; }
+html[data-theme="dark"] .ui-v1-steps__capsule[data-state="completed"] .ui-v1-steps__gray,
+html[data-theme="dark"] .ui-v1-steps__capsule[data-state="active"] .ui-v1-steps__blue { opacity: 1; }
+html[data-theme="dark"] .ui-v1-steps__connector { position: relative; display: inline-flex; flex: 0 0 24px; width: 24px; height: 24px; margin: 0 8px; color: var(--ds-v1-color-text-secondary); }
+html[data-theme="dark"] .ui-v1-steps__arrow, html[data-theme="dark"] .ui-v1-steps__dot { position: absolute; inset: 0; margin: auto; transition: opacity 150ms cubic-bezier(.2,0,0,1); }
+html[data-theme="dark"] .ui-v1-steps__arrow { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+html[data-theme="dark"] .ui-v1-steps__dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: 0; }
+html[data-theme="dark"] .ui-v1-steps__connector[data-completed="true"] .ui-v1-steps__arrow { opacity: 0; }
+html[data-theme="dark"] .ui-v1-steps__connector[data-completed="true"] .ui-v1-steps__dot { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .ui-v1-steps__capsule, html[data-theme="dark"] .ui-v1-steps__contour rect,
+  html[data-theme="dark"] .ui-v1-steps__arrow, html[data-theme="dark"] .ui-v1-steps__dot { transition: none; }
+}
+
+/* I12.3: keep growing headings/context inside their existing flex regions. */
+html[data-theme="dark"] .assemblyQueue.ds-v1 .assemblyQueue__detailsHeader { flex-wrap: wrap; }
+html[data-theme="dark"] .assemblyQueue.ds-v1 .assemblyQueue__orderHeading { min-width: 0; flex-shrink: 1; max-width: 100%; }
+html[data-theme="dark"] .assemblyQueue.ds-v1 .assemblyQueue__parameters { min-width: 0; max-width: 100%; }
+html[data-theme="dark"] .assemblyQueue.ds-v1 .assemblyQueue__parameters > div { min-width: 0; }
+html[data-theme="dark"] .assemblyQueue__parameters dd.ds-v1 { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] .activeAssembly__cellItem > div { min-width: 0; }
+html[data-theme="dark"] .activeAssembly__cellItems li > div > span.ds-v1 { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] .activeAssembly__lastScan > p.ds-v1 { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] .activeAssembly__header > h2.ds-v1 { min-width: 0; max-width: 100%; flex-shrink: 1; }
+html[data-theme="dark"] .activeAssembly__scanPanel.ds-v1 .activeAssembly__cellCount {
+  font: var(--ds-v1-primary-font-weight) var(--ds-v1-primary-font-size)/var(--ds-v1-primary-line-height) 'Tremor Noto Sans v1', sans-serif;
+}
+
+/* I12.4: existing queue actions keep their group, with the approved spacing. */
+html[data-theme="dark"] .assemblyQueue__footerActions:has(> .ds-v1.ui-v1-action) { gap: var(--ds-v1-space-12); flex-wrap: wrap; }
+
+/* I12.7: shared input states, with the existing multiline geometry. */
+html[data-theme="dark"] .assemblyProblemDialog.ui-v1-modal textarea.ui-v1-input {
+  height: auto;
+  resize: none;
 }

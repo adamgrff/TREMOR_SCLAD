@@ -7,7 +7,10 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 const require = createRequire(import.meta.url)
 const compile = path => ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText
+const badge = { exports: {}, require }
+vm.runInNewContext(compile('../src/components/StatusBadge/StatusBadge.tsx'), badge)
 const context = { exports: {}, require: id => {
+  if (id === '../../components/StatusBadge/StatusBadge') return badge.exports
   if (id === 'react-router') return { Link: props => React.createElement('a', props, props.children) }
   if (id === './SkuMappingDialog') return { __esModule: true, default: () => null }
   if (id === './ProblemHistory') return { __esModule: true, default: () => null, ProblemTime: props => React.createElement('time', { dateTime: props.value }, props.value) }

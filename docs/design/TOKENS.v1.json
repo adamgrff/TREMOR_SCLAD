@@ -1,0 +1,847 @@
+{
+  "version": "1.0",
+  "approval": "approved through 1.7; global Page Title correction approved on 2026-10-25",
+  "implementation": "I1–I12.7 implemented and approved, including I12.3.1–I12.3.2; dark first-wave scope complete; light theme and documented exceptions remain separate",
+  "units": {
+    "length": "CSS px before zoom .7",
+    "duration": "ms",
+    "weight": "unitless",
+    "opacity": "0..1",
+    "color": "CSS color"
+  },
+  "naming": "registry identifiers are proposed technical names; values are approved",
+  "groups": {
+    "foundation": {
+      "approvalStage": "1.1–1.4; Page Title correction 2026-10-25",
+      "classification": "normative",
+      "values": {
+        "font": "Noto Sans",
+        "weights": [
+          400,
+          600,
+          700
+        ],
+        "zoom": 0.7,
+        "typography": {
+          "pageTitle": {
+            "size": 28,
+            "lineHeight": 36,
+            "weight": 700,
+            "case": "uppercase"
+          },
+          "sectionTitle": {
+            "size": 28,
+            "lineHeight": 36,
+            "weight": 700,
+            "case": "uppercase"
+          },
+          "columnHeading": {
+            "size": 24,
+            "lineHeight": 32,
+            "weight": 600,
+            "case": "normal"
+          },
+          "primary": {
+            "size": 22,
+            "lineHeight": 30,
+            "weight": 400,
+            "case": "normal"
+          },
+          "secondary": {
+            "size": 20,
+            "lineHeight": 28,
+            "weight": 400,
+            "case": "normal"
+          },
+          "meta": {
+            "size": 18,
+            "lineHeight": 24,
+            "weight": 400,
+            "case": "normal"
+          }
+        }
+      }
+    },
+    "palette": {
+      "approvalStage": "1.2",
+      "classification": "normative",
+      "values": {
+        "base": {
+          "backgroundFallback": "#050505",
+          "primary": "#FFFFFF",
+          "secondary": "#B8B8B8",
+          "meta": "#AAAAAA",
+          "inverse": "#000000",
+          "blue": "#4D94FF",
+          "waiting": "#F0A35B",
+          "error": "#EF7D7D",
+          "success": "#82C99A",
+          "neutral": "#9A9A9A"
+        },
+        "foreground": {
+          "blue": "#94BFFF",
+          "waiting": "#F4BA84",
+          "error": "#F4A4A4",
+          "success": "#A1D7B3",
+          "neutral": "#D0D0D0"
+        }
+      }
+    },
+    "surfaces": {
+      "approvalStage": "1.2",
+      "classification": "normative",
+      "values": {
+        "window": "rgba(8,8,8,.86)",
+        "control": "rgba(24,24,24,.72)",
+        "input": "rgba(0,0,0,.28)",
+        "capsule": "rgba(255,255,255,.78)",
+        "counterInCapsule": "rgba(0,0,0,.65)",
+        "badgeAlpha": 0.16,
+        "borders": {
+          "quiet": "rgba(255,255,255,.18)",
+          "controlPanel": "rgba(255,255,255,.24)",
+          "input": "rgba(255,255,255,.40)",
+          "strong": "rgba(255,255,255,.55)"
+        },
+        "radii": {
+          "small": 8,
+          "medium": 16,
+          "large": 24,
+          "pill": 999
+        },
+        "blur": {
+          "window": 8,
+          "control": 8,
+          "input": 0,
+          "badge": 0,
+          "capsule": 8
+        },
+        "windowBorder": 0,
+        "controlBorder": 1,
+        "windowShadow": "none",
+        "controlShadow": "none"
+      }
+    },
+    "rhythm": {
+      "approvalStage": "1.1–1.4",
+      "classification": "normative",
+      "values": {
+        "scale": [
+          4,
+          8,
+          12,
+          16,
+          20,
+          24,
+          40
+        ],
+        "windowPadding": "24px 40px",
+        "controlPadding": 20,
+        "betweenWindows": 15,
+        "betweenSections": 24,
+        "titleContext": 10,
+        "headingContent": 16,
+        "groups": 16,
+        "compactGroup": 12,
+        "tablePagination": 20
+      }
+    },
+    "title": {
+      "approvalStage": "1.1–1.5; Page Title correction 2026-10-25",
+      "classification": "normative",
+      "values": {
+        "capsule": {
+          "padding": "4px 12px",
+          "border": 0,
+          "radius": 999,
+          "background": "rgba(255,255,255,.78)",
+          "blur": 8,
+          "text": "#000000"
+        },
+        "counter": {
+          "minWidth": 36,
+          "height": 36,
+          "padding": "0 8px",
+          "font": [
+            20,
+            28,
+            400
+          ],
+          "radius": 8,
+          "background": "rgba(0,0,0,.65)",
+          "color": "#FFFFFF",
+          "gapToTitle": 12,
+          "pageCapsulePadding": "4px 12px",
+          "newGeometry": false
+        },
+        "pairGap": 4,
+        "titleContextGap": 10
+      }
+    },
+    "controls": {
+      "approvalStage": "1.3",
+      "classification": "normative",
+      "values": {
+        "primary": {
+          "height": 52,
+          "padding": "11px 22px",
+          "font": "600 22px/30px Noto Sans",
+          "radius": 999
+        },
+        "negative": {
+          "height": 52,
+          "padding": "11px 16px",
+          "font": "600 22px/30px Noto Sans",
+          "radius": 999
+        },
+        "neutral": {
+          "height": 48,
+          "padding": "8px 14px",
+          "border": 1,
+          "font": "400 22px/30px Noto Sans",
+          "radius": 8
+        },
+        "icon": {
+          "size": 48,
+          "svg": 18,
+          "padding": 14,
+          "border": 1,
+          "radius": 8
+        },
+        "input": {
+          "height": 48,
+          "padding": "8px 12px",
+          "border": 1,
+          "font": "400 22px/30px Noto Sans",
+          "radius": 8
+        },
+        "search": {
+          "closed": 48,
+          "field": 220,
+          "expandedTotal": 268,
+          "svg": 18
+        },
+        "select": {
+          "height": 48,
+          "optionMinHeight": 48,
+          "optionPadding": "9px 12px",
+          "chevron": 18,
+          "reservedRight": 40
+        }
+      }
+    },
+    "controlStates": {
+      "approvalStage": "1.3",
+      "classification": "normative",
+      "values": {
+        "primary": {
+          "normal": "rgba(255,255,255,.78)",
+          "hover": "rgba(255,255,255,.90)",
+          "disabled": "#9A9A9A",
+          "text": "#000000"
+        },
+        "negative": {
+          "normal": "transparent",
+          "hover": "rgba(239,125,125,.16)",
+          "disabledText": "#AAAAAA",
+          "text": "#FFFFFF",
+          "border": 0
+        },
+        "neutral": {
+          "normal": "rgba(0,0,0,.28)",
+          "hover": "rgba(255,255,255,.06)",
+          "disabled": "rgba(154,154,154,.06)",
+          "border": "rgba(255,255,255,.40)",
+          "hoverBorder": "rgba(255,255,255,.55)",
+          "disabledBorder": "rgba(255,255,255,.18)",
+          "text": "#FFFFFF",
+          "disabledText": "#AAAAAA"
+        },
+        "deleteIcon": {
+          "hoverBorder": "#EF7D7D",
+          "hoverIcon": "#EF7D7D"
+        },
+        "input": {
+          "hover": "rgba(255,255,255,.04)",
+          "placeholder": "#AAAAAA",
+          "disabledPlaceholder": "#AAAAAA"
+        },
+        "disabledOpacity": 1,
+        "iconTextGap": 8,
+        "actionGap": 12,
+        "staticSearch": {
+          "icon": 18,
+          "gap": 10,
+          "paddingX": 12,
+          "focusOutline": "1px solid rgba(255,255,255,.80)",
+          "focusOffset": 0,
+          "focusBorder": "rgba(255,255,255,.55)",
+          "innerBorder": 0
+        },
+        "searchError": {
+          "font": [
+            18,
+            24,
+            400
+          ],
+          "color": "#EF7D7D",
+          "gap": 6,
+          "indent": 13
+        },
+        "dropdown": {
+          "gap": 0,
+          "top": 48,
+          "padding": "9px 12px",
+          "optionMinHeight": 48,
+          "border": "1px solid rgba(255,255,255,.40)",
+          "surface": "rgba(24,24,24,.72)",
+          "blur": 8,
+          "radius": 8,
+          "normal": "transparent",
+          "hover": "rgba(255,255,255,.06)",
+          "selected": "rgba(77,148,255,.14)",
+          "selectedHover": "rgba(77,148,255,.20)",
+          "text": "#FFFFFF"
+        }
+      }
+    },
+    "motion": {
+      "approvalStage": "1.3–1.7",
+      "classification": "normative",
+      "values": {
+        "pressed": 80,
+        "hover": 150,
+        "search": 220,
+        "dropdown": 150,
+        "rowReveal": 300,
+        "modalOpen": 220,
+        "modalClose": 150,
+        "easeOut": "cubic-bezier(.2,0,0,1)",
+        "easeInOut": "cubic-bezier(.4,0,.2,1)",
+        "pressedTranslate": 2,
+        "dropdownTranslate": 4,
+        "modalScale": 0.98,
+        "reducedMotion": 0,
+        "progress": 220,
+        "tooltipHover": 220,
+        "tooltipFocus": 0,
+        "tooltipFade": 150,
+        "tooltipGrace": 150,
+        "eventHistoryLeave": 500,
+        "stepGray": 150,
+        "stepConnector": 150,
+        "stepDraw": 300,
+        "stepTotal": 300,
+        "scanErrorPreserved": 650
+      }
+    },
+    "table": {
+      "approvalStage": "1.4–1.5",
+      "classification": "normative",
+      "values": {
+        "headingMinHeight": 64,
+        "headingPadding": "6px 12px",
+        "rowMinHeight": 88,
+        "cellPadding": "12px",
+        "pairGap": 4,
+        "contextFont": "20px/28px",
+        "primaryFont": "22px/30px",
+        "headingFont": "600 24px/32px",
+        "columnContentGap": 24,
+        "verticalAlign": "middle",
+        "divider": {
+          "row": [
+            1,
+            "rgba(255,255,255,.18)"
+          ],
+          "header": [
+            2,
+            "rgba(255,255,255,.55)"
+          ],
+          "insetFromText": 12
+        },
+        "selectedMarker": 3,
+        "expandedPadding": "16px 12px",
+        "noEllipsis": true,
+        "actions": {
+          "size": 48,
+          "svg": 18,
+          "gap": 12,
+          "groups": [
+            48,
+            108,
+            168
+          ],
+          "columnsIncludingPadding": [
+            72,
+            132,
+            192
+          ],
+          "nowrap": true
+        },
+        "sort": {
+          "size": 24,
+          "svg": 18,
+          "padding": 2,
+          "border": 1,
+          "radius": 8,
+          "gapToHeading": 8,
+          "alignment": "center in 32px heading line; explicit exception to standard 48px icon buttons"
+        },
+        "states": {
+          "normal": "transparent",
+          "hover": "rgba(255,255,255,.06)",
+          "selected": "rgba(77,148,255,.14)",
+          "selectedHover": "rgba(77,148,255,.20)",
+          "marker": "#4D94FF",
+          "expanded": "rgba(77,148,255,.04)"
+        },
+        "expandedGroupGap": 24
+      }
+    },
+    "columnGuides": {
+      "approvalStage": "1.4",
+      "classification": "recommended starting guides, NOT fixed widths or mandatory minima",
+      "values": {
+        "nameRecommended": 280,
+        "orderNumberRecommended": 200,
+        "descriptionRecommended": 200,
+        "rack": 160,
+        "quantity": 120,
+        "status": 160,
+        "dateTime": 200,
+        "sortableDate": 232
+      }
+    },
+    "pagination": {
+      "approvalStage": "1.4",
+      "classification": "normative",
+      "values": {
+        "pageSize": 5,
+        "height": 48,
+        "gap": 20,
+        "marginTop": 20,
+        "label": "400 20px/28px",
+        "centered": true,
+        "scope": "main paginated lists only; no automatic pagination of nested data",
+        "apiChangesAuthorized": false
+      }
+    },
+    "badge": {
+      "approvalStage": "1.5",
+      "classification": "normative",
+      "values": {
+        "font": [
+          20,
+          28,
+          400
+        ],
+        "padding": "5px 8px",
+        "radius": 8,
+        "border": 0,
+        "blur": 0,
+        "singleLineHeight": 38,
+        "wrap": true,
+        "alpha": 0.16,
+        "background": "Single rounded rectangle sized to the longest wrapped text line plus 8px on each side"
+      }
+    },
+    "counter": {
+      "approvalStage": "1.5",
+      "classification": "normative",
+      "values": {
+        "minSide": 40,
+        "aspectRatio": 1,
+        "padding": 4,
+        "font": [
+          22,
+          30,
+          600
+        ],
+        "radius": 8,
+        "background": "rgba(154,154,154,.24)",
+        "color": "#FFFFFF",
+        "expandForDigits": true,
+        "truncate": false
+      }
+    },
+    "progress": {
+      "approvalStage": "1.5",
+      "classification": "normative",
+      "values": {
+        "main": {
+          "height": 28,
+          "border": 3,
+          "padding": 4,
+          "fillIdealHeight": 14,
+          "radius": 999,
+          "background": "transparent",
+          "borderColor": "rgba(255,255,255,.55)",
+          "label": [
+            22,
+            30,
+            400
+          ],
+          "gap": 8
+        },
+        "compact": {
+          "height": 8,
+          "border": 0,
+          "padding": 0,
+          "radius": 999,
+          "track": "rgba(255,255,255,.10)",
+          "caption": [
+            22,
+            30,
+            600
+          ],
+          "captionCase": "normal",
+          "captionText": "Сохранённый прогресс",
+          "captionColor": "#FFFFFF",
+          "value": [
+            20,
+            28,
+            400
+          ],
+          "valueColor": "#B8B8B8",
+          "headingGap": 16,
+          "barGap": 12,
+          "oneRow": true,
+          "verticalAlign": "center"
+        },
+        "fill": "#4D94FF",
+        "complete": "#82C99A",
+        "transitionMs": 220,
+        "easing": "cubic-bezier(.2,0,0,1)",
+        "zeroOverZeroComplete": false
+      }
+    },
+    "modal": {
+      "approvalStage": "1.6",
+      "classification": "normative",
+      "values": {
+        "surface": "#181818",
+        "opacity": 1,
+        "border": "1px solid rgba(255,255,255,.55)",
+        "radius": 16,
+        "shadow": "none",
+        "backdrop": "rgba(0,0,0,.70)",
+        "backdropBlur": 0,
+        "padding": "24px 40px",
+        "confirmationMaxWidth": 640,
+        "formMaxWidth": 960,
+        "focusSafetyInset": 6,
+        "scrollbarContentGap": 24,
+        "checkboxSize": "20px",
+        "checkboxTextGap": 12,
+        "width": "content-aware fit-content, no compulsory fixed width",
+        "viewportInset": 24,
+        "title": [
+          28,
+          36,
+          700
+        ],
+        "titleCase": "normal, no capsule, reuses Section size without Section casing",
+        "body": [
+          22,
+          30,
+          400
+        ],
+        "context": [
+          20,
+          28,
+          400
+        ],
+        "headingBodyGap": 16,
+        "paragraphGap": 12,
+        "fieldGap": 16,
+        "labelInputGap": 8,
+        "footerGap": 24,
+        "actionGap": 12,
+        "footerAlign": "right, wrap only when needed; header/footer outside body scroll",
+        "openMs": 220,
+        "closeMs": 150,
+        "scale": 0.98,
+        "escCloses": false,
+        "backdropCloses": false,
+        "confirmationMaxWidthPolicy": "sample upper cap, NOT a universal fixed width",
+        "formMaxWidthPolicy": "sample upper cap, NOT a universal fixed width",
+        "checkboxMarginTop": 4,
+        "checkboxLine": 28,
+        "scrollbar": {
+          "track": "#181818",
+          "thumb": "#777",
+          "webkitWidth": 14,
+          "webkitThumbBorder": 4,
+          "gutter": "stable",
+          "radius": 999
+        },
+        "focusCompensatingMargin": -6
+      }
+    },
+    "destructiveConfirmation": {
+      "approvalStage": "1.6",
+      "classification": "normative",
+      "values": {
+        "height": 48,
+        "padding": "8px 14px",
+        "font": [
+          22,
+          30,
+          400
+        ],
+        "radius": 8,
+        "border": "1px solid #EF7D7D",
+        "text": "#F4A4A4",
+        "normalBackground": "rgba(0,0,0,.28)",
+        "hoverBackground": "rgba(239,125,125,.16)",
+        "disabled": "existing Neutral disabled colors",
+        "pressed": 2,
+        "pressedMs": 80,
+        "loading": "existing operation guard and local label; no mandatory new spinner"
+      }
+    },
+    "errorTooltip": {
+      "approvalStage": "1.6",
+      "classification": "normative",
+      "values": {
+        "maxWidth": 360,
+        "padding": "10px 12px",
+        "font": [
+          18,
+          24,
+          400
+        ],
+        "surface": "#181818",
+        "text": "#F4A4A4",
+        "border": "1px solid rgba(255,255,255,.24)",
+        "radius": 8,
+        "shadow": "none",
+        "gap": 8,
+        "viewportInset": 12,
+        "hoverDelayMs": 220,
+        "focusDelayMs": 0,
+        "fadeMs": 150,
+        "pointerLeaveGraceMs": 150,
+        "escCloses": true,
+        "escMs": 0,
+        "receivesFocus": false,
+        "overlay": false,
+        "placement": "above then below; shift within viewport; no clipping/ellipsis"
+      }
+    },
+    "feedback": {
+      "approvalStage": "1.6",
+      "classification": "normative",
+      "values": {
+        "formError": [
+          20,
+          28,
+          400
+        ],
+        "formErrorColor": "#EF7D7D",
+        "inputErrorGap": 8,
+        "inputErrorIndent": 13,
+        "formErrorGap": 12,
+        "searchError": "existing E18/24, gap6, indent13 unchanged",
+        "status": [
+          20,
+          28,
+          400
+        ],
+        "loading": "#B8B8B8",
+        "success": "#82C99A",
+        "empty": "existing centered Secondary text; no new icon/card",
+        "autoDismiss": false,
+        "newToast": false,
+        "scanFeedback": "keep existing 650ms edge flash and existing sound unchanged",
+        "retryHeight": 48,
+        "retryGap": 16
+      }
+    },
+    "eventHistory": {
+      "approvalStage": "1.6",
+      "classification": "normative",
+      "values": {
+        "surface": "#181818",
+        "border": "1px solid rgba(255,255,255,.24)",
+        "radius": 8,
+        "shadow": "none",
+        "padding": 16,
+        "heading": [
+          20,
+          28,
+          600
+        ],
+        "eventTitle": [
+          20,
+          28,
+          600
+        ],
+        "message": [
+          20,
+          28,
+          400
+        ],
+        "dateTime": [
+          18,
+          24,
+          400
+        ],
+        "metaColor": "#B8B8B8",
+        "error": "#F4A4A4",
+        "success": "#A1D7B3",
+        "neutral": "#D0D0D0",
+        "headingGap": 12,
+        "columnGap": 16,
+        "entryPaddingY": 12,
+        "pairGap": 4,
+        "divider": "1px solid rgba(255,255,255,.18)",
+        "maxWidth": 420,
+        "listMaxHeight": 260,
+        "fullHeight": "adaptive; about 334 for single-line heading and full-height list",
+        "anchorGap": 8,
+        "viewportInset": 12,
+        "hoverDelay": 0,
+        "focusDelay": 0,
+        "leaveDelay": 500,
+        "indicator": {
+          "font": [
+            18,
+            24,
+            600
+          ],
+          "height": 30,
+          "padding": "2px 6px",
+          "radius": 8,
+          "border": "1px solid rgba(77,148,255,.40)",
+          "background": "rgba(77,148,255,.16)",
+          "hoverBackground": "rgba(77,148,255,.20)",
+          "color": "#94BFFF",
+          "focusOutline": 2,
+          "focusOffset": 3,
+          "pressed": 2,
+          "pressedMs": 80,
+          "width": "content, no 99+; NOT 48 square"
+        },
+        "narrow": {
+          "viewportMax": 380,
+          "metadataGap": 12,
+          "metadataMessageGap": 8
+        },
+        "scrollbar": {
+          "width": "native auto",
+          "thumb": "#777",
+          "track": "#181818",
+          "gutter": "stable"
+        },
+        "escCloses": true,
+        "modalEscCloses": false,
+        "receivesKeyboardFocus": true,
+        "focusTrap": false,
+        "groupAlgorithmUnchanged": true
+      }
+    },
+    "scanSteps": {
+      "approvalStage": "1.7",
+      "classification": "normative",
+      "values": {
+        "font": [
+          22,
+          30,
+          600
+        ],
+        "height": 46,
+        "padding": "8px 14px",
+        "radius": 999,
+        "stroke": 2,
+        "svgInset": 1,
+        "svgRadius": 22,
+        "fill": "none",
+        "active": {
+          "stroke": "#4D94FF",
+          "text": "#FFFFFF"
+        },
+        "completed": {
+          "stroke": "rgba(255,255,255,.24)",
+          "text": "#B8B8B8"
+        },
+        "future": {
+          "stroke": "none",
+          "text": "#B8B8B8",
+          "reservePadding": true
+        },
+        "arrow": {
+          "size": 20,
+          "stroke": 1.5
+        },
+        "dot": 4,
+        "connector": {
+          "size": 24,
+          "color": "#B8B8B8",
+          "gapEachSide": 8
+        },
+        "headingGap": 12,
+        "headingContentGap": 16,
+        "grayMs": 150,
+        "textMs": 150,
+        "connectorMs": 150,
+        "drawMs": 300,
+        "totalMs": 300,
+        "easing": "cubic-bezier(.2,0,0,1)",
+        "reducedMs": 0,
+        "states": [
+          "cell",
+          "product",
+          "shipment"
+        ],
+        "newBusinessStates": false,
+        "initialAnimation": false,
+        "fontReadyAndResizeSync": true
+      }
+    },
+    "waitMetric": {
+      "approvalStage": "1.7",
+      "classification": "normative",
+      "values": {
+        "font": [
+          18,
+          24,
+          400
+        ],
+        "minHeight": 28,
+        "padding": "2px 6px",
+        "radius": 8,
+        "border": 0,
+        "gapToTime": 8,
+        "tabularNums": true,
+        "thresholdMinutes": [
+          10,
+          20,
+          30
+        ],
+        "clockIntervalMs": 1000,
+        "formula": "max(0,floor((now-createdAt)/60000))",
+        "palette": {
+          "green": {
+            "text": "#B9F1CB",
+            "background": "rgba(40,150,75,.35)"
+          },
+          "yellow": {
+            "text": "#FFED9B",
+            "background": "rgba(190,155,20,.35)"
+          },
+          "orange": {
+            "text": "#FFCEA1",
+            "background": "rgba(210,110,20,.40)"
+          },
+          "red": {
+            "text": "#FFC1C1",
+            "background": "rgba(190,40,50,.40)"
+          }
+        },
+        "colorsAndLogic": "preserved specialized exception, not Status Badge"
+      }
+    }
+  }
+}
