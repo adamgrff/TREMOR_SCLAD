@@ -212,3 +212,39 @@ html[data-theme="dark"] .disassembly.ds-v1 .disassembly__check { color: var(--ds
 html[data-theme="dark"] .disassembly.ds-v1 .disassembly__progress strong { font-weight: var(--ds-v1-font-weight-semibold); }
 html[data-theme="dark"] .disassembly.ds-v1 .disassembly__expected > span { font: 600 var(--ds-v1-secondary-font-size)/var(--ds-v1-secondary-line-height) 'Tremor Noto Sans v1', sans-serif; }
 html[data-theme="dark"] .disassembly.ds-v1 .disassembly__cells > div > span:last-child { color: var(--ds-v1-color-text-secondary); }
+/* Empty-state alignment and the rhythm of the existing disassembly sections. */
+html[data-theme="dark"] .disassembly.ds-v1 .ui-v1-table td.ui-v1-feedback--empty {
+  text-align: center;
+  vertical-align: middle;
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__items:has(.disassembly__emptyItems) > .ui-v1-table {
+  height: 300px;
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__queue .ui-v1-table > tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-v1-space-40);
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__activeHeader,
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__metrics {
+  margin: 0;
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__last {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--ds-v1-space-4);
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__activeHeader {
+  margin-bottom: var(--ds-v1-space-24);
+}
+
+/* Keep the last table edge open and both working columns equally tall. */
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__items .ui-v1-table > tbody > tr:last-child > td { border-bottom: 0; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__body { align-items: stretch; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__items { flex-shrink: 0; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__scanner.ui-v1-control-panel { align-self: stretch; height: auto; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__items:not(:has(tbody > tr:nth-child(6))) { max-height: none; }
