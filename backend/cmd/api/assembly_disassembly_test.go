@@ -335,3 +335,145 @@ func TestDisassemblyConcurrentRepeatedCellScanCreditsOneUnit(t *testing.T) {
 	assertStorageCount(t, f.db, "assembly_disassembly_sessions", 1)
 	assertStorageCount(t, f.db, "assembly_disassembly_returns", 1)
 }
+
+// Complete all physical returns through the production handler, but do not finish.
+func (f *disassemblyTestFixture) returnAll(t *testing.T) {
+	t.Helper()
+	for {
+		current := disassemblyTestSession(f.state)
+		var next map[string]any
+		for _, v := range valueArray(current["items"]) {
+			item := valueMap(v)
+			if item["returned"] != true {
+				next = item
+				break
+			}
+		}
+		if next == nil {
+			return
+		}
+		f.action(t, "scan", textValue(next["warehouseSku"]), true)
+		f.action(t, "scan", fmt.Sprintf("CELL:%d", intValue(next["cellId"])), true)
+	}
+}
+
+// Compare the entire persisted state, not only counters, so deleting/replacing a
+// return or adding a completion event cannot accidentally satisfy the assertion.
+func assertDisassemblyFinishRejectedUnchanged(t *testing.T, f *disassemblyTestFixture, message string) {
+	t.Helper()
+	ctx := context.Background()
+	snapshot := func() string {
+		var raw string
+		err := f.db.QueryRow(ctx, `SELECT jsonb_build_object(
+   'sessions',(SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY id),'[]') FROM assembly_disassembly_sessions s),
+   'returns',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY id),'[]') FROM assembly_disassembly_returns r),
+   'stock',(SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY cell_id,product_id),'[]') FROM cell_stock c),
+   'reservations',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY order_id,product_id),'[]') FROM assembly_order_reservations r),
+   'requests',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY request_id),'[]') FROM assembly_preview_requests r)
+  )::text`).Scan(&raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	before, events, workspace := snapshot(), archiveEventSnapshot(t, f.db), warehouseState(t, f.db)
+	w := disassemblyTestAction(f.db, f.next, f.version, f.sid, "finish", "")
+	if w.Code != 409 || !strings.Contains(w.Body.String(), message) {
+		t.Fatalf("expected independent finish blocker %q, got HTTP %d: %s", message, w.Code, w.Body.String())
+	}
+	if snapshot() != before || archiveEventSnapshot(t, f.db) != events || !reflect.DeepEqual(workspace, warehouseState(t, f.db)) {
+		t.Fatal("rejected finish changed persisted session, stock, return ledger, reserve, request receipt or history")
+	}
+	var status string
+	if err := f.db.QueryRow(ctx, `SELECT status FROM assembly_disassembly_sessions WHERE id=$1::uuid`, f.sid).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "active" {
+		t.Fatalf("rejected finish changed session status to %s", status)
+	}
+	var completion int
+	if err := f.db.QueryRow(ctx, `SELECT count(*) FROM assembly_problem_events WHERE payload->>'kind'='disassembly_finish'`).Scan(&completion); err != nil {
+		t.Fatal(err)
+	}
+	if completion != 0 {
+		t.Fatal("rejected finish created a successful completion event")
+	}
+}
+
+// Verify the intended blocker is not accidentally masked by an earlier guard.
+func assertDisassemblyFinishPreconditions(t *testing.T, f *disassemblyTestFixture, want [4]int) {
+	t.Helper()
+	var got [4]int
+	err := f.db.QueryRow(context.Background(), `SELECT
+  (SELECT count(*) FROM assembly_disassembly_items i WHERE i.session_id=s.id AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_returns r WHERE r.item_id=i.id)),
+  CASE WHEN s.pending_item_id IS NULL THEN 0 ELSE 1 END,
+  (SELECT count(*) FROM assembly_warehouse_operations op WHERE op.order_id=s.order_id AND op.kind='pick'
+    AND NOT EXISTS(SELECT 1 FROM assembly_warehouse_operations undo WHERE undo.reverses_operation_id=op.id)
+    AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_items i JOIN assembly_disassembly_returns r ON r.item_id=i.id WHERE i.original_operation_id=op.id)),
+  (SELECT COALESCE(sum(quantity),0)::int FROM assembly_order_reservations WHERE order_id=s.order_id AND status='held')
+  FROM assembly_disassembly_sessions s WHERE s.id=$1::uuid`, f.sid).Scan(&got[0], &got[1], &got[2], &got[3])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("finish preconditions [remaining,pending,outstanding,reserve]: got %v, want %v", got, want)
+	}
+}
+
+func TestDisassemblyFinishRejectsRemainingUnits(t *testing.T) {
+	f := disassemblyFixture(t, false)
+	f.transfer(t)
+	f.action(t, "start", "", true)
+	// No pending product and no held reserve. At least one successful return is
+	// retained to prove rejection cannot add, delete or replace ledger entries.
+	f.action(t, "scan", "A", true)
+	f.action(t, "scan", "CELL:1", true)
+	assertDisassemblyFinishPreconditions(t, f, [4]int{6, 0, 6, 0})
+	assertDisassemblyFinishRejectedUnchanged(t, f, "Сначала физически верните все исходные отборы.")
+}
+
+func TestDisassemblyFinishRejectsPendingItemIndependently(t *testing.T) {
+	f := disassemblyFixture(t, false)
+	f.transfer(t)
+	f.action(t, "start", "", true)
+	f.returnAll(t)
+	// Defensive fixture: all returns exist but a stale pending reference remains.
+	// FK constraints stay enabled. A normal product scan would also leave an
+	// unreturned unit and thus would not independently exercise the pending guard.
+	stockTestExec(t, f.db, `UPDATE assembly_disassembly_sessions SET pending_item_id=(SELECT id FROM assembly_disassembly_items WHERE session_id=$1::uuid ORDER BY ordinal LIMIT 1) WHERE id=$1::uuid`, f.sid)
+	assertDisassemblyFinishPreconditions(t, f, [4]int{0, 1, 0, 0})
+	assertDisassemblyFinishRejectedUnchanged(t, f, "Сначала физически верните все исходные отборы.")
+}
+
+func TestDisassemblyFinishRejectsOutstandingOriginalPick(t *testing.T) {
+	f := disassemblyFixture(t, false)
+	f.transfer(t)
+	f.action(t, "start", "", true)
+	f.returnAll(t)
+	// Inject a separate unmatched original pick into the isolated warehouse ledger.
+	// All session units are already returned and pending is NULL, so only the
+	// independent original-pick reconciliation can prevent completion.
+	stockTestExec(t, f.db, `INSERT INTO assembly_warehouse_operations(request_id,order_id,order_position_id,product_id,cell_id,kind,quantity)
+ SELECT $1::uuid,op.order_id,op.order_position_id,op.product_id,op.cell_id,'pick',1
+ FROM assembly_disassembly_items i JOIN assembly_warehouse_operations op ON op.id=i.original_operation_id
+ WHERE i.session_id=$2::uuid ORDER BY i.ordinal LIMIT 1`, warehouseID(9990), f.sid)
+	assertDisassemblyFinishPreconditions(t, f, [4]int{0, 0, 1, 0})
+	assertDisassemblyFinishRejectedUnchanged(t, f, "Прогресс расходится с действующими складскими операциями.")
+}
+
+func TestDisassemblyFinishRejectsHeldReserve(t *testing.T) {
+	f := disassemblyFixture(t, false)
+	f.transfer(t)
+	f.action(t, "start", "", true)
+	f.returnAll(t)
+	stockTestExec(t, f.db, `UPDATE assembly_order_reservations SET status='held',quantity=1 WHERE order_id=(SELECT order_id FROM assembly_disassembly_sessions WHERE id=$1::uuid)`, f.sid)
+	var held int
+	if err := f.db.QueryRow(context.Background(), `SELECT COALESCE(sum(quantity),0)::int FROM assembly_order_reservations WHERE status='held'`).Scan(&held); err != nil {
+		t.Fatal(err)
+	}
+	if held != 1 {
+		t.Fatalf("reserve fixture not established: %d", held)
+	}
+	assertDisassemblyFinishPreconditions(t, f, [4]int{0, 0, 0, 1})
+	assertDisassemblyFinishRejectedUnchanged(t, f, "У заказа остаётся неотобранный резерв.")
+}
