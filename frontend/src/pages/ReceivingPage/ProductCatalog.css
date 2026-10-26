@@ -49,6 +49,12 @@
   width: 230px;
 }
 
+/* I4c.4: local width for the current rack labels; keep the inline form width. */
+html[data-theme="dark"] .productCatalog__filters > .ui-v1-select {
+  width: 240px;
+  flex-shrink: 0;
+}
+
 .productCatalog__tabs {
   display: flex;
   align-items: center;
@@ -122,6 +128,30 @@
 
 .productCatalog__table th:last-child {
   width: 156px;
+}
+
+/* I6f: local sticky exception; the shared Table header stays transparent. */
+html[data-theme="dark"] .productCatalog__table.ui-v1-table {
+  min-width: 0;
+}
+
+html[data-theme="dark"] .productCatalog__table.ds-v1.ui-v1-table > thead {
+  background: #080808;
+}
+
+/* Adaptive width guides prevent long SKU from squeezing the other headings. */
+html[data-theme="dark"] .productCatalog__table.ui-v1-table > thead > tr > th:nth-child(2) {
+  width: 16%;
+}
+
+html[data-theme="dark"] .productCatalog__table.ui-v1-table > thead > tr > th:nth-child(3) {
+  width: 12%;
+}
+
+/* Keep the existing row actions independent of the migrated table font. */
+html[data-theme="dark"] .productCatalog__table.ui-v1-table .receivingHistory__iconButton {
+  font: 18px 'Noto Sans', Arial, sans-serif;
+  overflow-wrap: normal;
 }
 
 .productCatalog__form small {
@@ -210,5 +240,16 @@
   }
   .productCatalog__filters select {
     width: 100%;
+  }
+}
+
+/* I12.4: three48px icons + two12px gaps + cell padding24px. */
+html[data-theme="dark"] .productCatalog__table.ui-v1-table > thead > tr > th:last-child { width: 192px; }
+html[data-theme="dark"] .productCatalog__table.ui-v1-table .ui-v1-icon-button { font-family: 'Tremor Noto Sans v1', sans-serif; }
+
+/* I12.5: room for the existing full name placeholder at22px. */
+@media (min-width: 1101px) {
+  html[data-theme="dark"] .productCatalog.ds-v1 .productCatalog__layout {
+    grid-template-columns: minmax(0, 1fr) 440px;
   }
 }

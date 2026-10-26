@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -325,7 +326,7 @@ func addReceivingSessionItemHandler(
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
-	if err := decoder.Decode(&request); err != nil {
+	if err := decoder.Decode(&request); err != nil || decoder.Decode(new(any)) != io.EOF {
 		writeErrorResponse(w, http.StatusBadRequest, "invalid request body")
 		return
 	}

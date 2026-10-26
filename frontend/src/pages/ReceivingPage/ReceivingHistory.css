@@ -281,6 +281,76 @@
   font-size: 14px;
 }
 
+/* Only the groups whose buttons explicitly opt in to v1.0. */
+html[data-theme="dark"] :is(.receivingHistory__tools, .receivingHistory__rowActions):has(> .ds-v1.ui-v1-icon-button) {
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+
+html[data-theme="dark"] .receivingHistory__rowActions:has(> .ds-v1.ui-v1-icon-button) {
+  justify-content: flex-end;
+}
+
+html[data-theme="dark"] .receivingHistory__summaryTable td:has(> .receivingHistory__rowActions > .ds-v1.ui-v1-icon-button) {
+  vertical-align: middle;
+}
+
+/* I6a: the existing colspan/grid composition keeps the original column axes. */
+html[data-theme="dark"] .receivingHistory__summaryTable.ds-v1.ui-v1-table {
+  min-width: 0;
+}
+
+html[data-theme="dark"] .receivingHistory__summaryTable.ui-v1-table > thead > tr > th:last-child {
+  font-size: 0;
+}
+
+html[data-theme="dark"] .receivingHistory__summaryTable.ui-v1-table td:nth-last-child(2) {
+  white-space: normal;
+}
+
+html[data-theme="dark"] .receivingHistory__summaryTable.ui-v1-table td.receivingHistory__composition {
+  padding: 0;
+}
+
+html[data-theme="dark"] .ui-v1-table .receivingHistory__compositionGrid > span {
+  padding: var(--ds-v1-space-12);
+}
+
+html[data-theme="dark"] .ui-v1-table .receivingHistory__compositionHeading {
+  min-height: 0;
+  align-items: center;
+  background: transparent;
+}
+
+html[data-theme="dark"] .ui-v1-table .receivingHistory__compositionHeading--expanded {
+  font-size: var(--ds-v1-column-heading-font-size);
+  font-weight: var(--ds-v1-column-heading-font-weight);
+  line-height: var(--ds-v1-column-heading-line-height);
+}
+
+html[data-theme="dark"] .ui-v1-table .receivingHistory__compositionItem {
+  min-height: var(--ds-v1-table-row-min-height);
+  border-top: 0;
+  background: transparent;
+}
+
+html[data-theme="dark"] .ui-v1-table .receivingHistory__compositionItem + .receivingHistory__compositionItem {
+  border-top: 1px solid var(--ds-v1-border-color-quiet);
+}
+
+html[data-theme="dark"] .ui-v1-table .receivingHistory__compositionItem > span,
+html[data-theme="dark"] .ui-v1-table .receivingHistory__emptyComposition {
+  padding: var(--ds-v1-space-16) var(--ds-v1-space-12);
+}
+
+html[data-theme="dark"] .ui-v1-table .receivingHistory__sku {
+  margin-top: var(--ds-v1-space-4);
+  color: var(--ds-v1-color-text-secondary);
+  font-size: var(--ds-v1-secondary-font-size);
+  line-height: var(--ds-v1-secondary-line-height);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .receivingHistory__reveal {
     transition: none;
@@ -296,3 +366,7 @@
     flex-direction: column;
   }
 }
+
+/* I12.4: local reserves for existing labels; no dialog or generic button width. */
+html[data-theme="dark"] .ds-v1.ui-v1-modal[aria-labelledby="delete-receiving-title"] .ui-v1-button--destructive { min-width: 241px; }
+html[data-theme="dark"] .ds-v1.ui-v1-modal[aria-labelledby="quantity-dialog-title"] .receivingHistory__dialogActions > button[aria-busy] { min-width: 156px; }

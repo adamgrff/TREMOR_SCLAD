@@ -72,6 +72,11 @@
   font-size: 16px;
 }
 
+/* I4a.2.1: fit the full scan placeholder without changing other inputs. */
+html[data-theme="dark"] .receivingPage--dark .receivingPage__scanForm > .ui-v1-input {
+  width: min(364px, 100%);
+}
+
 .receivingPage__scanInput::placeholder {
   color: rgba(255, 255, 255, 0.65);
 }
@@ -416,3 +421,56 @@
   text-align: center;
   vertical-align: middle;
 }
+
+/* I6d: keep the current columns; the common table owns cells and dividers. */
+html[data-theme="dark"] :is(.receivingPage__pendingTable, .receivingPage__placedTable).ui-v1-table {
+  min-width: 0;
+}
+
+html[data-theme="dark"] :is(.receivingPage__pendingTable, .receivingPage__placedTable).ui-v1-table > tbody > tr > td {
+  font-size: inherit;
+}
+
+/* Sentence case in dark only, retaining the original shared heading strings. */
+html[data-theme="dark"] :is(.receivingPage__pendingTable, .receivingPage__placedTable).ui-v1-table > thead > tr > th {
+  text-transform: lowercase;
+}
+
+html[data-theme="dark"] :is(.receivingPage__pendingTable, .receivingPage__placedTable).ui-v1-table > thead > tr > th::first-letter {
+  text-transform: uppercase;
+}
+
+/* Existing quantity/delete controls are outside this button migration. */
+html[data-theme="dark"] .receivingPage__pendingTable.ui-v1-table > tbody > tr > td:nth-child(n+3) {
+  font: 18px/1.4 'Noto Sans', Arial, sans-serif;
+}
+
+html[data-theme="dark"] .receivingPage__pendingTable.ui-v1-table > tbody > tr > td:last-child {
+  text-align: right;
+}
+
+/* Preserve the existing feedback typography and empty-state alignment. */
+html[data-theme="dark"] :is(.receivingPage__pendingTable, .receivingPage__placedTable).ui-v1-table > tbody > tr > :is(.receivingPage__pendingEmpty, .receivingPage__placedEmpty) {
+  font: 18px/1.4 'Noto Sans', Arial, sans-serif;
+  text-align: center;
+}
+
+/* I11: existing transparent context sections keep their layout and one divider. */
+html[data-theme="dark"] .receivingPage__context.ui-v1-control-panel > .receivingPage__contextSection + .receivingPage__contextSection {
+  border-top-color: var(--ds-v1-border-color-quiet);
+}
+
+/* I12.3: local text rhythm, without changing fields or table geometry. */
+html[data-theme="dark"] .receivingPage__contextSection > .receivingPage__contextValue.ds-v1 { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] .receivingPage__contextSection:first-child > .receivingPage__contextValue.ds-v1 { margin-top: var(--ds-v1-gap-title-context); }
+html[data-theme="dark"] .receivingPage__contextSection > .receivingPage__contextHint.ds-v1 { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] :is(.receivingPage__pendingTable, .receivingPage__placedTable).ui-v1-table > tbody > tr > :is(.receivingPage__pendingEmpty, .receivingPage__placedEmpty).ds-v1 {
+  font: var(--ds-v1-secondary-font-weight) var(--ds-v1-secondary-font-size)/var(--ds-v1-secondary-line-height) 'Tremor Noto Sans v1', sans-serif;
+  color: var(--ds-v1-color-text-secondary);
+}
+
+/* I12.4: reserve the longer existing loading label, measured in Noto22/600. */
+html[data-theme="dark"] .receivingPage__scanSubmit.ds-v1 { min-width: 186px; }
+html[data-theme="dark"] .receivingPage__finishAction.ds-v1 { min-width: 293px; }
+html[data-theme="dark"] .receivingPage__placedActions:has(> .ds-v1.ui-v1-action) { gap: var(--ds-v1-space-12); flex-wrap: wrap; }
+html[data-theme="dark"] .receivingPage__placedHeader:has(.ds-v1.ui-v1-action) { flex-wrap: wrap; }

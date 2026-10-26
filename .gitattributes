@@ -1,0 +1,4 @@
+# Go tools write LF; keep Windows checkouts from producing formatting/tidy drift.
+*.go text eol=lf
+/backend/go.mod text eol=lf
+/backend/go.sum text eol=lf

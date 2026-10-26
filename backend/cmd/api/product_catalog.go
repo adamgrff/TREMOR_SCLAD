@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -90,7 +91,7 @@ func saveCatalogProductHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil {
+	if err := decoder.Decode(&input); err != nil || decoder.Decode(new(any)) != io.EOF {
 		writeErrorResponse(w, 400, "Некорректные данные товара")
 		return
 	}

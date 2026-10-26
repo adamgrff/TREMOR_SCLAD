@@ -1,0 +1,144 @@
+/* Snapshot of existing UI values. No resets, theme overrides or font loading. */
+:root {
+  --ui-font-brand: 'Palui SP Demo', 'Bauhaus 93 Remastered', sans-serif;
+  --ui-font-symbols: 'Bauhaus 93 Remastered', sans-serif;
+  --ui-font-work: 'Noto Sans', Arial, sans-serif;
+  --ui-text-primary: #ffffff;
+  --ui-text-muted: #9a9a9a;
+  --ui-text-muted-problem: #a7a7a7;
+  --ui-text-muted-history: #aaa;
+  --ui-text-error: #ffb6b6;
+  --ui-text-error-problem: #ffc1c1;
+  --ui-text-error-form: #ff7777;
+  --ui-text-success: #a8dfb5;
+  --ui-text-success-check: #b9f1cb;
+  --ui-surface-panel: rgba(0, 0, 0, .75);
+  --ui-surface-control: rgba(255, 255, 255, .08);
+  --ui-surface-control-hover: rgba(255, 255, 255, .2);
+  --ui-surface-field-dialog: #252525;
+  --ui-surface-field-catalog: #333;
+  --ui-surface-field-rack: #292929;
+  --ui-border-control: rgba(255, 255, 255, .4);
+  --ui-border-table-heading: rgba(255, 255, 255, .35);
+  --ui-border-row: rgba(255, 255, 255, .2);
+  --ui-border-row-disassembly: #ffffff24;
+  --ui-shadow-panel: 6px 8px 20px rgba(0, 0, 0, .8);
+  --ui-radius-panel: 20px;
+  --ui-radius-button: 12px;
+  --ui-radius-field-dialog: 9px;
+  --ui-radius-field-scan: 8px;
+  --ui-radius-pill-button: 30px;
+  --ui-size-scan-title: 32px;
+  --ui-size-section-title: 24px;
+  --ui-size-description-receiving: 20px;
+  --ui-size-body: 18px;
+  --ui-size-body-compact: 16px;
+  --ui-size-meta: 14px;
+  --ui-size-meta-cell: 16px;
+  --ui-size-meta-history: 18px;
+  --ui-progress-assembly: rgba(0, 111, 255, .85);
+  --ui-progress-problem: #619bd9;
+  --ui-progress-disassembly: #568fe1;
+  --ui-progress-complete: #a8dfb5;
+  --ui-progress-height-assembly: 28px;
+  --ui-progress-height-disassembly: 26px;
+  --ui-progress-height-problem: 7px;
+  --ui-progress-height-item: 5px;
+  --ui-badge-success-text: #b9f1cb;
+  --ui-badge-success-surface: #28964b26;
+  --ui-badge-warning-text: #e6c88e;
+  --ui-badge-warning-surface: #caa45017;
+  --ui-row-height-assembly: 88px;
+  --ui-row-height-problem: 113px;
+}
+
+/* v1.0 foundations: passive values, available only to explicit dark-theme opt-ins.
+   Legacy --ui-* values remain unchanged; no consumers or font loading in I1. */
+html[data-theme="dark"] .ds-v1 {
+  /* Typography */
+  --ds-v1-font-family: 'Noto Sans';
+  --ds-v1-font-weight-regular: 400;
+  --ds-v1-font-weight-semibold: 600;
+  --ds-v1-font-weight-bold: 700;
+  --ds-v1-site-scale: 0.7;
+  --ds-v1-page-title-font-size: 28px;
+  --ds-v1-page-title-line-height: 36px;
+  --ds-v1-page-title-font-weight: 700;
+  --ds-v1-section-title-font-size: 28px;
+  --ds-v1-section-title-line-height: 36px;
+  --ds-v1-section-title-font-weight: 700;
+  --ds-v1-column-heading-font-size: 24px;
+  --ds-v1-column-heading-line-height: 32px;
+  --ds-v1-column-heading-font-weight: 600;
+  --ds-v1-primary-font-size: 22px;
+  --ds-v1-primary-line-height: 30px;
+  --ds-v1-primary-font-weight: 400;
+  --ds-v1-secondary-font-size: 20px;
+  --ds-v1-secondary-line-height: 28px;
+  --ds-v1-secondary-font-weight: 400;
+  --ds-v1-meta-font-size: 18px;
+  --ds-v1-meta-line-height: 24px;
+  --ds-v1-meta-font-weight: 400;
+
+  /* Palette */
+  --ds-v1-color-background-fallback: #050505;
+  --ds-v1-color-text-primary: #FFFFFF;
+  --ds-v1-color-text-secondary: #B8B8B8;
+  --ds-v1-color-text-meta: #AAAAAA;
+  --ds-v1-color-text-inverse: #000000;
+  --ds-v1-color-accent-blue: #4D94FF;
+  --ds-v1-color-status-waiting: #F0A35B;
+  --ds-v1-color-status-error: #EF7D7D;
+  --ds-v1-color-status-success: #82C99A;
+  --ds-v1-color-status-neutral: #9A9A9A;
+  --ds-v1-color-status-blue-foreground: #94BFFF;
+  --ds-v1-color-status-waiting-foreground: #F4BA84;
+  --ds-v1-color-status-error-foreground: #F4A4A4;
+  --ds-v1-color-status-success-foreground: #A1D7B3;
+  --ds-v1-color-status-neutral-foreground: #D0D0D0;
+
+  /* Surfaces and borders */
+  --ds-v1-surface-window: rgba(8,8,8,.86);
+  --ds-v1-surface-control-panel: rgba(24,24,24,.72);
+  --ds-v1-surface-input: rgba(0,0,0,.28);
+  --ds-v1-surface-page-title: rgba(255,255,255,.78);
+  --ds-v1-surface-page-title-counter: rgba(0,0,0,.65);
+  --ds-v1-badge-opacity: 0.16;
+  --ds-v1-border-color-quiet: rgba(255,255,255,.18);
+  --ds-v1-border-color-control-panel: rgba(255,255,255,.24);
+  --ds-v1-border-color-input: rgba(255,255,255,.40);
+  --ds-v1-border-color-strong: rgba(255,255,255,.55);
+  --ds-v1-window-border-width: 0px;
+  --ds-v1-control-panel-border-width: 1px;
+  --ds-v1-blur-window: 8px;
+  --ds-v1-blur-control-panel: 8px;
+  --ds-v1-blur-input: 0px;
+  --ds-v1-blur-badge: 0px;
+  --ds-v1-blur-page-title: 8px;
+  --ds-v1-shadow-window: none;
+  --ds-v1-shadow-control-panel: none;
+
+  /* Radii */
+  --ds-v1-radius-small: 8px;
+  --ds-v1-radius-medium: 16px;
+  --ds-v1-radius-large: 24px;
+  --ds-v1-radius-pill: 999px;
+
+  /* Spatial rhythm */
+  --ds-v1-space-4: 4px;
+  --ds-v1-space-8: 8px;
+  --ds-v1-space-12: 12px;
+  --ds-v1-space-16: 16px;
+  --ds-v1-space-20: 20px;
+  --ds-v1-space-24: 24px;
+  --ds-v1-space-40: 40px;
+  --ds-v1-padding-window: 24px 40px;
+  --ds-v1-padding-control-panel: 20px;
+  --ds-v1-gap-windows: 15px;
+  --ds-v1-gap-sections: 24px;
+  --ds-v1-gap-title-context: 10px;
+  --ds-v1-gap-heading-content: 16px;
+  --ds-v1-gap-groups: 16px;
+  --ds-v1-gap-compact-group: 12px;
+  --ds-v1-gap-table-pagination: 20px;
+}

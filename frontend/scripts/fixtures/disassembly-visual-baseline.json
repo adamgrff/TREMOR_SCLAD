@@ -1,0 +1,4 @@
+{
+  "revision": "83f84abaa17a1ac45eabdbea00e4d2124d550d57",
+  "description": "User-approved R4.2 Disassembly UI, including undo-return. Fixed R4.3 baseline; never replace with HEAD or regenerate automatically."
+}

@@ -1,0 +1,179 @@
+.problemArchive { min-height: 0; }
+.problemArchive__filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+.problemArchive__filters input, .problemArchive__filters select { padding: 10px 12px; background: #252525; color: inherit; border: 1px solid #ffffff50; border-radius: 9px; font: inherit; min-width: 0; }
+.problemArchive__filters input { flex: 1; }
+
+/* I4c.4: independent widths measured from each existing option set. */
+html[data-theme="dark"] .problemArchive__filters > .ui-v1-select {
+  flex-shrink: 0;
+}
+html[data-theme="dark"] .problemArchive__select--reason { width: 384px; }
+html[data-theme="dark"] .problemArchive__select--outcome { width: 328px; }
+html[data-theme="dark"] .problemArchive__select--source { width: 352px; }
+.problemArchive__table { overflow: auto; }
+.problemArchive__table table { min-width: 900px; }
+.problemArchive__selected { background: #619bd918; }
+.problemArchive__position { display: block; margin: 5px 0; }
+.problemArchive__detail { border-top: 1px solid #ffffff40; margin-top: 24px; padding-top: 24px; }
+.problemArchive__detailTitle { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.problemArchive__context { display: grid; grid-template-columns: 3fr 2fr; gap: 28px; }
+.problemArchive__context > div { min-width: 0; }
+.problemArchive__context table { min-width: 620px; }
+.problemArchive__legacy { border-left: 3px solid #e6bf78; padding-left: 14px; color: #e6cfaa; }
+.problemArchive__related { padding: 0; list-style: none; }
+.problemArchive__related li { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+.problemArchive__journal { padding: 14px 0; border-bottom: 1px solid #ffffff30; }
+.problemArchive__journal p { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.problemArchive__journal small { overflow-wrap: anywhere; }
+.problemArchive__context summary { cursor: pointer; padding: 12px 0; font-weight: 700; }
+.problemArchive__history { max-height: 650px; overflow: auto; padding: 0 10px 20px 0; scrollbar-width: thin; }
+.problemHistory__tools { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 12px 0; font-size: 14px; }
+.problemHistory .problemOrders__checkResult small { color: var(--problem-muted); overflow-wrap: anywhere; font-size: 12px; }
+@media (max-width: 1100px) { .problemArchive__context { grid-template-columns: 1fr; } .problemArchive__filters input { min-width: 180px; } }
+
+/* I6b: only the main archive table; nested history tables keep their styles. */
+html[data-theme="dark"] .problemArchive__table > .ds-v1.ui-v1-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+/* Rounded from the existing ordinary-data proportions, without pixel minima. */
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table > thead > tr > th:nth-child(1) { width: 20%; }
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table > thead > tr > th:nth-child(2) { width: 27%; }
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table > thead > tr > th:nth-child(3) { width: 18%; }
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table > thead > tr > th:nth-child(4),
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table > thead > tr > th:nth-child(5) { width: 12%; }
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table > thead > tr > th:nth-child(6) { width: 11%; }
+
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table > tbody > tr > td {
+  font-size: inherit;
+}
+
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table > tbody > tr > td > strong {
+  font-size: inherit;
+  font-weight: var(--ds-v1-font-weight-semibold);
+}
+
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table small,
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table .assemblyQueue__date {
+  margin-top: var(--ds-v1-space-4);
+  color: var(--ds-v1-color-text-secondary);
+  font-size: var(--ds-v1-secondary-font-size);
+  font-weight: var(--ds-v1-secondary-font-weight);
+  line-height: var(--ds-v1-secondary-line-height);
+}
+
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table .problemOrders__time {
+  font: inherit;
+  white-space: normal;
+}
+
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table .problemOrders__muted {
+  margin: 0;
+  color: var(--ds-v1-color-text-secondary);
+  font-size: var(--ds-v1-secondary-font-size);
+  line-height: var(--ds-v1-secondary-line-height);
+}
+
+/* The existing history button is not part of this button migration. */
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table > tbody > tr > td:last-child {
+  text-align: right;
+  overflow-wrap: normal;
+  font-family: 'Noto Sans', Arial, sans-serif;
+  font-size: 16px;
+  line-height: normal;
+}
+
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table .problemArchive__selected {
+  background: rgba(77, 148, 255, .14);
+}
+
+html[data-theme="dark"] .problemArchive__table > .ui-v1-table .problemArchive__selected:hover {
+  background: rgba(77, 148, 255, .20);
+}
+
+/* I11: transparent archive content keeps its existing scroll/layout boundaries. */
+html[data-theme="dark"] .problemArchive.ui-v1-window .problemArchive__detail {
+  border-top-color: var(--ds-v1-border-color-quiet);
+}
+
+/* I12.2: native snapshot tables only; keep main table and history isolated. */
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll {
+  min-width: 0;
+  max-width: 100%;
+}
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll > table {
+  min-width: 0;
+  width: 100%;
+  table-layout: fixed;
+  background: transparent;
+  color: var(--ds-v1-color-text-primary);
+  font: var(--ds-v1-primary-font-weight) var(--ds-v1-primary-font-size)/var(--ds-v1-primary-line-height) 'Tremor Noto Sans v1', sans-serif;
+  font-synthesis: none;
+}
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll > table > thead > tr > th,
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll > table > tbody > tr > td {
+  box-sizing: border-box;
+  text-align: left;
+  vertical-align: middle;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll > table > thead > tr > th {
+  height: 64px;
+  padding: 6px var(--ds-v1-space-12);
+  border-bottom: 2px solid var(--ds-v1-border-color-strong);
+  background: transparent;
+  font-size: var(--ds-v1-column-heading-font-size);
+  font-weight: var(--ds-v1-column-heading-font-weight);
+  line-height: var(--ds-v1-column-heading-line-height);
+  text-transform: none;
+}
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll > table > thead > tr > th:first-child {
+  width: 40%;
+}
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll > table > tbody > tr {
+  height: 88px;
+}
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll > table > tbody > tr > td {
+  padding: var(--ds-v1-space-12);
+  border-bottom: 1px solid var(--ds-v1-border-color-quiet);
+  font: inherit;
+}
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll > table > tbody > tr > td > strong {
+  font-size: inherit;
+  font-weight: var(--ds-v1-font-weight-semibold);
+}
+html[data-theme="dark"] .problemArchive__context > div > .problemOrders__tableScroll > table > tbody > tr > td > small {
+  margin-top: var(--ds-v1-space-4);
+  color: var(--ds-v1-color-text-secondary);
+  font-size: var(--ds-v1-secondary-font-size);
+  font-weight: var(--ds-v1-secondary-font-weight);
+  line-height: var(--ds-v1-secondary-line-height);
+}
+
+/* I12.3: journal text, never the snapshot/main tables or Event History. */
+html[data-theme="dark"] .problemArchive.ds-v1 .problemArchive__detailTitle { flex-wrap: wrap; }
+html[data-theme="dark"] .problemArchive.ds-v1 .problemArchive__detailTitle > span,
+html[data-theme="dark"] .problemArchive.ds-v1 .problemArchive__related > li > span {
+  font: var(--ds-v1-secondary-font-weight) var(--ds-v1-secondary-font-size)/var(--ds-v1-secondary-line-height) 'Tremor Noto Sans v1', sans-serif;
+  color: var(--ds-v1-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .problemArchive.ds-v1 .problemArchive__context > div > details > summary,
+html[data-theme="dark"] .problemArchive.ds-v1 .problemArchive__journal > strong {
+  font: var(--ds-v1-font-weight-semibold) var(--ds-v1-primary-font-size)/var(--ds-v1-primary-line-height) 'Tremor Noto Sans v1', sans-serif;
+  overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .problemArchive.ds-v1 :is(.problemArchive__journal, .problemArchive__related) .problemOrders__time,
+html[data-theme="dark"] .problemArchive.ds-v1 :is(.problemArchive__journal, .problemArchive__related) .problemOrders__time > span,
+html[data-theme="dark"] .problemArchive.ds-v1 .problemArchive__journal small {
+  font: var(--ds-v1-meta-font-weight) var(--ds-v1-meta-font-size)/var(--ds-v1-meta-line-height) 'Tremor Noto Sans v1', sans-serif;
+  color: var(--ds-v1-color-text-meta);
+}
+html[data-theme="dark"] .problemArchive.ds-v1 .problemArchive__journal small { margin-top: var(--ds-v1-space-4); }
+
+/* I12.5: keep the search usable alongside the three fixed local Selects. */
+html[data-theme="dark"] .problemArchive__filters > input.ui-v1-input {
+  min-width: min(100%, 280px);
+}

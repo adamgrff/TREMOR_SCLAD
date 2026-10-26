@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import HomePage from './pages/HomePage/HomePage'
 import CellsPage from './pages/CellsPage/CellsPage'
 import ReceivingPage from './pages/ReceivingPage/ReceivingPage'
+import AssemblyPage from './pages/AssemblyPage/AssemblyPage'
 import PageIntro from './components/PageIntro/PageIntro'
 import { useCallback, useState } from 'react'
 import { useLocation } from 'react-router'
@@ -21,6 +22,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/cells" element={<CellsPage />} />
         <Route path="/receiving" element={<ReceivingPage />} />
+        <Route path="/assembly" element={<AssemblyPage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -1,3 +1,4 @@
+import useModalFocusReturn from '../../components/useModalFocusReturn'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { API_BASE_URL } from '../../config/api'
 
@@ -6,6 +7,7 @@ export default function ReceivingQuantityDialog({ sessionId, product, onClose, o
   onClose: () => void; onSaved: () => Promise<void>
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  useModalFocusReturn(dialogRef)
   const [quantity, setQuantity] = useState(String(product.quantity ?? 1))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -35,14 +37,17 @@ export default function ReceivingQuantityDialog({ sessionId, product, onClose, o
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не удалось сохранить количество. Повторите с теми же данными.') }
     finally { inFlight.current = false; setSaving(false) }
   }
-  return <dialog ref={dialogRef} className="receivingHistory__dialog" aria-labelledby="quantity-dialog-title" onCancel={(event) => { event.preventDefault(); if (!saving) onClose() }}>
-    <h2 id="quantity-dialog-title">{product.quantity === undefined ? 'Добавить в приёмку' : 'Изменить ожидающее количество'}</h2>
-    <p>{product.name} · {product.sku}</p>
+  return <dialog ref={dialogRef} className="receivingHistory__dialog ds-v1 ui-v1-modal ui-v1-modal--form" aria-labelledby="quantity-dialog-title" onCancel={(event) => { event.preventDefault(); if (document.documentElement.dataset.theme === 'dark') return; if (!saving) onClose() }}>
     <form onSubmit={(event) => void submit(event)}>
-      <label>Количество <input autoFocus type="number" required min="1" max="1000000000" step="1" value={quantity} disabled={saving} onChange={(event) => setQuantity(event.target.value)} /></label>
+    <h2 id="quantity-dialog-title">{product.quantity === undefined ? 'Добавить в приёмку' : 'Изменить ожидающее количество'}</h2>
+      <div className="ui-v1-modal__body">
+    <p>{product.name} · {product.sku}</p>
+
+      <label>Количество <input className="ds-v1 ui-v1-input" autoFocus type="number" required min="1" max="1000000000" step="1" value={quantity} disabled={saving} onChange={(event) => setQuantity(event.target.value)} /></label>
       <p>Меняется только количество, ожидающее ячейку. Размещённые остатки не изменятся.</p>
-      {error && <p role="alert"><span className="productCatalog__errorLabel">ОШИБКА</span>: {error}</p>}
-      <div className="receivingHistory__dialogActions"><button type="button" className="receivingHistory__button" disabled={saving} onClick={onClose}>Отмена</button><button className="receivingHistory__button" disabled={saving}>{saving ? 'Сохраняю…' : 'Сохранить'}</button></div>
+      {error && <p role="alert" className="ds-v1 ui-v1-feedback ui-v1-feedback--error"><span className="productCatalog__errorLabel">ОШИБКА</span>: {error}</p>}
+      </div>
+      <div className="receivingHistory__dialogActions"><button type="button" className="receivingHistory__button ds-v1 ui-v1-button" disabled={saving} onClick={onClose}>Отмена</button><button className="receivingHistory__button ds-v1 ui-v1-button" disabled={saving} aria-busy={saving}>{saving ? 'Сохраняю…' : 'Сохранить'}</button></div>
     </form>
   </dialog>
 }

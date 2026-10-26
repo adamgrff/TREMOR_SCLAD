@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"sort"
@@ -33,7 +34,7 @@ func finishReceivingHandler(
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
-	if err := decoder.Decode(&request); err != nil {
+	if err := decoder.Decode(&request); err != nil || decoder.Decode(new(any)) != io.EOF {
 		writeErrorResponse(w, http.StatusBadRequest, "invalid request body")
 		return
 	}

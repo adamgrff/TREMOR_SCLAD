@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 
 import './Header.css'
 
-import iconCalendar from '../../assets/home/icon-calendar.svg'
+import OzonSyncStatus, { type OzonSyncState } from './OzonSyncStatus'
 import iconLogin from '../../assets/home/icon-login.svg'
 
 export type Theme = 'dark' | 'light'
@@ -10,27 +10,18 @@ export type Theme = 'dark' | 'light'
 type HeaderProps = {
   theme: Theme
   onToggleTheme: () => void
+  ozonSyncState?: OzonSyncState
+  onOzonSync?: () => Promise<void>
 }
 
 const navItems = ['РЕВИЗИЯ', 'МАГАЗИНЫ', 'КОЛЛЕКТОР', 'ИСТОРИЯ']
 
-function Header({ theme, onToggleTheme }: HeaderProps) {
+function Header({ theme, onToggleTheme, ozonSyncState, onOzonSync }: HeaderProps) {
   const isLightTheme = theme === 'light'
 
   return (
     <header className={`header header--${theme}`}>
-      <button
-        className="headerIconButton"
-        type="button"
-        aria-label="Открыть календарь ревизий"
-      >
-        <img
-          className="headerIcon"
-          src={iconCalendar}
-          alt=""
-          aria-hidden="true"
-        />
-      </button>
+      <OzonSyncStatus state={ozonSyncState} onSync={onOzonSync} />
 
       <nav className="nav nav--left" aria-label="Левая навигация">
         {navItems.slice(0, 2).map((item) => (

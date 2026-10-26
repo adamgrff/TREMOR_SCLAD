@@ -1,0 +1,470 @@
+.assemblyPage { min-height: 100svh; }
+.assemblyPersistenceStatus { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; margin-bottom: 15px; border-radius: 12px; background: rgba(0, 0, 0, .75); color: #ffb6b6; font-size: 16px; }
+.assemblyQueue__problem:disabled { opacity: .4; cursor: not-allowed; }
+.assemblyScanErrorFlash { position: fixed; inset: 0; zoom: calc(1 / var(--site-scale)); z-index: 10000; pointer-events: none; border-radius: 0; box-shadow: inset 0 0 12px 5px #ff2424, inset 0 0 60px 20px rgba(255, 20, 20, .8); animation: assemblyScanErrorFade 650ms ease-out both; }
+@keyframes assemblyScanErrorFade { 0%, 20% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .assemblyScanErrorFlash { animation: none; } }
+
+.activeAssembly { margin-top: 15px; padding: 24px 40px; }
+.activeAssembly__header { display: flex; align-items: center; gap: 40px; margin-bottom: 28px; }
+.activeAssembly__header h2 { flex-shrink: 0; }
+.activeAssembly__progress { box-sizing: border-box; flex: 1; min-width: 0; height: 28px; padding: 4px; border: 3px solid rgba(255, 255, 255, .55); border-radius: 999px; }
+.activeAssembly__progressFill { height: 100%; background: rgba(0, 111, 255, .85); border-radius: 999px; transition: width 250ms ease, background-color 250ms ease; }
+.activeAssembly__progress--complete .activeAssembly__progressFill { background: #a8dfb5; }
+.activeAssembly__workspace { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 40px; }
+.activeAssembly__tableScroll { height: 500px; min-width: 0; overflow: auto; }
+.activeAssembly__table { width: 100%; min-width: 580px; border-collapse: collapse; table-layout: fixed; font-size: 16px; line-height: 1.4; }
+.activeAssembly__table th { height: 60px; box-sizing: border-box; padding: 12px 10px; border-bottom: 2px solid rgba(255, 255, 255, .35); text-align: left; font-size: 24px; }
+.activeAssembly__table tbody tr { height: 88px; }
+.activeAssembly__table td { padding: 18px 10px; border-bottom: 1px solid rgba(255, 255, 255, .2); }
+.activeAssembly__table td strong { display: block; font-size: 18px; }
+.activeAssembly__table td span { display: block; margin-top: 6px; color: #9a9a9a; font-size: 14px; }
+.activeAssembly__row--done { color: #9a9a9a; background: rgba(255, 255, 255, .04); }
+.activeAssembly__collectedValue { display: flex; align-items: center; gap: 12px; }
+.activeAssembly__table .activeAssembly__check { display: grid; margin: 0; color: #a8dfb5; font-size: 16px; }
+/* I6d: the existing order table opts in without changing scan-panel items. */
+html[data-theme="dark"] .activeAssembly__table.ui-v1-table {
+  min-width: 0;
+}
+
+html[data-theme="dark"] .activeAssembly__table.ui-v1-table > tbody > tr > td > strong {
+  font-size: inherit;
+  font-weight: var(--ds-v1-font-weight-semibold);
+}
+
+html[data-theme="dark"] .activeAssembly__table.ui-v1-table > tbody > tr > td:first-child > span {
+  margin-top: var(--ds-v1-space-4);
+  color: var(--ds-v1-color-text-secondary);
+  font-size: var(--ds-v1-secondary-font-size);
+  font-weight: var(--ds-v1-secondary-font-weight);
+  line-height: var(--ds-v1-secondary-line-height);
+}
+
+/* Retain the completed-position indicator's font, size, colour and centering. */
+html[data-theme="dark"] .activeAssembly__table.ui-v1-table .activeAssembly__check {
+  font: 16px/1.4 'Noto Sans', Arial, sans-serif;
+  text-align: start;
+  overflow-wrap: normal;
+}
+
+.activeAssembly__scanPanel { min-width: 0; display: flex; flex-direction: column; border-left: 1px solid rgba(255, 255, 255, .2); padding-left: 40px; }
+.activeAssembly__scanInput { width: 100%; margin-top: 20px; padding: 12px; font-size: 18px; }
+.activeAssembly__lastScan { margin-top: 28px; }
+.activeAssembly__lastScan h3 { margin: 0; color: #9a9a9a; font-size: 18px; font-weight: 400; }
+.activeAssembly__lastScan p { margin: 10px 0 0; font-size: 24px; font-weight: 700; }
+.activeAssembly__scanLog { min-width: 0; font-size: 16px; line-height: 1.5; }
+.activeAssembly__scanLog p { margin: 0 0 8px; }
+.activeAssembly__scanLog p + p { color: #9a9a9a; }
+.activeAssembly__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 16px; flex-shrink: 0; margin-left: auto; }
+html[data-theme="dark"] .activeAssembly__actions:has(> .ds-v1.ui-v1-action) { gap: 12px; }
+.activeAssembly__footer { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 24px; }
+.activeAssembly__scanHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.activeAssembly__cellBadge { padding: 5px 12px; border-radius: 10px; background: rgba(0, 111, 255, .85); font-size: 24px; font-weight: 700; }
+.activeAssembly__cellItems { padding: 0 0 0 16px; margin: 24px 0 0; border-left: 3px solid rgba(0, 111, 255, .85); list-style: none; max-height: 280px; overflow: auto; }
+.activeAssembly__cellItem { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; background: transparent; }
+.activeAssembly__cellItem + .activeAssembly__cellItem { margin-top: 8px; }
+.activeAssembly__cellItem > div { flex: 1; min-width: 0; }
+.activeAssembly__cellItem strong { display: block; font-size: 18px; }
+.activeAssembly__cellItem div span { display: block; margin-top: 6px; font-size: 14px; color: #9a9a9a; }
+.activeAssembly__cellCount { font-size: 18px; font-variant-numeric: tabular-nums; }
+.activeAssembly__cellItem--done { color: #9a9a9a; background: rgba(255, 255, 255, .04); }
+.activeAssembly__check { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid #a8dfb5; border-radius: 50%; color: #a8dfb5; }
+.activeAssembly__shipment { margin-top: 24px; font-size: 18px; line-height: 1.5; }
+.activeAssembly__shipment--confirmed { color: #a8dfb5; }
+.activeAssembly__shipment p { margin: 8px 0 0; }
+.activeAssembly__scanLog--error { color: #ffb6b6; }
+.activeAssembly__empty { min-height: 180px; display: grid; place-items: center; color: #9a9a9a; font-size: 18px; }
+.activeAssembly__scanInput:disabled { opacity: .6; }
+@media (max-width: 1100px) {
+  .activeAssembly { padding: 24px; }
+  .activeAssembly__workspace { gap: 24px; }
+  .activeAssembly__scanPanel { padding-left: 24px; }
+}
+@media (max-width: 800px) {
+  .activeAssembly__header { flex-wrap: wrap; gap: 20px; }
+  .activeAssembly__progress { flex-basis: 100%; }
+  .activeAssembly__workspace { grid-template-columns: minmax(0, 1fr); }
+  .activeAssembly__scanPanel { border-left: 0; padding-left: 0; }
+  .activeAssembly__footer { flex-wrap: wrap; }
+}
+
+.assemblyQueue {
+  --assembly-table-height: 500px;
+  --assembly-bottom-gap: 24px;
+  --assembly-button-height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  min-height: 724px;
+}
+
+.assemblyQueue__list, .assemblyQueue__details { min-width: 0; padding: 24px 40px; }
+.assemblyQueue__list { display: flex; flex-direction: column; min-height: 0; contain: size; padding-bottom: var(--assembly-bottom-gap); border-right: 1px solid rgba(255, 255, 255, .2); }
+.assemblyQueue__list > .assemblyQueue__heading, .assemblyQueue__subtitle { flex-shrink: 0; }
+.assemblyQueue__ordersScroll { flex: 1; min-height: 0; overflow: auto; }
+.assemblyQueue__ordersScroll:focus-visible { outline: 2px solid rgba(255, 255, 255, .6); outline-offset: 3px; }
+.assemblyQueue__details { display: flex; flex-direction: column; }
+.assemblyQueue__heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.assemblyQueue__count { box-sizing: border-box; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border-radius: 9px; background: rgba(255, 255, 255, .12); font-size: 20px; }
+.assemblyQueue__listActions { display: flex; align-items: center; gap: 12px; }
+.assemblyQueue__search { position: relative; display: flex; width: 36px; height: 36px; flex-shrink: 0; }
+.assemblyQueue__searchField { position: absolute; right: 36px; top: 0; width: 0; height: 36px; opacity: 0; transition: width 220ms ease, opacity 180ms ease; z-index: 2; }
+.assemblyQueue__searchInputClip { width: 100%; height: 100%; overflow: hidden; }
+.assemblyQueue__search--open .assemblyQueue__searchField { width: 220px; opacity: 1; }
+.assemblyQueue__searchField input { box-sizing: border-box; width: 220px; height: 36px; padding: 7px 12px; border: 1px solid rgba(255, 255, 255, .4); border-right: 0; border-radius: 9px 0 0 9px; background: #252525; color: #fff; font: inherit; font-size: 16px; outline-offset: -3px; }
+.assemblyQueue__searchButton { position: relative; z-index: 2; }
+.assemblyQueue__search--open .assemblyQueue__searchButton { border-radius: 0 9px 9px 0; background: #252525; }
+.assemblyQueue__searchMessage { position: absolute; left: 13px; top: 42px; z-index: 3; white-space: nowrap; font-size: 14px; color: #ffb6b6; }
+@media (prefers-reduced-motion: reduce) { .assemblyQueue__searchField { transition: none; } }
+
+/* I4b: existing expandable search, dark theme only; handlers remain local. */
+html[data-theme="dark"] .assemblyQueue__search.ds-v1 {
+  width: 48px;
+  height: 48px;
+  margin-left: 0;
+  transition: margin-left 220ms cubic-bezier(.4, 0, .2, 1);
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1.assemblyQueue__search--open {
+  margin-left: 220px;
+}
+
+html[data-theme="dark"] .assemblyQueue__listActions:has(> .assemblyQueue__search.ds-v1) {
+  margin-left: auto;
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1 .assemblyQueue__searchField {
+  right: 48px;
+  height: 48px;
+  transition: width 220ms cubic-bezier(.4, 0, .2, 1),
+    opacity 150ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1 .ui-v1-input {
+  width: 220px;
+  border-right: 0;
+  border-radius: var(--ds-v1-radius-small) 0 0 var(--ds-v1-radius-small);
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1.assemblyQueue__search--open .ui-v1-icon-button {
+  border-radius: 0 var(--ds-v1-radius-small) var(--ds-v1-radius-small) 0;
+}
+
+html[data-theme="dark"] .assemblyQueue__search.ds-v1 .assemblyQueue__searchMessage {
+  top: calc(100% + 6px);
+  color: var(--ds-v1-color-status-error);
+  font-family: 'Tremor Noto Sans v1', sans-serif;
+  font-size: var(--ds-v1-meta-font-size);
+  font-weight: var(--ds-v1-meta-font-weight);
+  font-synthesis: none;
+  line-height: var(--ds-v1-meta-line-height);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .assemblyQueue__search.ds-v1,
+  html[data-theme="dark"] .assemblyQueue__search.ds-v1 .assemblyQueue__searchField {
+    transition: none;
+  }
+}
+
+.assemblyQueue__subtitle { margin: 10px 0 28px; color: #9a9a9a; font-size: 18px; line-height: 1.4; }
+.assemblyQueue__orders, .assemblyQueue__contents { width: 100%; border-collapse: collapse; font-size: 18px; line-height: 1.4; }
+.assemblyQueue th { text-align: left; padding: 12px 10px; border-bottom: 2px solid rgba(255, 255, 255, .35); font-weight: 700; }
+.assemblyQueue td { padding: 18px 10px; border-bottom: 1px solid rgba(255, 255, 255, .2); }
+.assemblyQueue thead tr { height: 60px; }
+.assemblyQueue tbody tr { height: 88px; }
+.assemblyQueue__orders { table-layout: fixed; }
+.assemblyQueue__orderColumn { width: 52%; }
+.assemblyQueue__timeColumn { width: 28%; }
+.assemblyQueue__quantityColumn { width: 20%; }
+.assemblyQueue__orders th { font-size: 24px; }
+.assemblyQueue__orders th:last-child, .assemblyQueue__orders td:last-child { padding-left: 0; padding-right: 0; text-align: left; }
+.assemblyQueue__time { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.assemblyQueue__date { display: block; }
+.assemblyQueue__wait { display: inline-block; padding: 1px 5px; border-radius: 5px; font-size: inherit; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.assemblyQueue__wait--green { color: #b9f1cb; background: rgba(40, 150, 75, .35); }
+.assemblyQueue__wait--yellow { color: #ffed9b; background: rgba(190, 155, 20, .35); }
+.assemblyQueue__wait--orange { color: #ffcea1; background: rgba(210, 110, 20, .4); }
+.assemblyQueue__wait--red { color: #ffc1c1; background: rgba(190, 40, 50, .4); }
+.assemblyQueue__date { margin-top: 6px; color: #9a9a9a; font-size: 14px; }
+.assemblyQueue__orders td { font-size: 16px; }
+.assemblyQueue__orders button { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.assemblyQueue__orders button strong { font-size: 18px; }
+.assemblyQueue__orders button span, .assemblyQueue__contents td span { color: #9a9a9a; font-size: 14px; }
+.assemblyQueue__selected { background: rgba(0, 111, 255, .18); }
+.assemblyQueue__selected td:first-child { box-shadow: inset 3px 0 rgba(0, 111, 255, .85); }
+.assemblyQueue__orders tbody tr:hover { background: rgba(255, 255, 255, .08); }
+.assemblyQueue__orders tbody tr.assemblyQueue__selected:hover { background: rgba(0, 80, 190, .18); }
+.assemblyQueue__orders tbody tr { cursor: pointer; }
+.assemblyQueue__orders button:focus-visible { outline: 2px solid #fff; outline-offset: 5px; border-radius: 3px; }
+.assemblyQueue__detailsHeader { display: flex; flex-shrink: 0; justify-content: space-between; align-items: center; gap: 24px; min-height: 71.2px; margin-bottom: 28px; }
+.assemblyQueue__orderHeading { flex-shrink: 0; }
+.assemblyQueue__orderHeading .assemblyQueue__subtitle { margin-bottom: 0; }
+.assemblyQueue__parameters { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 16px 32px; margin: 0; }
+.assemblyQueue__parameters dt { color: #9a9a9a; font-size: 16px; }
+.assemblyQueue__parameters dd { margin: 6px 0 0; font-size: 18px; font-weight: 600; }
+.assemblyQueue__tableScroll { flex: 1; min-height: var(--assembly-table-height); overflow: auto; }
+.assemblyQueue__contents { min-width: 850px; table-layout: fixed; }
+.assemblyQueue__neededColumn { width: 120px; }
+.assemblyQueue__stockColumn { width: 160px; }
+.assemblyQueue__cellsColumn { width: 320px; }
+.assemblyQueue__contents th { font-size: 24px; }
+.assemblyQueue__contents td { font-size: 16px; }
+.assemblyQueue__contents td strong { font-size: 18px; }
+.assemblyQueue__contents td strong, .assemblyQueue__contents td span { display: block; }
+.assemblyQueue__contents td span { margin-top: 6px; }
+.assemblyQueue__contents td:not(:first-child) { white-space: nowrap; }
+.assemblyQueue__footer { display: flex; flex-shrink: 0; justify-content: space-between; align-items: center; gap: 24px; padding-top: var(--assembly-bottom-gap); }
+.assemblyQueue__footerActions { display: flex; flex-shrink: 0; align-items: center; gap: 16px; margin-left: auto; }
+.assemblyQueue__shortageMessage { min-width: 0; color: #ffb6b6; font-size: 14px; line-height: 1.4; }
+.assemblyQueue__shortageMessage p { margin: 0; }
+.assemblyQueue__shortageRow td:first-child { box-shadow: inset 3px 0 #e67878; }
+.assemblyQueue__shortageRow td:nth-child(3) { color: #ffb6b6; }
+.assemblyQueue__shortageIcon { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 8px; border: 1px solid currentColor; border-radius: 50%; font-size: 12px; font-style: normal; font-weight: 700; }
+.assemblyQueue__start:disabled { opacity: .4; cursor: not-allowed; }
+.assemblyQueue__problem { padding: 10px 22px; border: 0; border-radius: 30px; color: rgba(255, 255, 255, .75); background: rgba(255, 255, 255, .08); font: inherit; font-size: 20px; font-weight: 700; line-height: 1.2; cursor: default; transition: background-color 220ms ease, color 220ms ease; }
+.assemblyQueue__problem:hover, .assemblyQueue__problem:focus-visible { color: #fff; background: rgba(200, 35, 45, .85); }
+.assemblyQueue__start { padding: 10px 22px; cursor: default; }
+.assemblyQueue__problem { cursor: pointer; }
+.assemblyProblemDialog__field { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+.assemblyProblemDialog select, .assemblyProblemDialog textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .4); border-radius: 9px; background: #252525; color: #fff; font: inherit; }
+/* Modal Select keeps its native picker (DS v1.0 I4c); match its system palette. */
+html[data-theme="dark"] .assemblyProblemDialog select { color-scheme: dark; }
+/* Windows native popup may ignore color-scheme for transparent option surfaces. */
+html[data-theme="dark"] .assemblyProblemDialog select option { background-color: #181818; color: var(--ds-v1-color-text-primary); }
+html[data-theme="dark"] .assemblyProblemDialog select option:disabled { color: var(--ds-v1-color-text-meta); }
+.assemblyProblemDialog textarea { resize: vertical; }
+.assemblyProblemDialog input[type="search"] { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .4); border-radius: 9px; background: #252525; color: #fff; font: inherit; }
+.skuMapping__conformity { display: flex; align-items: flex-start; gap: 8px; margin-top: 20px; }
+.skuMapping__confirm { border-color: rgba(85, 150, 235, .7); }
+.skuMapping__confirm:hover:not(:disabled) { background: rgba(55, 110, 190, .6); }
+.assemblyProblemDialog__confirm { border-color: rgba(230, 120, 120, .7); }
+.assemblyProblemDialog__confirm:hover:not(:disabled) { background: rgba(200, 35, 45, .6); }
+
+@media (max-width: 1100px) {
+  .assemblyQueue__list, .assemblyQueue__details { padding: 24px; }
+  .assemblyQueue__list { padding-bottom: var(--assembly-bottom-gap); }
+  .assemblyQueue__detailsHeader { flex-wrap: wrap; }
+  .assemblyQueue__parameters { justify-content: flex-start; }
+}
+@media (max-width: 800px) {
+  .assemblyQueue { grid-template-columns: minmax(0, 1fr); }
+  .assemblyQueue__list { height: 648px; box-sizing: border-box; contain: none; border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, .2); }
+  .assemblyQueue__footer { flex-wrap: wrap; }
+  .assemblyQueue__start { margin-left: auto; }
+}
+
+/* I6e: only the two queue tables; Window and search geometry remain local above. */
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table {
+  min-width: 0;
+}
+
+html[data-theme="dark"] :is(.assemblyQueue__orders, .assemblyQueue__contents).ui-v1-table > tbody > tr > td {
+  font-size: inherit;
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table button {
+  min-width: 0;
+  max-width: 100%;
+  gap: var(--ds-v1-space-4);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table button > strong,
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table > tbody > tr > td > strong {
+  font-size: inherit;
+  font-weight: var(--ds-v1-font-weight-semibold);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table button > span,
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__date,
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table > tbody > tr > td:first-child > span {
+  color: var(--ds-v1-color-text-secondary);
+  font-size: var(--ds-v1-secondary-font-size);
+  font-weight: var(--ds-v1-secondary-font-weight);
+  line-height: var(--ds-v1-secondary-line-height);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__date,
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table > tbody > tr > td:first-child > span {
+  margin-top: var(--ds-v1-space-4);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__time {
+  flex-wrap: wrap;
+  row-gap: var(--ds-v1-space-4);
+  white-space: normal;
+}
+
+/* I10b: specialized waiting metric; its four existing colours remain unchanged. */
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__time:has(> .assemblyQueue__wait) {
+  row-gap: var(--ds-v1-space-8);
+}
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__wait {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: max-content;
+  height: 28px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--ds-v1-radius-small);
+  font: 400 var(--ds-v1-meta-font-size)/var(--ds-v1-meta-line-height) 'Tremor Noto Sans v1', sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: start;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr {
+  transition: background-color 150ms cubic-bezier(.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr.assemblyQueue__selected {
+  background: rgba(77, 148, 255, .14);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr.assemblyQueue__selected:hover {
+  background: rgba(77, 148, 255, .20);
+}
+
+html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table .assemblyQueue__selected > td:first-child {
+  box-shadow: inset 3px 0 var(--ds-v1-color-accent-blue);
+}
+
+/* Keep the existing stock-warning glyph independent of the table font. */
+html[data-theme="dark"] .assemblyQueue__contents.ui-v1-table .assemblyQueue__shortageIcon {
+  font: 700 12px/1.4 'Noto Sans', Arial, sans-serif;
+  text-align: start;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .assemblyQueue__orders.ui-v1-table > tbody > tr {
+    transition: none;
+  }
+}
+
+/* I5b.1: move only the outer insets to Window, retaining the old content boxes.
+   For outer width W and inset P, the first track is W/3 - P. */
+html[data-theme="dark"] .assemblyQueue.ds-v1.ui-v1-window {
+  --assembly-window-inset: var(--ds-v1-space-40);
+  position: relative;
+  grid-template-columns: minmax(0, calc((100% - var(--assembly-window-inset)) / 3)) minmax(0, 1fr);
+}
+
+html[data-theme="dark"] .assemblyQueue.ui-v1-window > .assemblyQueue__list {
+  padding: 0 var(--assembly-window-inset) 0 0;
+  border-right-color: transparent;
+}
+
+html[data-theme="dark"] .assemblyQueue.ui-v1-window > .assemblyQueue__details {
+  padding: 0 0 0 var(--assembly-window-inset);
+}
+
+/* Paint the existing divider across the full Window, outside the moved insets. */
+html[data-theme="dark"] .assemblyQueue.ui-v1-window::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: calc(200% / 3);
+  bottom: 0;
+  width: 0;
+  border-right: 1px solid rgba(255, 255, 255, .2);
+  pointer-events: none;
+}
+
+@media (max-width: 1100px) {
+  html[data-theme="dark"] .assemblyQueue.ds-v1.ui-v1-window {
+    --assembly-window-inset: var(--ds-v1-space-24);
+    padding: var(--ds-v1-space-24);
+  }
+}
+
+@media (max-width: 800px) {
+  html[data-theme="dark"] .assemblyQueue.ds-v1.ui-v1-window {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-theme="dark"] .assemblyQueue.ui-v1-window > .assemblyQueue__list {
+    height: calc(648px - var(--ds-v1-space-24));
+    padding: 0 0 var(--ds-v1-space-24);
+    border-bottom-color: transparent;
+  }
+
+  html[data-theme="dark"] .assemblyQueue.ui-v1-window > .assemblyQueue__details {
+    padding: var(--ds-v1-space-24) 0 0;
+  }
+
+  html[data-theme="dark"] .assemblyQueue.ui-v1-window::after {
+    right: 0;
+    bottom: auto;
+    left: 0;
+    box-sizing: border-box;
+    width: auto;
+    height: 648px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .2);
+  }
+}
+
+/* I10a: presentation-only scan steps, hidden in the unchanged light theme. */
+.ui-v1-steps { display: none; }
+html[data-theme="dark"] .activeAssembly .ds-v1.ui-v1-steps {
+  position: relative; display: flex; align-items: center; width: 100%; min-width: 0; max-width: 100%;
+  margin: 0 0 var(--ds-v1-space-12); padding: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scrollbar-color: #777 transparent;
+  font: 600 var(--ds-v1-primary-font-size)/var(--ds-v1-primary-line-height) 'Tremor Noto Sans v1', sans-serif;
+}
+html[data-theme="dark"] .ui-v1-steps:focus-visible { outline: 1px solid var(--ds-v1-border-color-strong); outline-offset: 3px; }
+html[data-theme="dark"] .ui-v1-steps__group { display: flex; flex: 0 0 auto; align-items: center; }
+html[data-theme="dark"] .ui-v1-steps__capsule {
+  position: relative; display: inline-flex; flex: 0 0 auto; align-items: center; box-sizing: border-box;
+  height: 46px; padding: 8px 14px; border-radius: var(--ds-v1-radius-pill); white-space: nowrap;
+  color: var(--ds-v1-color-text-secondary); background: transparent;
+  transition: color 150ms cubic-bezier(.2,0,0,1);
+}
+html[data-theme="dark"] .ui-v1-steps__capsule[data-state="active"] { color: var(--ds-v1-color-text-primary); }
+html[data-theme="dark"] .ui-v1-steps__contour { position: absolute; inset: 0; pointer-events: none; }
+html[data-theme="dark"] .ui-v1-steps__contour rect { fill: none; stroke-width: 2; opacity: 0; transition: opacity 150ms cubic-bezier(.2,0,0,1); }
+html[data-theme="dark"] .ui-v1-steps__gray { stroke: var(--ds-v1-border-color-control-panel); }
+html[data-theme="dark"] .ui-v1-steps__blue { stroke: var(--ds-v1-color-accent-blue); stroke-dashoffset: 0; }
+html[data-theme="dark"] .ui-v1-steps__capsule[data-state="completed"] .ui-v1-steps__gray,
+html[data-theme="dark"] .ui-v1-steps__capsule[data-state="active"] .ui-v1-steps__blue { opacity: 1; }
+html[data-theme="dark"] .ui-v1-steps__connector { position: relative; display: inline-flex; flex: 0 0 24px; width: 24px; height: 24px; margin: 0 8px; color: var(--ds-v1-color-text-secondary); }
+html[data-theme="dark"] .ui-v1-steps__arrow, html[data-theme="dark"] .ui-v1-steps__dot { position: absolute; inset: 0; margin: auto; transition: opacity 150ms cubic-bezier(.2,0,0,1); }
+html[data-theme="dark"] .ui-v1-steps__arrow { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+html[data-theme="dark"] .ui-v1-steps__dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: 0; }
+html[data-theme="dark"] .ui-v1-steps__connector[data-completed="true"] .ui-v1-steps__arrow { opacity: 0; }
+html[data-theme="dark"] .ui-v1-steps__connector[data-completed="true"] .ui-v1-steps__dot { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .ui-v1-steps__capsule, html[data-theme="dark"] .ui-v1-steps__contour rect,
+  html[data-theme="dark"] .ui-v1-steps__arrow, html[data-theme="dark"] .ui-v1-steps__dot { transition: none; }
+}
+
+/* I12.3: keep growing headings/context inside their existing flex regions. */
+html[data-theme="dark"] .assemblyQueue.ds-v1 .assemblyQueue__detailsHeader { flex-wrap: wrap; }
+html[data-theme="dark"] .assemblyQueue.ds-v1 .assemblyQueue__orderHeading { min-width: 0; flex-shrink: 1; max-width: 100%; }
+html[data-theme="dark"] .assemblyQueue.ds-v1 .assemblyQueue__parameters { min-width: 0; max-width: 100%; }
+html[data-theme="dark"] .assemblyQueue.ds-v1 .assemblyQueue__parameters > div { min-width: 0; }
+html[data-theme="dark"] .assemblyQueue__parameters dd.ds-v1 { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] .activeAssembly__cellItem > div { min-width: 0; }
+html[data-theme="dark"] .activeAssembly__cellItems li > div > span.ds-v1 { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] .activeAssembly__lastScan > p.ds-v1 { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] .activeAssembly__header > h2.ds-v1 { min-width: 0; max-width: 100%; flex-shrink: 1; }
+html[data-theme="dark"] .activeAssembly__scanPanel.ds-v1 .activeAssembly__cellCount {
+  font: var(--ds-v1-primary-font-weight) var(--ds-v1-primary-font-size)/var(--ds-v1-primary-line-height) 'Tremor Noto Sans v1', sans-serif;
+}
+
+/* I12.4: existing queue actions keep their group, with the approved spacing. */
+html[data-theme="dark"] .assemblyQueue__footerActions:has(> .ds-v1.ui-v1-action) { gap: var(--ds-v1-space-12); flex-wrap: wrap; }
+
+/* I12.7: shared input states, with the existing multiline geometry. */
+html[data-theme="dark"] .assemblyProblemDialog.ui-v1-modal textarea.ui-v1-input {
+  height: auto;
+  resize: none;
+}

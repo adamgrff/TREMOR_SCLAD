@@ -28,6 +28,26 @@
   filter: drop-shadow(var(--glow));
 }
 
+.ozonSync { position: absolute; left: 120px; display: flex; align-items: center; gap: 10px; }
+.ozonSync__button { position: relative; left: auto; flex-shrink: 0; border: 0; color: var(--text); cursor: pointer; }
+.ozonSync__icon { filter: brightness(0) invert(1); }
+.ozonSync__disconnectedDot { position: absolute; top: -1px; right: -1px; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; pointer-events: none; }
+.ozonSync__button:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; border-radius: 7px; }
+.ozonSync__text { display: flex; align-items: center; gap: 0; font-family: 'Noto Sans', Arial, sans-serif; font-size: 18px; line-height: 1.4; white-space: nowrap; }
+.ozonSync__label { display: grid; grid-template-columns: 0fr; opacity: 0; transition: grid-template-columns 300ms ease, opacity 220ms ease; }
+.ozonSync__label > span { overflow: hidden; min-width: 0; }
+.ozonSync__text--expanded .ozonSync__label { grid-template-columns: 1fr; opacity: 1; }
+.ozonSync__text time { transition: margin-left 300ms ease; font-variant-numeric: tabular-nums; }
+.ozonSync__text--expanded time { margin-left: 5px; }
+.ozonSync--disconnected .ozonSync__text { color: rgba(255, 255, 255, .65); }
+.ozonSync--error .ozonSync__text { color: #ffb6b6; }
+.ozonSync--syncing .headerIcon { animation: ozonSync-spin 1s linear infinite; }
+@keyframes ozonSync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ozonSync__label, .ozonSync__text time { transition: none; }
+  .ozonSync--syncing .headerIcon { animation-duration: 2s; }
+}
+
 .headerIcon {
   display: block;
   width: 37px;

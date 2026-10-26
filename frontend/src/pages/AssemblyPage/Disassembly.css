@@ -1,0 +1,250 @@
+.disassembly { margin-top: 15px; padding: 24px 40px; --disassembly-muted: #a7a7a7; }
+.disassembly__header, .disassembly__title, .disassembly__sectionHeading, .disassembly__activeHeader { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.disassembly__title { justify-content: flex-start; gap: 12px; }
+.disassembly__count { display: inline-flex; align-items: center; justify-content: center; height: 36px; min-width: 36px; padding: 0 8px; border-radius: 10px; background: #ffffff12; font-size: 20px; }
+.disassembly h3 { margin: 0; font-size: 24px; line-height: 1.3; }
+.disassembly__sectionHeading { margin: 26px 0 12px; }
+.disassembly table { width: 100%; border-collapse: collapse; text-align: left; font-size: 16px; }
+.disassembly th { padding: 16px 10px; font-size: 24px; font-weight: 700; border-bottom: 2px solid #ffffff59; }
+.disassembly td { padding: 18px 10px; border-bottom: 1px solid #ffffff24; }
+.disassembly td > strong { display: block; font-size: 18px; font-weight: 600; }
+.disassembly small { display: block; margin-top: 5px; color: var(--disassembly-muted); font-size: 14px; line-height: 1.4; }
+.disassembly__queue, .disassembly__items { overflow: auto; scrollbar-width: thin; scrollbar-color: #ffffff60 #ffffff08; }
+.disassembly__queue { max-height: 510px; }
+.disassembly__queue table { min-width: 950px; }
+.disassembly__queue tbody tr { height: 88px; }
+.disassembly__queue th:not(:first-child), .disassembly__queue td:not(:first-child) { text-align: center; }
+.disassembly__queue td:last-child { text-align: right; white-space: nowrap; }
+.disassembly thead { position: sticky; top: 0; z-index: 1; background: transparent; }
+.disassembly__queueRow--active { background: #ffffff04; }
+.disassembly__status { display: inline-block; padding: 6px 10px; border-radius: 7px; font-size: 14px; white-space: nowrap; background: #ffffff0c; color: #d0d0d0; }
+.disassembly__status--active { background: #619bd91c; color: #9ec5ee; }
+.disassembly__status--paused { background: #caa45017; color: #e6c88e; }
+.disassembly td.disassembly__emptyQueue { text-align: left; color: var(--disassembly-muted); }
+.disassembly__activeHeader { margin-bottom: 24px; }
+.disassembly__activeHeader h3 { overflow-wrap: anywhere; }
+.disassembly__activeHeader p { margin: 8px 0 0; color: var(--disassembly-muted); font-size: 16px; }
+.disassembly__progress { flex: 1; min-width: 100px; }
+.disassembly__progress > span { display: block; font-size: 14px; color: var(--disassembly-muted); margin-bottom: 10px; }
+.disassembly__progress strong { color: #fff; font-variant-numeric: tabular-nums; }
+.disassembly__progress progress { display: block; width: 100%; height: 26px; padding: 4px; border: 2px solid #ffffff65; border-radius: 999px; background: transparent; accent-color: #568fe1; }
+.disassembly__progress progress::-webkit-progress-bar { background: #ffffff06; border-radius: 999px; }
+.disassembly__progress progress::-webkit-progress-value { background: #568fe1; border-radius: 999px; }
+.disassembly__progress progress::-moz-progress-bar { background: #568fe1; border-radius: 999px; }
+.disassembly__progress--complete progress { accent-color: #a8dfb5; }
+.disassembly__progress--complete progress::-webkit-progress-value { background: #a8dfb5; }
+.disassembly__progress--complete progress::-moz-progress-bar { background: #a8dfb5; }
+.disassembly__body { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 32px; margin-top: 26px; padding-top: 26px; border-top: 1px solid #ffffff59; }
+.disassembly__left { min-width: 0; }
+.disassembly__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 18px; }
+.disassembly__metrics > div { padding: 14px 16px; border: 1px solid #ffffff16; border-radius: 10px; background: #ffffff04; }
+.disassembly__metrics dt { font-size: 24px; font-weight: 700; line-height: 1.3; }
+.disassembly__metrics dd { margin: 10px 0 0; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.disassembly__metrics dd small { display: inline; font-size: 18px; font-weight: 400; }
+.disassembly__items { min-height: 300px; max-height: 510px; }
+.disassembly__items table { min-width: 650px; }
+.disassembly__items th:first-child { width: 37%; }
+.disassembly__items th:nth-child(2) { width: 25%; }
+.disassembly__items td { vertical-align: top; }
+.disassembly__items progress { display: block; width: 90%; height: 5px; margin-top: 12px; border: 0; border-radius: 8px; overflow: hidden; accent-color: #568fe1; background: #ffffff12; }
+.disassembly__items progress::-webkit-progress-bar { background: #ffffff12; }
+.disassembly__items progress::-webkit-progress-value { background: #568fe1; border-radius: 8px; }
+.disassembly__productCount { display: inline-flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; }
+.disassembly__check { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; color: #b9f1cb; background: #28964b30; }
+.disassembly__row--done > td:first-child { color: var(--disassembly-muted); }
+.disassembly__row--done progress { accent-color: #a8dfb5; }
+.disassembly__row--done progress::-webkit-progress-value { background: #a8dfb5; }
+.disassembly__cells { display: grid; gap: 12px; }
+.disassembly__cells > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-left: 10px; border-left: 2px solid #ffffff24; }
+.disassembly__cells strong { font-size: 14px; font-weight: 500; }
+.disassembly__cells > div > span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 14px; }
+.disassembly__cell--done { color: var(--disassembly-muted); }
+.disassembly td.disassembly__emptyItems { color: var(--disassembly-muted); padding: 30px 10px; }
+.disassembly__scanner { display: flex; flex-direction: column; min-width: 0; gap: 20px; padding-left: 28px; border-left: 1px solid #ffffff24; }
+.disassembly__steps { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 18px; line-height: 1.4; color: #9a9a9a; }
+.disassembly__target { padding: 16px 18px; border-radius: 12px; border: 1px solid #ffffff18; background: #ffffff04; }
+.disassembly__target > small { margin: 0 0 8px; }
+.disassembly__target > strong { display: block; font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
+.disassembly__expected { margin-top: 18px; }
+.disassembly__expected > small:first-child { margin-bottom: 9px; }
+.disassembly__expected > span { display: inline-block; padding: 8px 12px; border-radius: 8px; background: #006fff33; color: #c0dbff; font-size: 20px; font-weight: 600; }
+.disassembly__scanner form { display: flex; gap: 10px; }
+.disassembly__scanner input { width: 100%; min-width: 0; padding: 12px; border: 1px solid #ffffff40; border-radius: 9px; background: #ffffff08; color: inherit; font: inherit; }
+.disassembly__scanner input:focus-visible { outline: 2px solid #619bd9; outline-offset: 2px; }
+.disassembly__scanner input:disabled { opacity: .45; }
+.disassembly__last { display: flex; justify-content: space-between; gap: 16px; padding-top: 4px; font-size: 14px; color: var(--disassembly-muted); }
+.disassembly__last strong { color: #e7e7e7; font-weight: 500; overflow-wrap: anywhere; }
+.disassembly__log { margin: auto 0 0; min-height: 44px; font-size: 15px; line-height: 1.5; color: var(--disassembly-muted); overflow-wrap: anywhere; }
+.disassembly__footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.disassembly__finish { background: #ffffff14; font-weight: 600; }
+/* Button states are provided by ui-button; draft finish styling remains local. */
+.disassembly .disassembly__error { color: #efa3a3; }
+@media (max-width: 1100px) {
+  .disassembly { padding: 24px; }
+  .disassembly__body { grid-template-columns: 1fr; }
+  .disassembly__scanner { padding: 24px 0 0; border-left: 0; border-top: 1px solid #ffffff24; }
+  .disassembly__activeHeader { align-items: flex-start; flex-wrap: wrap; }
+  .disassembly__progress { max-width: none; flex-basis: 100%; }
+}
+@media (max-width: 600px) {
+  .disassembly__header { flex-wrap: wrap; }
+  .disassembly__metrics { gap: 6px; }
+  .disassembly__metrics > div { padding: 12px 8px; }
+  .disassembly__metrics dt { font-size: 20px; }
+  .disassembly__scanner form { flex-wrap: wrap; }
+}
+
+/* Shared helper text treatment within the disassembly window. */
+.disassembly td.disassembly__emptyQueue,
+.disassembly td.disassembly__emptyItems,
+.disassembly__activeHeader p,
+.disassembly__log { color: #9a9a9a; font-size: 18px; font-weight: 400; line-height: 1.4; }
+.disassembly__queue tbody tr:last-child > td { border-bottom: 0; }
+.disassembly thead tr, .disassembly th { background: transparent; box-shadow: none; }
+.disassembly__stepWrap { display: inline-flex; align-items: center; gap: 10px; }
+.disassembly__stepArrow { font-size: 26px; }
+.disassembly__step { position: relative; display: inline-flex; padding: 8px 12px; }
+.disassembly__step svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.disassembly__step rect { fill: none; stroke: #568fe1; stroke-width: 2.5px; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; visibility: hidden; }
+.disassembly__step--current { color: #ededed; }
+.disassembly__step--current rect { visibility: visible; animation: disassembly-step-in 300ms ease-out both; }
+.disassembly__steps--transition .disassembly__step--current rect { animation-delay: 300ms; }
+.disassembly__step--outgoing rect { visibility: visible; animation: disassembly-step-out 300ms ease-in both; }
+@keyframes disassembly-step-out { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -1; } }
+@keyframes disassembly-step-in {
+  from { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+  99% { stroke-dasharray: 1 1; stroke-dashoffset: 0; }
+  to { stroke-dasharray: none; stroke-dashoffset: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .disassembly__step rect { animation: none; }
+  .disassembly__step--current rect { stroke-dasharray: none; stroke-dashoffset: 0; }
+  .disassembly__step--outgoing rect { visibility: hidden; }
+}
+
+.disassembly__step rect { width: calc(100% - 2.5px); height: calc(100% - 2.5px); rx: calc((1.4em + 16px - 2.5px) / 2); ry: calc((1.4em + 16px - 2.5px) / 2); transform-box: fill-box; transform-origin: center; transform: scaleX(-1); }
+/* D2: dark-only adapters; legacy/light declarations above remain unchanged. */
+html[data-theme="dark"] .disassembly.ds-v1 .ui-section-description {
+  margin: var(--ds-v1-gap-title-context) 0 0;
+  padding-left: var(--ds-v1-space-12);
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__sectionHeading { margin: var(--ds-v1-space-24) 0 var(--ds-v1-space-16); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__body {
+  gap: var(--ds-v1-space-24); margin-top: var(--ds-v1-space-24); padding-top: var(--ds-v1-space-24);
+  border-top-color: var(--ds-v1-border-color-quiet);
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__activeHeader { align-items: flex-start; flex-wrap: wrap; gap: var(--ds-v1-space-16); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__activeHeader > div { min-width: 0; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__activeHeader p { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__metrics > div {
+  padding: 0 var(--ds-v1-space-12);
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__metrics > div + div { border-left: 1px solid var(--ds-v1-border-color-quiet); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__metrics dd { margin-top: var(--ds-v1-space-4); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__metrics small { font-size: var(--ds-v1-secondary-font-size); line-height: var(--ds-v1-secondary-line-height); }
+html[data-theme="dark"] .disassembly.ds-v1 .ui-v1-table { min-width: 0; table-layout: fixed; }
+/* Preserve sticky readability, reusing the Catalog's approved local exception. */
+html[data-theme="dark"] .disassembly.ds-v1 .ui-v1-table > thead { background: #080808; }
+html[data-theme="dark"] .disassembly.ds-v1 .ui-v1-table td > strong { font-size: inherit; font-weight: var(--ds-v1-font-weight-semibold); }
+html[data-theme="dark"] .disassembly.ds-v1 .ui-v1-table small {
+  margin-top: var(--ds-v1-space-4); color: var(--ds-v1-color-text-secondary);
+  font-size: var(--ds-v1-secondary-font-size); line-height: var(--ds-v1-secondary-line-height);
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__queue th:first-child { width: 25%; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__queue th:nth-child(n+2):nth-child(-n+4) { width: 13%; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__queue th:nth-child(5) { width: 16%; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__queue th:last-child { width: 20%; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__queue td:last-child { text-align: right; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__cells > div > span:first-child { min-width: 0; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__cells strong { font: inherit; font-weight: var(--ds-v1-font-weight-semibold); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__cells > div > span:last-child { font-size: var(--ds-v1-secondary-font-size); line-height: var(--ds-v1-secondary-line-height); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__cells > div { border-left-color: var(--ds-v1-border-color-quiet); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__scanner { gap: 0; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__scanner > * + * { margin-top: var(--ds-v1-space-16); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__scanner > .disassembly__steps + h3 { margin-top: var(--ds-v1-space-12); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__target { padding: 0 0 var(--ds-v1-space-16); border-bottom: 1px solid var(--ds-v1-border-color-quiet); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__target small { color: var(--ds-v1-color-text-meta); font: 400 var(--ds-v1-meta-font-size)/var(--ds-v1-meta-line-height) 'Tremor Noto Sans v1', sans-serif; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__expected { margin-top: var(--ds-v1-space-16); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__scanner form { align-items: center; gap: var(--ds-v1-space-12); flex-wrap: wrap; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__scanner input { flex: 1 1 220px; width: auto; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__log { margin-top: auto; padding-top: var(--ds-v1-space-16); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__last > * { min-width: 0; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__progress > span { margin-bottom: var(--ds-v1-space-8); }
+/* The existing main Progress is native; share geometry and adapt only its paint. */
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__progress > .ui-v1-progress { appearance: none; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__progress > .ui-v1-progress::-webkit-progress-bar { background: transparent; border-radius: var(--ds-v1-radius-pill); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__progress > .ui-v1-progress::-webkit-progress-value { background: var(--ds-v1-progress-fill); border-radius: var(--ds-v1-radius-pill); transition: width 220ms cubic-bezier(.2,0,0,1), background-color 220ms cubic-bezier(.2,0,0,1); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__progress > .ui-v1-progress::-moz-progress-bar { background: var(--ds-v1-progress-fill); border-radius: var(--ds-v1-radius-pill); transition: width 220ms cubic-bezier(.2,0,0,1), background-color 220ms cubic-bezier(.2,0,0,1); }
+/* Reuse the two existing scan stages; old step animation remains for light. */
+.disassembly__stepArrow > .ui-v1-steps__arrow, .disassembly__stepArrow > .ui-v1-steps__dot { display: none; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__steps.ds-v1 {
+  display: flex; flex-wrap: nowrap; gap: 0; margin: 0; min-width: 0;
+  font: 600 var(--ds-v1-primary-font-size)/var(--ds-v1-primary-line-height) 'Tremor Noto Sans v1', sans-serif;
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__stepArrow > .disassembly__legacyArrow { display: none; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__stepArrow > .ui-v1-steps__arrow,
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__stepArrow > .ui-v1-steps__dot { display: block; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__step rect {
+  x: 1px; y: 1px; width: calc(100% - 2px); height: 44px; rx: 22px; ry: 22px;
+  transform: none; animation: none; visibility: visible; stroke-width: 2; stroke-dasharray: none; stroke-dashoffset: 0;
+  stroke: var(--ds-v1-border-color-control-panel); opacity: 0;
+  transition: stroke 150ms cubic-bezier(.2,0,0,1), opacity 150ms cubic-bezier(.2,0,0,1);
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__step[data-state="completed"] rect { opacity: 1; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__step[data-state="active"] rect { opacity: 1; stroke: var(--ds-v1-color-accent-blue); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__steps--transition .disassembly__step[data-state="active"] rect { animation: disassembly-v1-step-in 300ms cubic-bezier(.2,0,0,1) both; }
+@keyframes disassembly-v1-step-in { from { stroke-dasharray: 1 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1 1; stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .disassembly.ds-v1 .disassembly__step rect { animation: none; transition: none; }
+  html[data-theme="dark"] .disassembly.ds-v1 .disassembly__progress > .ui-v1-progress::-webkit-progress-value { transition: none; }
+  html[data-theme="dark"] .disassembly.ds-v1 .disassembly__progress > .ui-v1-progress::-moz-progress-bar { transition: none; }
+}
+
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__stepWrap { gap: 0; }
+
+html[data-theme="dark"] .disassembly.ds-v1 { --disassembly-muted: var(--ds-v1-color-text-secondary); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__items .disassembly__error { color: var(--ds-v1-color-status-error); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__check { color: var(--ds-v1-color-status-success-foreground); background: color-mix(in srgb, var(--ds-v1-color-status-success) 16%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .disassembly.ds-v1 .disassembly__steps--transition .disassembly__step[data-state="active"] rect { animation: none; }
+}
+
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__progress strong { font-weight: var(--ds-v1-font-weight-semibold); }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__expected > span { font: 600 var(--ds-v1-secondary-font-size)/var(--ds-v1-secondary-line-height) 'Tremor Noto Sans v1', sans-serif; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__cells > div > span:last-child { color: var(--ds-v1-color-text-secondary); }
+/* Empty-state alignment and the rhythm of the existing disassembly sections. */
+html[data-theme="dark"] .disassembly.ds-v1 .ui-v1-table td.ui-v1-feedback--empty {
+  text-align: center;
+  vertical-align: middle;
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__items:has(.disassembly__emptyItems) > .ui-v1-table {
+  height: 300px;
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__queue .ui-v1-table > tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-v1-space-40);
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__activeHeader,
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__metrics {
+  margin: 0;
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__last {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--ds-v1-space-4);
+}
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__activeHeader {
+  margin-bottom: var(--ds-v1-space-24);
+}
+
+/* Keep the last table edge open and both working columns equally tall. */
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__items .ui-v1-table > tbody > tr:last-child > td { border-bottom: 0; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__body { align-items: stretch; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__items { flex-shrink: 0; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__scanner.ui-v1-control-panel { align-self: stretch; height: auto; }
+html[data-theme="dark"] .disassembly.ds-v1 .disassembly__items:not(:has(tbody > tr:nth-child(6))) { max-height: none; }
