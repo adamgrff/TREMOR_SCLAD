@@ -54,6 +54,14 @@ func (f *disassemblyTestFixture) transfer(t *testing.T) {
 
 func disassemblyFixture(t *testing.T, duplicate bool) *disassemblyTestFixture {
 	t.Helper()
+	f := disassemblyLegacyFixture(t, duplicate)
+	applyDisassemblyReversalsMigration(t, f.db)
+	f.state = warehouseState(t, f.db)
+	return f
+}
+
+func disassemblyLegacyFixture(t *testing.T, duplicate bool) *disassemblyTestFixture {
+	t.Helper()
 	db := ozonTestDB(t)
 	migration, err := os.ReadFile("../../migrations/018_assembly_disassembly.sql")
 	if err != nil {
@@ -367,6 +375,7 @@ func assertDisassemblyFinishRejectedUnchanged(t *testing.T, f *disassemblyTestFi
 		err := f.db.QueryRow(ctx, `SELECT jsonb_build_object(
    'sessions',(SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY id),'[]') FROM assembly_disassembly_sessions s),
    'returns',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY id),'[]') FROM assembly_disassembly_returns r),
+   'reversals',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY id),'[]') FROM assembly_disassembly_return_reversals r),
    'stock',(SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY cell_id,product_id),'[]') FROM cell_stock c),
    'reservations',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY order_id,product_id),'[]') FROM assembly_order_reservations r),
    'requests',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY request_id),'[]') FROM assembly_preview_requests r)
@@ -405,11 +414,11 @@ func assertDisassemblyFinishPreconditions(t *testing.T, f *disassemblyTestFixtur
 	t.Helper()
 	var got [4]int
 	err := f.db.QueryRow(context.Background(), `SELECT
-  (SELECT count(*) FROM assembly_disassembly_items i WHERE i.session_id=s.id AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_returns r WHERE r.item_id=i.id)),
+  (SELECT count(*) FROM assembly_disassembly_items i WHERE i.session_id=s.id AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_effective_returns r WHERE r.item_id=i.id)),
   CASE WHEN s.pending_item_id IS NULL THEN 0 ELSE 1 END,
   (SELECT count(*) FROM assembly_warehouse_operations op WHERE op.order_id=s.order_id AND op.kind='pick'
     AND NOT EXISTS(SELECT 1 FROM assembly_warehouse_operations undo WHERE undo.reverses_operation_id=op.id)
-    AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_items i JOIN assembly_disassembly_returns r ON r.item_id=i.id WHERE i.original_operation_id=op.id)),
+    AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_items i JOIN assembly_disassembly_effective_returns r ON r.item_id=i.id WHERE i.original_operation_id=op.id)),
   (SELECT COALESCE(sum(quantity),0)::int FROM assembly_order_reservations WHERE order_id=s.order_id AND status='held')
   FROM assembly_disassembly_sessions s WHERE s.id=$1::uuid`, f.sid).Scan(&got[0], &got[1], &got[2], &got[3])
 	if err != nil {

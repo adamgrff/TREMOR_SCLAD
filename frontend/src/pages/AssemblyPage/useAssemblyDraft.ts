@@ -59,7 +59,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
     pending.current = { path: `/assembly/problems/${encodeURIComponent(problemId)}/map-product`, method: 'POST', body: { requestId: crypto.randomUUID(), version: version.current, positionSku, productId, confirmed: true } }
     return retry()
   }
-  async function disassemblyAction(sessionId: string, action: 'start' | 'scan' | 'finish' | 'pause', code?: string): Promise<boolean> {
+  async function disassemblyAction(sessionId: string, action: 'start' | 'scan' | 'finish' | 'pause' | 'undo-return', code?: string): Promise<boolean> {
     if (!ready || inFlight.current || pending.current) return false
     pending.current = { path: `/assembly/disassembly/${encodeURIComponent(sessionId)}/${action}`, method: 'POST', body: { requestId: crypto.randomUUID(), version: version.current, ...(code ? { code } : {}) } }
     return retry()

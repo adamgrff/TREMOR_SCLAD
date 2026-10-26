@@ -426,7 +426,11 @@ func verifyWarehousePicks(ctx context.Context, tx pgx.Tx, orderID string, picks 
 	if enabled, e := disassemblyEnabled(ctx, tx); e != nil {
 		return e
 	} else if enabled {
-		query += ` AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_items i JOIN assembly_disassembly_returns r ON r.item_id=i.id WHERE i.original_operation_id=op.id)`
+		returnsRelation, e := disassemblyReturnsRelation(ctx, tx)
+		if e != nil {
+			return e
+		}
+		query += ` AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_items i JOIN ` + returnsRelation + ` r ON r.item_id=i.id WHERE i.original_operation_id=op.id)`
 	}
 	query += " ORDER BY op.occurred_at,op.id"
 	rows, err := tx.Query(ctx, query, orderID)

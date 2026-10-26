@@ -9,7 +9,7 @@ const reasons: Record<string, string> = { cancelled_order: 'Отмена зак�
 const sessionStatus = (session: DisassemblySession) => session.status === 'completed' ? 'Завершён' : session.status === 'active' ? 'Активен' : session.startedAt || session.pendingItemId ? 'Отложен' : 'Ещё не начат'
 type CellSummary = { cell: string; cellId: number; warehouse: string; total: number; returned: number }
 type ProductSummary = { sku: string; name: string; warehouseSku: string; total: number; returned: number; returnable: boolean; cells: CellSummary[] }
-export default function Disassembly({ sessions, blocked, onAction }: { sessions: DisassemblySession[]; blocked: boolean; onAction: (sessionId: string, action: 'start' | 'scan' | 'finish' | 'pause', code?: string) => Promise<boolean> }) {
+export default function Disassembly({ sessions, blocked, onAction }: { sessions: DisassemblySession[]; blocked: boolean; onAction: (sessionId: string, action: 'start' | 'scan' | 'finish' | 'pause' | 'undo-return', code?: string) => Promise<boolean> }) {
   const [scan, setScan] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
@@ -20,6 +20,7 @@ export default function Disassembly({ sessions, blocked, onAction }: { sessions:
   useEffect(() => { setScan('') }, [active?.id, active?.pendingItemId])
   const pending = active?.items.find(item => item.id === active.pendingItemId)
   const returned = active?.items.filter(item => item.returned).length ?? 0
+  const canUndoReturn = !blocked && !!active && active.pendingItemId === null && returned > 0
   const done = !!active && returned === active.items.length && !pending
   const step = done ? null : pending ? 1 : 0
   const previousStep = useRef(step)
@@ -97,7 +98,7 @@ export default function Disassembly({ sessions, blocked, onAction }: { sessions:
         {!done && <form ref={formRef} onSubmit={event => void submit(event)}><input className="ds-v1 ui-v1-input" ref={inputRef} aria-label={pending ? 'Код исходной ячейки' : 'Код возвращаемого товара'} value={scan} placeholder={pending ? 'Код исходной ячейки' : 'Код товара'} disabled={blocked || !active} onChange={event => setScan(event.target.value)} /><button type="submit" className="ui-button ds-v1 ui-v1-action ui-v1-action--primary" disabled={blocked || !active || !scan.trim()}>Подтвердить</button></form>}
         <div className="disassembly__last"><span className="ds-v1 ui-v1-type-meta">Последний скан</span><strong className="ds-v1 ui-v1-type-primary ui-v1-type-semibold">{active?.lastScan ?? '—'}</strong></div>
         <p role="status" className={`disassembly__log ds-v1 ui-v1-feedback${active?.error ? ' disassembly__error ui-v1-feedback--error' : ''}`}>{active?.log || (active ? 'Сканируйте товар из списка.' : 'Выберите заказ в очереди разборов.')}</p>
-        <div className="disassembly__footer"><button type="button" className="ui-button ds-v1 ui-v1-action ui-v1-action--negative" disabled={blocked || !active} onClick={() => { if (active) void onAction(active.id, 'pause') }}>Отложить</button><button type="button" className="ui-button disassembly__finish ds-v1 ui-v1-action ui-v1-action--primary" disabled={blocked || !done} onClick={() => { if (active) void onAction(active.id, 'finish') }}>Завершить разбор</button></div>
+        <div className="disassembly__footer"><button type="button" className="ui-button ds-v1 ui-v1-button" disabled={!canUndoReturn} onClick={() => { if (active && canUndoReturn) void onAction(active.id, 'undo-return') }}>Отменить последний возврат</button><button type="button" className="ui-button ds-v1 ui-v1-action ui-v1-action--negative" disabled={blocked || !active} onClick={() => { if (active) void onAction(active.id, 'pause') }}>Отложить</button><button type="button" className="ui-button disassembly__finish ds-v1 ui-v1-action ui-v1-action--primary" disabled={blocked || !done} onClick={() => { if (active) void onAction(active.id, 'finish') }}>Завершить разбор</button></div>
       </div>
     </div>
   </section>

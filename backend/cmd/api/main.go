@@ -71,7 +71,7 @@ func main() {
 	mux.HandleFunc("GET /api/assembly/orders", func(w http.ResponseWriter, r *http.Request) { assemblyOrdersHandler(database, w, r) })
 	mux.HandleFunc("GET /api/assembly/mapping-products", func(w http.ResponseWriter, r *http.Request) { assemblyMappingProductsHandler(database, w, r) })
 	mux.HandleFunc("POST /api/assembly/problems/{problemID}/map-product", func(w http.ResponseWriter, r *http.Request) { assemblyMappingHandler(database, w, r) })
-	for _, action := range []string{"start", "scan", "finish", "pause"} {
+	for _, action := range []string{"start", "scan", "finish", "pause", "undo-return"} {
 		mux.HandleFunc("POST /api/assembly/disassembly/{sessionID}/"+action, func(w http.ResponseWriter, r *http.Request) {
 			disassemblyHandler(database, w, r, "disassembly-"+action)
 		})

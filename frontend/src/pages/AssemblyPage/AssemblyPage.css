@@ -227,6 +227,11 @@ html[data-theme="dark"] .assemblyQueue__search.ds-v1 .assemblyQueue__searchMessa
 .assemblyQueue__problem { cursor: pointer; }
 .assemblyProblemDialog__field { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
 .assemblyProblemDialog select, .assemblyProblemDialog textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .4); border-radius: 9px; background: #252525; color: #fff; font: inherit; }
+/* Modal Select keeps its native picker (DS v1.0 I4c); match its system palette. */
+html[data-theme="dark"] .assemblyProblemDialog select { color-scheme: dark; }
+/* Windows native popup may ignore color-scheme for transparent option surfaces. */
+html[data-theme="dark"] .assemblyProblemDialog select option { background-color: #181818; color: var(--ds-v1-color-text-primary); }
+html[data-theme="dark"] .assemblyProblemDialog select option:disabled { color: var(--ds-v1-color-text-meta); }
 .assemblyProblemDialog textarea { resize: vertical; }
 .assemblyProblemDialog input[type="search"] { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .4); border-radius: 9px; background: #252525; color: #fff; font: inherit; }
 .skuMapping__conformity { display: flex; align-items: flex-start; gap: 8px; margin-top: 20px; }

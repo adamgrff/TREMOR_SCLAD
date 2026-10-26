@@ -5,6 +5,7 @@ import { webcrypto } from 'node:crypto'
 import vm from 'node:vm'
 import ts from 'typescript'
 import React from 'react'
+import { disassemblyFixtures } from './fixtures/disassembly.mjs'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 const require = createRequire(import.meta.url)
@@ -26,6 +27,7 @@ const context = {
     if (!options.method) return { ok: true, json: async () => ({ version, state: serverState }) }
     if (mode === 'offline') throw new Error('offline')
     if (mode === 'conflict') return { ok: false, status: 409, json: async () => ({ error: 'Состояние изменилось' }) }
+    if (mode === 'workspace') return { ok: true, status: 200, json: async () => ({ version: ++version, state: serverState, applied: true }) }
     if (mode === 'declined') return { ok: true, status: 200, json: async () => ({ version: ++version, state: serverState = { marker: 'return denied' }, applied: false, message: 'Возврат отклонён: товара недостаточно.' }) }
     return { ok: true, status: 200, json: async () => ({ version: ++version, state: serverState = { marker: 'problem saved' } }) }
   },
@@ -128,6 +130,21 @@ assert.equal(returnRequest.url, '/api/assembly/disassembly/session/scan')
 assert.deepEqual(Object.keys(JSON.parse(returnRequest.body)).sort(), ['code', 'requestId', 'version'])
 mode = 'success'; draft = render(); assert.equal(await draft.retry(), true)
 assert.equal(calls.findLast(call => call.method === 'POST').body, returnRequest.body)
+
+// Undo uses the common request/workspace mechanism, not a client-side return ID
+// or local inventory/progress mutation.
+draft = render(); mode = 'workspace'
+const previousWorkspace = draft.state
+const responseFixture = structuredClone(disassemblyFixtures().complete)
+responseFixture.sessions[0].items[0].returned = false
+serverState = { disassemblySessions: responseFixture.sessions }
+const undoRequest = draft.disassemblyAction('session', 'undo-return')
+assert.deepEqual(render().state, previousWorkspace, 'Do not mutate progress while awaiting backend')
+assert.equal(await undoRequest, true)
+const undoPost = calls.at(-1)
+assert.equal(undoPost.url, '/api/assembly/disassembly/session/undo-return')
+assert.deepEqual(Object.keys(JSON.parse(undoPost.body)).sort(), ['requestId', 'version'])
+assert.deepEqual(render().state, serverState, 'Render exactly the returned backend workspace')
 
 const dialogContext = { exports: {}, require: (id) => id === '../../components/useModalFocusReturn' ? { __esModule: true, default() {} } : id === './problemTypes' ? { problemTypes: [['insufficient_stock', 'Недостаточно товара'], ['other', 'Другая проблема']] } : require(id) }
 vm.runInNewContext(compile('../src/pages/AssemblyPage/OrderProblemDialog.tsx'), dialogContext)

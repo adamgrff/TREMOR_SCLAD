@@ -34,6 +34,20 @@ func disassemblyEnabled(ctx context.Context, tx pgx.Tx) (bool, error) {
 	err := tx.QueryRow(ctx, `SELECT to_regclass('assembly_disassembly_sessions') IS NOT NULL`).Scan(&enabled)
 	return enabled, err
 }
+
+// Before 019 there cannot be reversals, so the legacy ledger is effective in
+// its entirety. After 019 all current-state reads use the shared database view.
+func disassemblyReturnsRelation(ctx context.Context, tx pgx.Tx) (string, error) {
+	var effective bool
+	if err := tx.QueryRow(ctx, `SELECT to_regclass('assembly_disassembly_effective_returns') IS NOT NULL`).Scan(&effective); err != nil {
+		return "", err
+	}
+	if effective {
+		return "assembly_disassembly_effective_returns", nil
+	}
+	return "assembly_disassembly_returns", nil
+}
+
 func appendDisassemblyEvent(state map[string]any, order map[string]any, timestamp, kind, title, message string) {
 	for _, v := range valueArray(state["problemOrders"]) {
 		entry := valueMap(v)
@@ -168,6 +182,10 @@ func applyDisassembly(ctx context.Context, tx pgx.Tx, current json.RawMessage, r
 	if request.Action == "transfer-disassembly" {
 		return transferDisassembly(ctx, tx, state, request, timestamp)
 	}
+	returnsRelation, err := disassemblyReturnsRelation(ctx, tx)
+	if err != nil {
+		return nil, "", false, err
+	}
 	var status, oid string
 	var snapshot json.RawMessage
 	var pending *string
@@ -205,6 +223,15 @@ func applyDisassembly(ctx context.Context, tx pgx.Tx, current json.RawMessage, r
 	if status != "active" {
 		return nil, "", false, stockConflict("Сначала начните разбор.")
 	}
+	if request.Action == "disassembly-undo-return" {
+		if pending != nil {
+			return nil, "", false, stockConflict("Сначала завершите текущий цикл возврата товара в ячейку.")
+		}
+		if returnsRelation != "assembly_disassembly_effective_returns" {
+			return nil, "", false, stockConflict("Для отмены возврата примените миграцию 019.")
+		}
+		return undoDisassemblyReturn(ctx, tx, state, order, request, timestamp)
+	}
 	if request.Action == "disassembly-pause" {
 		if _, err = tx.Exec(ctx, `UPDATE assembly_disassembly_sessions SET status='waiting',log='Разбор отложен. Прогресс и подтверждённый товар сохранены.',error=false WHERE id=$1::uuid`, request.SessionID); err != nil {
 			return nil, "", false, err
@@ -214,7 +241,7 @@ func applyDisassembly(ctx context.Context, tx pgx.Tx, current json.RawMessage, r
 	}
 	if request.Action == "disassembly-finish" {
 		var left int
-		if err = tx.QueryRow(ctx, `SELECT count(*) FROM assembly_disassembly_items i WHERE session_id=$1::uuid AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_returns r WHERE r.item_id=i.id)`, request.SessionID).Scan(&left); err != nil {
+		if err = tx.QueryRow(ctx, `SELECT count(*) FROM assembly_disassembly_items i WHERE session_id=$1::uuid AND NOT EXISTS(SELECT 1 FROM `+returnsRelation+` r WHERE r.item_id=i.id)`, request.SessionID).Scan(&left); err != nil {
 			return nil, "", false, err
 		}
 		if left > 0 || pending != nil {
@@ -257,7 +284,7 @@ func applyDisassembly(ctx context.Context, tx pgx.Tx, current json.RawMessage, r
 	if pending == nil {
 		var item, sku string
 		var eligible bool
-		err = tx.QueryRow(ctx, `SELECT i.id::text,i.payload->>'sku',i.returnable FROM assembly_disassembly_items i JOIN assembly_warehouse_operations original ON original.id=i.original_operation_id JOIN products p ON p.id=original.product_id WHERE i.session_id=$1::uuid AND upper(p.sku)=upper($2) AND NOT EXISTS(SELECT 1 FROM assembly_disassembly_returns r WHERE r.item_id=i.id) ORDER BY i.ordinal LIMIT 1`, request.SessionID, request.Code).Scan(&item, &sku, &eligible)
+		err = tx.QueryRow(ctx, `SELECT i.id::text,i.payload->>'sku',i.returnable FROM assembly_disassembly_items i JOIN assembly_warehouse_operations original ON original.id=i.original_operation_id JOIN products p ON p.id=original.product_id WHERE i.session_id=$1::uuid AND upper(p.sku)=upper($2) AND NOT EXISTS(SELECT 1 FROM `+returnsRelation+` r WHERE r.item_id=i.id) ORDER BY i.ordinal LIMIT 1`, request.SessionID, request.Code).Scan(&item, &sku, &eligible)
 		if err == pgx.ErrNoRows {
 			return fail("Товар не был отобран для этого заказа или уже возвращён.")
 		}

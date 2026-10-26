@@ -141,6 +141,7 @@ func TestProblemArchivePreservesEventsFromMappingToPhysicalReturn(t *testing.T) 
 		t.Fatal(err)
 	}
 	stockTestExec(t, db, string(migration))
+	applyDisassemblyReversalsMigration(t, db)
 	order := unknownOrder("FULL-HISTORY", 11)
 	importWarehouseTest(t, db, 1, order)
 	state := responseTestWorkspace(t, warehouseProblem(db, 2, 0, "queue", order.Number, assemblyProblemDetails{Type: "unknown_sku", PositionSKU: "EXT-A"}))
