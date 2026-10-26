@@ -1,4 +1,4 @@
 {
-  "revision": "bb0bd416c51f93f2a2a6e20cb2842a1cb2b6ec3e",
-  "description": "Approved Disassembly after DS v1.0 and accepted empty-state/layout refinements; fixed R4.1.1 visual baseline. Do not replace with HEAD or regenerate automatically."
+  "revision": "83f84abaa17a1ac45eabdbea00e4d2124d550d57",
+  "description": "User-approved R4.2 Disassembly UI, including undo-return. Fixed R4.3 baseline; never replace with HEAD or regenerate automatically."
 }

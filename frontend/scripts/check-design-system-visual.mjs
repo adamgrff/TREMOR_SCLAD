@@ -101,17 +101,23 @@ try {
         await pages[1].locator('.disassembly').evaluate(el => el.removeAttribute('style'))
         sentinelChecked = true
       }
-      for (const [index, selector] of ['.disassembly__footer button:first-child', '.disassembly__finish'].entries()) {
-        const expectedDisabled = index === 0 ? fixture.blocked || !fixture.sessions.some(s => s.status === 'active') : fixture.blocked || name !== 'complete'
-        for (const page of pages) assert.equal(await page.locator(selector).isDisabled(), expectedDisabled)
+      const active = fixture.sessions.find(session => session.status === 'active')
+      const actions = [
+        { key: 'undo', label: 'Отменить последний возврат', disabled: fixture.blocked || !active || active.pendingItemId !== null || !active.items.some(item => item.returned) },
+        { key: 'pause', label: 'Отложить', disabled: fixture.blocked || !active },
+        { key: 'finish', label: 'Завершить разбор', disabled: fixture.blocked || name !== 'complete' },
+      ]
+      for (const { key, label: buttonLabel, disabled: expectedDisabled } of actions) {
+        const button = page => page.getByRole('button', { name: buttonLabel, exact: true })
+        for (const page of pages) assert.equal(await button(page).isDisabled(), expectedDisabled)
         for (const action of ['hover', 'focus']) {
           for (const page of pages) {
             await page.mouse.move(0, 0)
             await page.evaluate(() => document.activeElement?.blur())
-            await page.locator(selector)[action]()
-            if (action === 'focus') assert.equal(await page.locator(selector).evaluate(el => el === document.activeElement), !expectedDisabled)
+            await button(page)[action]()
+            if (action === 'focus') assert.equal(await button(page).evaluate(el => el === document.activeElement), !expectedDisabled)
           }
-          await compare(pages, `${label}-${index}-${action}`)
+          await compare(pages, `${label}-${key}-${action}`)
         }
       }
       console.log(`Approved visual state: ${label}`)
