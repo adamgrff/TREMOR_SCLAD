@@ -4,6 +4,7 @@ import '../../App.css'
 import Header from '../../components/Header/Header'
 import { useTheme } from '../../hooks/useTheme'
 import { useHomeStatistics } from './useHomeStatistics'
+import { useHomeSummary } from './useHomeSummary'
 import StatisticsDraft from './StatisticsDraft'
 
 import iconReceiving from '../../assets/home/icon-receiving.svg'
@@ -46,17 +47,16 @@ const mainActions: MainAction[] = [
   },
 ]
 
-// Temporary values until the summary is connected to warehouse data.
-const summaryItems = [
-  { title: 'ПРИЁМКА', value: 12, description: 'ожидают размещения' },
-  { title: 'ЯЧЕЙКИ', value: 1248, description: 'ед. на складе' },
-  { title: 'СБОРКА', value: 8, description: 'заказов в очереди' },
-]
-
 function HomePage() {
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme('dark')
   const statistics = useHomeStatistics()
+  const summary = useHomeSummary()
+  const summaryItems = [
+    { title: 'ПРИЁМКА', value: summary.pending, description: 'ожидают размещения' },
+    { title: 'ЯЧЕЙКИ', value: summary.stock, description: 'ед. на складе' },
+    { title: 'СБОРКА', value: summary.queue, description: 'заказов в очереди' },
+  ]
 
   const isLightTheme = theme === 'light'
 
@@ -125,7 +125,7 @@ function HomePage() {
           {summaryItems.map((item) => (
             <div className="homeSummary__item" key={item.title}>
               <dt className="homeSummary__title">{item.title}</dt>
-              <dd className="homeSummary__data">{item.value} {item.description}</dd>
+              <dd className="homeSummary__data">{item.value ?? '—'} {item.description}</dd>
             </div>
           ))}
         </dl>

@@ -1,4 +1,5 @@
 import { emptyAssemblyState } from './assemblyState'
+import { getQueueOrders } from './assemblyQueue'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Header from '../../components/Header/Header'
 import ErrorTooltip from '../../components/ErrorTooltip/ErrorTooltip'
@@ -126,11 +127,11 @@ export default function AssemblyPage() {
       .finally(() => { if (!controller.signal.aborted) setLoadingOrders(false) })
     return () => controller.abort()
   }, [refreshOrders, draft.state])
-  const { activeOrder, activeState, problemOrders, completedOrders } = draft.state
+  const { activeOrder, activeState, problemOrders } = draft.state
   const [problemDialogOpen, setProblemDialogOpen] = useState(false)
   const [checkingStock, setCheckingStock] = useState(false)
   const stockCheckRef = useRef(false)
-  const queueOrders = orders.filter((order) => !(order.number === activeOrder?.number && activeOrder.source === order.source) && !completedOrders.some((completed) => completed.number === order.number && completed.source === order.source) && !problemOrders.some((problemOrder) => problemOrder.order.number === order.number && problemOrder.order.source === order.source && problemOrder.problem.resolutionStatus !== 'returned'))
+  const queueOrders = getQueueOrders(orders, draft.state)
   const [currentTime, setCurrentTime] = useState(() => Date.now())
   useEffect(() => {
     const updateTime = () => setCurrentTime(Date.now())
