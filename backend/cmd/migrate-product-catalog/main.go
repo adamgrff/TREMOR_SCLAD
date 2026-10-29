@@ -60,5 +60,18 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	log.Println("catalog and rack migrations applied; existing stock unchanged")
+	var intakeApplied bool
+	if err := conn.QueryRow(ctx, `SELECT to_regclass('receiving_intake_events') IS NOT NULL`).Scan(&intakeApplied); err != nil {
+		log.Fatal(err)
+	}
+	if !intakeApplied {
+		data, err := os.ReadFile("migrations/020_receiving_intake_events.sql")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if _, err := conn.Exec(ctx, string(data)); err != nil {
+			log.Fatal(err)
+		}
+	}
+	log.Println("catalog, rack and intake journal migrations applied; existing stock unchanged")
 }

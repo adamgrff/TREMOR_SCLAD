@@ -222,7 +222,7 @@ export default function AssemblyPage() {
 
   return (
     <main className={`receivingPage receivingPage--${theme} assemblyPage`}>
-      <Header theme={theme} onToggleTheme={toggleTheme} />
+      <Header logoMode="navigation" theme={theme} onToggleTheme={toggleTheme} />
       <div className="receivingPage__content">
         {(!draft.ready || draft.saving || draft.error) && <div className={`assemblyPersistenceStatus ds-v1 ui-v1-feedback${draft.error ? ' ui-v1-feedback--error' : ''}`} role="status">
           {draft.error || (draft.saving ? 'Сохранение сборки…' : 'Восстановление сборки…')}

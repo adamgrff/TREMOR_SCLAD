@@ -94,7 +94,6 @@ html[data-theme="dark"] .problemOrders__shortages.ui-v1-table > tbody > tr > td:
 }
 
 .problemOrders__missing { color: #ffc1c1; }
-.problemOrders__cell { padding: 4px 8px; border-radius: 6px; background: #619bd918; color: #8bb9e8; }
 .problemOrders__context, .problemOrders__picked { min-width: 0; }
 .problemOrders__context { border-left: 1px solid #ffffff18; padding-left: 24px; }
 .problemOrders h3.problemOrders__problemTitle { margin-top: 28px; }

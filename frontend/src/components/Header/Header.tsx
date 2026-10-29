@@ -1,4 +1,4 @@
-import { Link } from 'react-router'
+import HeaderLogo, { type HeaderLogoMode } from './HeaderLogo'
 
 import './Header.css'
 
@@ -8,23 +8,21 @@ import iconLogin from '../../assets/home/icon-login.svg'
 export type Theme = 'dark' | 'light'
 
 type HeaderProps = {
+  logoMode: HeaderLogoMode
   theme: Theme
   onToggleTheme: () => void
   ozonSyncState?: OzonSyncState
   onOzonSync?: () => Promise<void>
 }
 
-function Header({ theme, onToggleTheme, ozonSyncState, onOzonSync }: HeaderProps) {
+function Header({ logoMode, theme, onToggleTheme, ozonSyncState, onOzonSync }: HeaderProps) {
   const isLightTheme = theme === 'light'
 
   return (
     <header className={`header header--${theme}`}>
       <OzonSyncStatus state={ozonSyncState} onSync={onOzonSync} />
 
-      <Link className="logo" to="/" aria-label="Главная страница">
-        <span>TREMOR</span>
-        <span>СКЛАД</span>
-      </Link>
+      <HeaderLogo mode={logoMode} />
 
       <div className="headerActions">
         <button

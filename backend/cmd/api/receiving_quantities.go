@@ -100,8 +100,7 @@ func receivingQuantityHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.R
 			return
 		}
 	} else {
-		_, err = tx.Exec(r.Context(), `INSERT INTO receiving_session_items(session_id,product_id,quantity) VALUES($1,$2,$3)
-   ON CONFLICT(session_id,product_id) DO UPDATE SET quantity=receiving_session_items.quantity+EXCLUDED.quantity`, sessionID, productID, input.Quantity)
+		err = addReceivingSessionQuantity(r.Context(), tx, sessionID, productID, input.Quantity)
 		if err != nil {
 			writeErrorResponse(w, 409, "Не удалось добавить количество")
 			return

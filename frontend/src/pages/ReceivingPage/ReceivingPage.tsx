@@ -707,7 +707,7 @@ function ReceivingPage() {
 
   return (
     <main className={`receivingPage receivingPage--${theme}`}>
-      <Header theme={theme} onToggleTheme={toggleTheme} />
+      <Header logoMode="navigation" theme={theme} onToggleTheme={toggleTheme} />
       <ReceivingScrollProgress />
 
       <section

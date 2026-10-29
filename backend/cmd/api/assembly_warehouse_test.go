@@ -23,6 +23,13 @@ func warehouseTestDB(t *testing.T) *pgxpool.Pool {
 	if _, err = db.Exec(context.Background(), string(data)); err != nil {
 		t.Fatal(err)
 	}
+	data, err = os.ReadFile("../../migrations/021_assembly_lifecycle_events.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(context.Background(), string(data)); err != nil {
+		t.Fatal(err)
+	}
 	stockTestExec(t, db, `UPDATE cell_stock SET quantity=5; INSERT INTO cell_stock VALUES(1,2,3)`)
 	return db
 }

@@ -17,7 +17,7 @@ export default function useAssemblyDraft<T>(initialState: T) {
 
   async function load(signal?: AbortSignal) {
     const response = await fetch(`${API_BASE_URL}/assembly-preview/draft`, { signal, cache: 'no-store' })
-    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–018.')
+    if (!response.ok) throw new Error('Не удалось загрузить сборку. Проверьте backend и миграции 011–019.')
     const data = await response.json() as Response<T>
     if (signal?.aborted) return
     version.current = data.version

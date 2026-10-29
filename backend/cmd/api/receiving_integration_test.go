@@ -20,6 +20,11 @@ import (
 // Tests use only their own schema. TEST_DATABASE_URL must point to a test database.
 func receivingTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
+	return receivingTestDBWithIntake(t, true)
+}
+
+func receivingTestDBWithIntake(t *testing.T, includeIntake bool) *pgxpool.Pool {
+	t.Helper()
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("set TEST_DATABASE_URL to run PostgreSQL integration tests")
@@ -52,7 +57,11 @@ func receivingTestDB(t *testing.T) *pgxpool.Pool {
 		t.Fatal(err)
 	}
 	t.Cleanup(db.Close)
-	for _, name := range []string{"001_init.sql", "003_receiving_placements.sql", "004_receiving_sessions.sql", "005_receiving_drafts.sql", "007_receiving_history_deletion.sql", "008_product_catalog.sql", "009_receiving_quantity_requests.sql"} {
+	migrations := []string{"001_init.sql", "003_receiving_placements.sql", "004_receiving_sessions.sql", "005_receiving_drafts.sql", "007_receiving_history_deletion.sql", "008_product_catalog.sql", "009_receiving_quantity_requests.sql"}
+	if includeIntake {
+		migrations = append(migrations, "020_receiving_intake_events.sql")
+	}
+	for _, name := range migrations {
 		migration, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
 		if err != nil {
 			t.Fatal(err)

@@ -12,10 +12,10 @@ import (
 )
 
 type homeReceivingStatistics struct {
-	Sessions         int64  `json:"sessions"`
-	ReceivedQuantity *int64 `json:"receivedQuantity"`
-	PlacedQuantity   int64  `json:"placedQuantity"`
-	PendingQuantity  int64  `json:"pendingQuantity"`
+	Sessions         int64 `json:"sessions"`
+	ReceivedQuantity int64 `json:"receivedQuantity"`
+	PlacedQuantity   int64 `json:"placedQuantity"`
+	PendingQuantity  int64 `json:"pendingQuantity"`
 }
 
 type homeLowStockItem struct {
@@ -33,11 +33,11 @@ type homeStockStatistics struct {
 }
 
 type homeAssemblyStatistics struct {
-	CompletedOrders        *int64   `json:"completedOrders"`
-	QueuedOrders           int64    `json:"queuedOrders"`
-	ActiveOrders           int64    `json:"activeOrders"`
-	ProblemOrders          int64    `json:"problemOrders"`
-	AverageAssemblySeconds *float64 `json:"averageAssemblySeconds"`
+	CompletedOrders        int64   `json:"completedOrders"`
+	QueuedOrders           int64   `json:"queuedOrders"`
+	ActiveOrders           int64   `json:"activeOrders"`
+	ProblemOrders          int64   `json:"problemOrders"`
+	AverageAssemblySeconds float64 `json:"averageAssemblySeconds"`
 }
 
 type homeStatisticsResponse struct {
@@ -78,11 +78,12 @@ func readHomeStatistics(ctx context.Context, db *pgxpool.Pool, start, end time.T
 	defer tx.Rollback(ctx)
 	err = tx.QueryRow(ctx, `SELECT
 		(SELECT COUNT(*) FROM receiving_sessions WHERE status='completed' AND completed_at >= $1 AND completed_at < $2),
+		(SELECT COALESCE(SUM(quantity),0)::bigint FROM receiving_intake_events WHERE occurred_at >= $1 AND occurred_at < $2),
 		(SELECT COALESCE(SUM(i.quantity),0)::bigint FROM receiving_placement_items i
 		 JOIN receiving_placements p ON p.id=i.placement_id WHERE p.status='active' AND p.created_at >= $1 AND p.created_at < $2),
 		(SELECT COALESCE(SUM(i.quantity),0)::bigint FROM receiving_session_items i
 		 JOIN receiving_sessions s ON s.id=i.session_id WHERE s.status='active')`, start, end).
-		Scan(&result.Receiving.Sessions, &result.Receiving.PlacedQuantity, &result.Receiving.PendingQuantity)
+		Scan(&result.Receiving.Sessions, &result.Receiving.ReceivedQuantity, &result.Receiving.PlacedQuantity, &result.Receiving.PendingQuantity)
 	if err != nil {
 		return result, err
 	}
@@ -122,9 +123,19 @@ func readHomeStatistics(ctx context.Context, db *pgxpool.Pool, start, end time.T
 	if err != nil {
 		return result, err
 	}
-	// There is no complete intake ledger or authoritative assembly start/finish
-	// timestamps. Keep these fields null rather than infer them from imports,
-	// mutable statuses, or the first/last pick (see docs/home-statistics.md).
+	err = tx.QueryRow(ctx, `WITH completions AS (
+		SELECT e.* FROM assembly_lifecycle_events e JOIN assembly_order_records o ON o.id=e.order_id
+		WHERE e.event_type='completed' AND e.occurred_at >= $1 AND e.occurred_at < $2
+		AND o.source='ozon' AND o.status='completed'
+	) SELECT COUNT(DISTINCT c.order_id),
+		COALESCE(AVG(EXTRACT(EPOCH FROM (c.occurred_at-s.occurred_at)))
+		FILTER(WHERE s.id IS NOT NULL AND s.occurred_at <= c.occurred_at),0)::double precision
+		FROM completions c LEFT JOIN assembly_lifecycle_events s
+		ON s.order_id=c.order_id AND s.cycle_id=c.cycle_id AND s.event_type='started'`, start, end).
+		Scan(&result.Assembly.CompletedOrders, &result.Assembly.AverageAssemblySeconds)
+	if err != nil {
+		return result, err
+	}
 	return result, tx.Commit(ctx)
 }
 

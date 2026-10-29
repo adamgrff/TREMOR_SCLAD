@@ -7,45 +7,7 @@ import { useHomeStatistics } from './useHomeStatistics'
 import { useHomeSummary } from './useHomeSummary'
 import StatisticsDraft from './StatisticsDraft'
 
-import iconReceiving from '../../assets/home/icon-receiving.svg'
-import iconCells from '../../assets/home/icon-cells.svg'
-import iconAssembly from '../../assets/home/icon-assembly.svg'
-
-import iconReceivingBlack from '../../assets/home/icon-receiving-black.svg'
-import iconCellsBlack from '../../assets/home/icon-cells-black.svg'
-import iconAssemblyBlack from '../../assets/home/icon-assembly-black.svg'
-
-type MainAction = {
-  title: string
-  description: string
-  icon: string
-  lightIcon: string
-  path?: string
-}
-
-const mainActions: MainAction[] = [
-  {
-    title: 'ПРИЕМКА',
-    description: 'Добавление товара на склад',
-    icon: iconReceiving,
-    lightIcon: iconReceivingBlack,
-    path: '/receiving',
-  },
-  {
-    title: 'ЯЧЕЙКИ',
-    description: 'Страница схемы ячеек и их содержимого',
-    icon: iconCells,
-    lightIcon: iconCellsBlack,
-    path: '/cells',
-  },
-  {
-    title: 'СБОРКА',
-    description: 'Страница с выдачей и сборкой заказов',
-    icon: iconAssembly,
-    lightIcon: iconAssemblyBlack,
-    path: '/assembly',
-  },
-]
+import { mainActions } from '../../config/mainActions'
 
 function HomePage() {
   const navigate = useNavigate()
@@ -63,7 +25,7 @@ function HomePage() {
   return (
     <main className={`homePage homePage--${theme}`}>
       <div className="homePage__screen" ref={statistics.screenRef}>
-      <Header theme={theme} onToggleTheme={toggleTheme} />
+      <Header logoMode="static" theme={theme} onToggleTheme={toggleTheme} />
 
       <section className="hero" aria-labelledby="home-title">
         <p className="hero__eyebrow">СКЛАДСКАЯ СИСТЕМА</p>

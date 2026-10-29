@@ -47,7 +47,7 @@
 6. **Modal Escape — выполнено I8.** Шесть тёмных диалогов не закрываются Escape/backdrop; предусмотренные кнопки, busy-guards и возврат фокуса сохранены, операции/API не менялись. Прежние light callbacks сохранены.
 7. **Overlay clipping — реализовано I8–I9/I4c.** ErrorTooltip и Event History используют portal/viewport positioning; обычные customizable Select — browser picker/top layer. Сохранять проверки scroll/resize/focus и не заменять их одним z-index.
 8. **Контраст прозрачных слоёв.** Ранее замеренный крайний случай errorbadge поверх selected-hover на полностью белой подложке подWindow≈4.35:1; на текущем изображении проверенный диапазон был выше. Это не разрешение менять палитру. При новом фоне/слоях проверить заново и вынести реальное противоречие, не заявлять универсальнуюWCAG-гарантию для любой подложки.
-9. **Регрессии.** check-design-system-visual.mjs сейчас сравнивает только Разбор с demo-design-system; не покрывает остальные окна и не может служить единственным visual gate v1.0. Функциональные scripts/test-*.mjs также не заменяют реальные browser-interaction проверки.
+9. **Регрессии.** check-design-system-visual.mjs сравнивает только Разбор с commit SHA из frontend/scripts/fixtures/disassembly-visual-baseline.json (актуальный эталон и матрица описаны в ../assembly/disassembly-testing.md); не покрывает остальные окна и не может служить единственным visual gate v1.0. Функциональные scripts/test-*.mjs также не заменяют реальные browser-interaction проверки.
 
 ## Отделение визуальной миграции от функциональных задач
 

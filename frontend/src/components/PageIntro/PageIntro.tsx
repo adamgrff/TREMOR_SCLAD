@@ -42,7 +42,7 @@ export default function PageIntro({ closing, onClosed }: { closing: boolean; onC
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     function prepareLogo() {
-      const headerLogo = document.querySelector<HTMLElement>('.header .logo')
+      const headerLogo = document.querySelector<HTMLElement>('[data-page-intro-logo-target]')
       const bounds = headerLogo?.getBoundingClientRect()
       const width = window.innerWidth
       const height = window.innerHeight
@@ -51,14 +51,15 @@ export default function PageIntro({ closing, onClosed }: { closing: boolean; onC
         const scale = bounds.width / headerLogo.offsetWidth
         logo.style.width = `${bounds.width}px`
         logo.style.height = `${bounds.height}px`
-        Array.from(headerLogo.children).forEach((source, index) => {
-          const target = logo?.children[index] as HTMLElement | undefined
-          if(!target) return
+        for(const part of ['top', 'bottom'] as const) {
+          const source = headerLogo.querySelector<HTMLElement>(`[data-brand-${part}]`)
+          const target = logo.querySelector<HTMLElement>(`[data-intro-${part}]`)
+          if(!source || !target) continue
           const style = getComputedStyle(source)
           for(const property of ['font-size', 'padding-bottom', 'margin-bottom', 'letter-spacing'] as const) {
             target.style.setProperty(property, `${parseFloat(style.getPropertyValue(property)) * scale}px`)
           }
-        })
+        }
       }
       const logoBounds = logo.getBoundingClientRect()
       logo.style.left = `${(width - logoBounds.width) / 2}px`
@@ -149,6 +150,6 @@ export default function PageIntro({ closing, onClosed }: { closing: boolean; onC
       </defs>
       <rect width="100%" height="100%" fill="black" mask={`url(#${maskId})`} />
     </svg>
-    <div className="pageIntro__logo" ref={logoRef} aria-hidden="true"><span>TREMOR</span><span>СКЛАД</span></div>
+    <div className="pageIntro__logo" ref={logoRef} aria-hidden="true"><span data-intro-top>TREMOR</span><span data-intro-bottom>СКЛАД</span></div>
   </div>, document.body)
 }

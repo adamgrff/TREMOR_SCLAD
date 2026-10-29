@@ -30,6 +30,7 @@ func main() {
 		{"assembly_ozon_operations", "migrations/017_assembly_ozon_operations.sql"},
 		{"assembly_disassembly_sessions", "migrations/018_assembly_disassembly.sql"},
 		{"assembly_disassembly_return_reversals", "migrations/019_assembly_disassembly_return_reversals.sql"},
+		{"assembly_lifecycle_events", "migrations/021_assembly_lifecycle_events.sql"},
 	} {
 		var applied bool
 		if err = conn.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, migration.table).Scan(&applied); err != nil {

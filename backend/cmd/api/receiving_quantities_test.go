@@ -23,6 +23,7 @@ func TestReceivingQuantityRetryAndCorrection(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		requireReceivingStatus(t, call(http.MethodPost, token, 10, 0), http.StatusNoContent)
 	}
+	requireIntakeTotals(t, db, 1, 10)
 	details := receivingDetails(t, db, session)
 	if len(details.PendingItems) != 1 || details.PendingItems[0].Quantity != 10 || receivingStock(t, db) != 0 {
 		t.Fatalf("duplicate or changed stock: %+v", details)
@@ -32,12 +33,14 @@ func TestReceivingQuantityRetryAndCorrection(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		requireReceivingStatus(t, call(http.MethodPut, token, 6, 10), http.StatusNoContent)
 	}
+	requireIntakeTotals(t, db, 1, 10)
 	requireReceivingStatus(t, call(http.MethodPut, "00000000-0000-4000-8000-000000000003", 5, 10), http.StatusConflict)
 	details = receivingDetails(t, db, session)
 	if details.PendingItems[0].Quantity != 6 || receivingStock(t, db) != 0 {
 		t.Fatal("correction failed")
 	}
 	receivingPlace(t, db, session, 6)
+	requireIntakeTotals(t, db, 1, 10)
 	requireReceivingStatus(t, call(http.MethodPut, "00000000-0000-4000-8000-000000000004", 5, 6), http.StatusConflict)
 }
 
@@ -52,6 +55,7 @@ func TestCatalogCreateAndReceivingQuantityAtomicRetry(t *testing.T) {
 			t.Fatalf("create: %d %s", w.Code, w.Body.String())
 		}
 	}
+	requireIntakeTotals(t, db, 1, 10)
 	details := receivingDetails(t, db, session)
 	if len(details.PendingItems) != 1 || details.PendingItems[0].Quantity != 10 || receivingStock(t, db) != 0 {
 		t.Fatalf("retry doubled quantity: %+v", details)

@@ -16,7 +16,7 @@ import (
 func homeStatisticsTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	db := receivingTestDB(t)
-	for _, name := range []string{"010_rack_cell_codes.sql", "011_assembly_preview_drafts.sql", "012_assembly_problem_storage.sql", "013_assembly_problem_context.sql", "014_assembly_stock_checks.sql", "015_assembly_warehouse_operations.sql", "016_assembly_sku_mappings.sql", "017_assembly_ozon_operations.sql", "018_assembly_disassembly.sql", "019_assembly_disassembly_return_reversals.sql"} {
+	for _, name := range []string{"010_rack_cell_codes.sql", "011_assembly_preview_drafts.sql", "012_assembly_problem_storage.sql", "013_assembly_problem_context.sql", "014_assembly_stock_checks.sql", "015_assembly_warehouse_operations.sql", "016_assembly_sku_mappings.sql", "017_assembly_ozon_operations.sql", "018_assembly_disassembly.sql", "019_assembly_disassembly_return_reversals.sql", "021_assembly_lifecycle_events.sql"} {
 		migration, err := os.ReadFile("../../migrations/" + name)
 		if err != nil {
 			t.Fatal(err)
@@ -61,16 +61,16 @@ func TestHomeStatisticsEmptyAndUnavailable(t *testing.T) {
 	if result.Stock.TotalCells != 1 || result.Stock.TotalQuantity != 0 || result.Stock.OccupiedCells != 0 || result.Stock.SKUCount != 0 || result.Stock.LowStockCount != 0 || result.Stock.LowStockItems == nil || len(result.Stock.LowStockItems) != 0 {
 		t.Fatalf("empty stock: %+v", result.Stock)
 	}
-	if result.Receiving.Sessions != 0 || result.Receiving.PlacedQuantity != 0 || result.Receiving.PendingQuantity != 0 || result.Assembly.QueuedOrders != 0 || result.Assembly.ActiveOrders != 0 || result.Assembly.ProblemOrders != 0 {
+	if result.Receiving.Sessions != 0 || result.Receiving.ReceivedQuantity != 0 || result.Receiving.PlacedQuantity != 0 || result.Receiving.PendingQuantity != 0 || result.Assembly.QueuedOrders != 0 || result.Assembly.ActiveOrders != 0 || result.Assembly.ProblemOrders != 0 {
 		t.Fatal(result)
 	}
 	var raw map[string]map[string]json.RawMessage
 	if err := json.Unmarshal(w.Body.Bytes(), &raw); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range [][2]string{{"receiving", "receivedQuantity"}, {"assembly", "completedOrders"}, {"assembly", "averageAssemblySeconds"}} {
-		if string(raw[field[0]][field[1]]) != "null" {
-			t.Fatalf("unavailable %v must be explicit null: %s", field, w.Body.String())
+	for _, field := range []string{"completedOrders", "averageAssemblySeconds"} {
+		if string(raw["assembly"][field]) != "0" {
+			t.Fatalf("empty %s must be numeric zero: %s", field, w.Body.String())
 		}
 	}
 	db.Close()
@@ -174,17 +174,17 @@ func TestHomeStatisticsRealAggregates(t *testing.T) {
 		problems int64
 	}{{"today", 2, 10, 1}, {"7d", 3, 30, 2}, {"30d", 4, 60, 3}} {
 		from, _ := homeStatisticsPeriod(test.period, now)
-		result, err := readHomeStatistics(ctx, db, from, now)
+		result, err := readHomeStatistics(ctx, db, from, time.Now())
 		if err != nil {
 			t.Fatal(err)
 		}
-		if result.Receiving.Sessions != test.sessions || result.Receiving.PlacedQuantity != test.placed || result.Receiving.PendingQuantity != 12 || result.Receiving.ReceivedQuantity != nil {
+		if result.Receiving.Sessions != test.sessions || result.Receiving.PlacedQuantity != test.placed || result.Receiving.PendingQuantity != 12 || result.Receiving.ReceivedQuantity != 12 {
 			t.Fatalf("period %s receiving: %+v", test.period, result.Receiving)
 		}
 		if result.Stock.TotalQuantity != 19 || result.Stock.OccupiedCells != 2 || result.Stock.TotalCells != 3 || result.Stock.SKUCount != 5 || result.Stock.LowStockCount != 4 || !reflect.DeepEqual(result.Stock.LowStockItems, expectedLow) {
 			t.Fatalf("period %s stock: %+v", test.period, result.Stock)
 		}
-		if result.Assembly.QueuedOrders != 1 || result.Assembly.ActiveOrders != 1 || result.Assembly.ProblemOrders != test.problems || result.Assembly.CompletedOrders != nil || result.Assembly.AverageAssemblySeconds != nil {
+		if result.Assembly.QueuedOrders != 1 || result.Assembly.ActiveOrders != 1 || result.Assembly.ProblemOrders != test.problems || result.Assembly.CompletedOrders != 0 || result.Assembly.AverageAssemblySeconds != 0 {
 			t.Fatalf("period %s assembly: %+v", test.period, result.Assembly)
 		}
 		if test.period != "today" && !reflect.DeepEqual(stock, result.Stock) {

@@ -189,7 +189,7 @@ function CellsPage() {
 
   return (
     <main className={`cellsPage cellsPage--${theme}`}>
-      <Header theme={theme} onToggleTheme={toggleTheme} />
+      <Header logoMode="navigation" theme={theme} onToggleTheme={toggleTheme} />
 
       <section className="cellsPage__content">
         <div className="cellsPage__toolbar">
