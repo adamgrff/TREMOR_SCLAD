@@ -56,7 +56,7 @@ func cycleServer(t *testing.T, db *pgxpool.Pool, drop *atomic.Bool) *httptest.Se
 func TestAssemblyCycleReceivingToProblemToPickOnProductionSchema(t *testing.T) {
 	// Use the actual warehouse migrations, not the lightweight stock-table fixture.
 	db := receivingTestDB(t)
-	for _, name := range []string{"010_rack_cell_codes.sql", "011_assembly_preview_drafts.sql", "012_assembly_problem_storage.sql", "013_assembly_problem_context.sql", "014_assembly_stock_checks.sql", "015_assembly_warehouse_operations.sql", "016_assembly_sku_mappings.sql", "017_assembly_ozon_operations.sql", "018_assembly_disassembly.sql", "019_assembly_disassembly_return_reversals.sql"} {
+	for _, name := range []string{"010_rack_cell_codes.sql", "011_assembly_preview_drafts.sql", "012_assembly_problem_storage.sql", "013_assembly_problem_context.sql", "014_assembly_stock_checks.sql", "015_assembly_warehouse_operations.sql", "016_assembly_sku_mappings.sql", "017_assembly_ozon_operations.sql", "018_assembly_disassembly.sql", "019_assembly_disassembly_return_reversals.sql", "021_assembly_lifecycle_events.sql"} {
 		data, err := os.ReadFile("../../migrations/" + name)
 		if err != nil {
 			t.Fatal(err)

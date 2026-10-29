@@ -98,6 +98,15 @@ func main() {
 	mux.HandleFunc("PUT /api/assembly-preview/draft", func(w http.ResponseWriter, r *http.Request) { saveAssemblyDraftHandler(database, w, r) })
 	mux.HandleFunc("POST /api/racks", func(w http.ResponseWriter, r *http.Request) { createRackHandler(database, w, r) })
 	mux.HandleFunc("GET /api/racks", func(w http.ResponseWriter, r *http.Request) { racksHandler(database, w, r) })
+	mux.HandleFunc("GET /api/home/history", func(w http.ResponseWriter, r *http.Request) {
+		homeHistoryHandler(database, w, r)
+	})
+	mux.HandleFunc("GET /api/home/statistics", func(w http.ResponseWriter, r *http.Request) {
+		homeStatisticsHandler(database, w, r)
+	})
+	mux.HandleFunc("GET /api/receiving/pending-summary", func(w http.ResponseWriter, r *http.Request) {
+		receivingPendingSummaryHandler(database, w, r)
+	})
 	mux.HandleFunc("POST /api/receiving/sessions/{sessionID}/quantities/{productID}", func(w http.ResponseWriter, r *http.Request) { receivingQuantityHandler(database, w, r) })
 	mux.HandleFunc("PUT /api/receiving/sessions/{sessionID}/quantities/{productID}", func(w http.ResponseWriter, r *http.Request) { receivingQuantityHandler(database, w, r) })
 	mux.HandleFunc("POST /api/product-catalog", func(w http.ResponseWriter, r *http.Request) { saveCatalogProductHandler(database, w, r) })

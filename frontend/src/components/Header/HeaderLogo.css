@@ -1,0 +1,30 @@
+.headerLogo { grid-column: 2; justify-self: center; position: relative; color: var(--text); font-weight: 900; line-height: .9; letter-spacing: 1px; text-align: center; text-transform: uppercase; }
+.headerLogo__brand { display: flex; flex-direction: column; align-items: center; }
+.headerLogo__top { position: relative; width: 100%; padding-bottom: 12px; margin-bottom: 6px; font: 400 40px/.9 'Bauhaus 93 Remastered', sans-serif; }
+.headerLogo__top::after { content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 3px; background: currentColor; border-radius: 999px; }
+.headerLogo__home { color: inherit; text-decoration: none; transition: filter 180ms ease, text-shadow 180ms ease; }
+.headerLogo__home:hover, .headerLogo__home:focus-visible { filter: drop-shadow(var(--glow)); text-shadow: var(--glow); }
+.headerLogo__wordViewport { display: block; height: 21.6px; overflow: hidden; }
+.headerLogo__word { display: block; font: 400 24px/.9 var(--font-interface); transition: transform 200ms ease 300ms; }
+.headerLogo--open .headerLogo__word { transform: translateY(-120%); transition-delay: 0ms; }
+.headerLogo__navigation { position: absolute; bottom: 0; left: 50%; width: max-content; height: 21.6px; transform: translateX(-50%); }
+.headerLogo__navigation::before { content: 'СКЛАД'; display: block; visibility: hidden; font: 400 24px/.9 var(--font-interface); }
+.headerLogo__trigger { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; background: transparent; color: inherit; border-radius: 3px; }
+.headerLogo--open .headerLogo__trigger { pointer-events: none; }
+.headerLogo__iconsViewport { position: absolute; inset: -3px -5px -11px; overflow: hidden; pointer-events: none; }
+.headerLogo__links { height: 100%; margin: 0 5px; display: flex; align-items: flex-start; justify-content: space-between; }
+.headerLogo__link { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; color: inherit; border-radius: 3px; transform: translateY(140%); transition: transform 220ms ease; }
+.headerLogo--open .headerLogo__link { transform: translateY(0); pointer-events: auto; }
+.headerLogo__link img { width: 32px; height: 32px; object-fit: contain; transition: filter 180ms ease; }
+.headerLogo__link:hover img, .headerLogo__link:focus-visible img { filter: drop-shadow(var(--glow)); }
+.headerLogo__home:focus-visible, .headerLogo__trigger:focus-visible, .headerLogo__link:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.headerLogo__tooltips { position: absolute; top: calc(100% + 8px); left: 0; width: 100%; height: 30px; pointer-events: none; }
+.headerLogo__tooltip { position: absolute; top: 0; left: 50%; transform: translateX(-50%); padding: 3px 7px; border-top: 3px solid transparent; border-radius: 5px; background: #181818; background-clip: padding-box; color: #fff; font: 400 13px/1.2 var(--font-interface); letter-spacing: .5px; white-space: nowrap; visibility: hidden; opacity: 0; transition: opacity 100ms ease, visibility 0s; }
+.headerLogo--open .headerLogo__navigation:has(.headerLogo__link:nth-child(1):is(:hover, :focus-visible)) .headerLogo__tooltip--0,
+.headerLogo--open .headerLogo__navigation:has(.headerLogo__link:nth-child(2):is(:hover, :focus-visible)) .headerLogo__tooltip--1,
+.headerLogo--open .headerLogo__navigation:has(.headerLogo__link:nth-child(3):is(:hover, :focus-visible)) .headerLogo__tooltip--2 { visibility: visible; opacity: 1; transition-delay: 400ms; }
+.headerLogo--open .headerLogo__tooltip:hover { visibility: visible; opacity: 1; transition-delay: 0ms; }
+.headerLogo--open .headerLogo__tooltip { pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .headerLogo__word, .headerLogo__link, .headerLogo__home, .headerLogo__link img { transition: none !important; }
+}

@@ -75,7 +75,17 @@ func registerOzonOperation(ctx context.Context, tx pgx.Tx, order, active map[str
 	if err = tx.QueryRow(ctx, `SELECT CASE WHEN status='in_progress' THEN 'assembly' ELSE 'queue' END FROM assembly_order_records WHERE id=$1::uuid`, oid).Scan(&origin); err != nil {
 		return ozonJournalOperation{}, err
 	}
-	payload := encodeValue(map[string]any{"order": order, "assembly": active, "source": origin})
+	data := map[string]any{"order": order, "assembly": active, "source": origin}
+	if purpose == "confirm_shipment" {
+		cycle, err := latestAssemblyCycle(ctx, tx, oid)
+		if err != nil {
+			return ozonJournalOperation{}, err
+		}
+		if cycle != "" {
+			data["lifecycleCycleId"] = cycle
+		}
+	}
+	payload := encodeValue(data)
 	if err = tx.QueryRow(ctx, `INSERT INTO assembly_ozon_operations(order_id,order_version_id,purpose,payload,payload_hash) VALUES($1::uuid,$2::uuid,$3,$4::jsonb,$5) RETURNING id::text`, oid, vid, purpose, []byte(payload), hash).Scan(&id); err != nil {
 		return ozonJournalOperation{}, err
 	}
@@ -302,6 +312,9 @@ func finalizeOzonConfirmation(ctx context.Context, tx pgx.Tx, state map[string]a
 		if sameAssemblyOrder(valueMap(v), order) {
 			return false, nil
 		}
+	}
+	if err := recordAssemblyCompleted(ctx, tx, op); err != nil {
+		return false, err
 	}
 	for _, e := range related {
 		p := valueMap(e["problem"])

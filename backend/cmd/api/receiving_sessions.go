@@ -401,20 +401,7 @@ func addReceivingSessionItemHandler(
 		return
 	}
 
-	_, err = tx.Exec(
-		r.Context(),
-		`
-			INSERT INTO receiving_session_items
-				(session_id, product_id, quantity)
-			VALUES ($1, $2, $3)
-			ON CONFLICT (session_id, product_id)
-			DO UPDATE SET
-				quantity = receiving_session_items.quantity + EXCLUDED.quantity
-		`,
-		sessionID,
-		productID,
-		request.Quantity,
-	)
+	err = addReceivingSessionQuantity(r.Context(), tx, sessionID, productID, request.Quantity)
 	if err != nil {
 		log.Printf("failed to save pending SKU %s: %v", request.SKU, err)
 		writeErrorResponse(

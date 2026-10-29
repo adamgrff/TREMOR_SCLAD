@@ -189,7 +189,7 @@ func saveCatalogProductHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.
 		return
 	}
 	if input.ReceivingQuantity > 0 {
-		if _, err = tx.Exec(r.Context(), `INSERT INTO receiving_session_items(session_id,product_id,quantity) VALUES($1,$2,$3)`, input.SessionID, id, input.ReceivingQuantity); err != nil {
+		if err = addReceivingSessionQuantity(r.Context(), tx, input.SessionID, id, input.ReceivingQuantity); err != nil {
 			writeErrorResponse(w, 500, "Не удалось добавить товар в приёмку")
 			return
 		}

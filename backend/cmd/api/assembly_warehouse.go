@@ -175,12 +175,7 @@ func prepareWarehouseProblem(ctx context.Context, tx pgx.Tx, current json.RawMes
 	}
 	// The snapshot builder receives current observations without changing the active immutable composition.
 	updateWarehousePlan(order, result, picks)
-	if request.Source == "queue" {
-		request.Order = encodeValue(order)
-	} else {
-		// The caller uses this hydrated state for creation; see buildWarehouseProblem.
-		request.Order = encodeValue(order)
-	}
+	request.Order = encodeValue(order)
 	return nil
 }
 func warehouseAssemblyHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request, action string) {
@@ -238,6 +233,9 @@ func applyWarehouseAssemblyOperation(ctx context.Context, tx pgx.Tx, current jso
 			return encodeValue(state), stockResultMessage(result), false, nil
 		}
 		if e = reserveAssemblyStock(ctx, tx, result); e != nil {
+			return nil, "", false, e
+		}
+		if e = recordAssemblyStarted(ctx, tx, result.OrderID, op.RequestID); e != nil {
 			return nil, "", false, e
 		}
 		updateWarehousePlan(order, result, []any{})
