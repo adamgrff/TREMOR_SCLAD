@@ -14,8 +14,6 @@ type HeaderProps = {
   onOzonSync?: () => Promise<void>
 }
 
-const navItems = ['РЕВИЗИЯ', 'МАГАЗИНЫ', 'КОЛЛЕКТОР', 'ИСТОРИЯ']
-
 function Header({ theme, onToggleTheme, ozonSyncState, onOzonSync }: HeaderProps) {
   const isLightTheme = theme === 'light'
 
@@ -23,26 +21,10 @@ function Header({ theme, onToggleTheme, ozonSyncState, onOzonSync }: HeaderProps
     <header className={`header header--${theme}`}>
       <OzonSyncStatus state={ozonSyncState} onSync={onOzonSync} />
 
-      <nav className="nav nav--left" aria-label="Левая навигация">
-        {navItems.slice(0, 2).map((item) => (
-          <button className="navButton" type="button" key={item}>
-            {item}
-          </button>
-        ))}
-      </nav>
-
       <Link className="logo" to="/" aria-label="Главная страница">
         <span>TREMOR</span>
         <span>СКЛАД</span>
       </Link>
-
-      <nav className="nav nav--right" aria-label="Правая навигация">
-        {navItems.slice(2).map((item) => (
-          <button className="navButton" type="button" key={item}>
-            {item}
-          </button>
-        ))}
-      </nav>
 
       <div className="headerActions">
         <button

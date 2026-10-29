@@ -3,6 +3,8 @@ import '../../App.css'
 
 import Header from '../../components/Header/Header'
 import { useTheme } from '../../hooks/useTheme'
+import { useHomeStatistics } from './useHomeStatistics'
+import StatisticsDraft from './StatisticsDraft'
 
 import iconReceiving from '../../assets/home/icon-receiving.svg'
 import iconCells from '../../assets/home/icon-cells.svg'
@@ -11,9 +13,6 @@ import iconAssembly from '../../assets/home/icon-assembly.svg'
 import iconReceivingBlack from '../../assets/home/icon-receiving-black.svg'
 import iconCellsBlack from '../../assets/home/icon-cells-black.svg'
 import iconAssemblyBlack from '../../assets/home/icon-assembly-black.svg'
-
-import manualModeLight from '../../assets/home/manual-mode-light.svg'
-import manualModeBlack from '../../assets/home/manual-mode-black.svg'
 
 type MainAction = {
   title: string
@@ -47,20 +46,23 @@ const mainActions: MainAction[] = [
   },
 ]
 
-const warehouseStats = {
-  operations: 'x',
-  collector: 'x',
-  products: 'x',
-}
+// Temporary values until the summary is connected to warehouse data.
+const summaryItems = [
+  { title: 'ПРИЁМКА', value: 12, description: 'ожидают размещения' },
+  { title: 'ЯЧЕЙКИ', value: 1248, description: 'ед. на складе' },
+  { title: 'СБОРКА', value: 8, description: 'заказов в очереди' },
+]
 
 function HomePage() {
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme('dark')
+  const statistics = useHomeStatistics()
 
   const isLightTheme = theme === 'light'
 
   return (
     <main className={`homePage homePage--${theme}`}>
+      <div className="homePage__screen" ref={statistics.screenRef}>
       <Header theme={theme} onToggleTheme={toggleTheme} />
 
       <section className="hero" aria-labelledby="home-title">
@@ -98,50 +100,55 @@ function HomePage() {
 
       </section>
 
-      <div className="homePage__bottom">
-        <button
-          className="manualModeButton"
-          type="button"
-          aria-label="Ручной режим"
-        >
-          <img
-            className="manualModeButton__image"
-            src={isLightTheme ? manualModeLight : manualModeBlack}
-            alt=""
-            aria-hidden="true"
-          />
-        </button>
-        <footer className="statsPanel" aria-label="Статистика склада">
-          <span className="statsPanel__today">
-            СЕГОДНЯ<span className="statsPanel__colon">:</span>
-          </span>
-
-          <span>
-            <span className="statsPanel__value">
-              {warehouseStats.operations}
-            </span>{' '}
-            ОПЕРАЦИЙ
-          </span>
-
-          <span className="statsPanel__separator">•</span>
-
-          <span>
-            <span className="statsPanel__value">
-              {warehouseStats.collector}
-            </span>{' '}
-            В КОЛЛЕКТОРЕ
-          </span>
-
-          <span className="statsPanel__separator">•</span>
-
-          <span>
-            <span className="statsPanel__value">
-              {warehouseStats.products}
-            </span>{' '}
-            ТОВАРОВ НА СКЛАДЕ
-          </span>
-        </footer>
+      <div className="homeSummary">
+        <svg ref={statistics.surfaceRef} className="homeSummary__surface" viewBox="0 0 1000 152" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <radialGradient id="homeSummaryLocalGlow" gradientUnits="userSpaceOnUse" r="65">
+              <stop stopColor="white" stopOpacity=".055" />
+              <stop offset="1" stopColor="white" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="homeSummaryEdgeGlow" gradientUnits="userSpaceOnUse" r="100">
+              <stop stopColor="white" />
+              <stop offset="1" stopColor="white" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="homeSummaryAccent" cx="0" cy="0" r="1" gradientTransform="translate(500 152) scale(340 80)" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stopColor="white" stopOpacity=".9" />
+              <stop offset="1" stopColor="white" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <path className="homeSummary__shape" d="M28 0H972Q1000 0 1000 28V100Q1000 128 972 128H526Q520 128 516 134L500 152L484 134Q480 128 474 128H28Q0 128 0 100V28Q0 0 28 0Z" />
+          <path className="homeSummary__hover" fill="url(#homeSummaryLocalGlow)" stroke="url(#homeSummaryEdgeGlow)" d="M28 0H972Q1000 0 1000 28V100Q1000 128 972 128H526Q520 128 516 134L500 152L484 134Q480 128 474 128H28Q0 128 0 100V28Q0 0 28 0Z" />
+          <path className="homeSummary__accent homeEdgeHalo" d="M180 128H474Q480 128 484 134L500 152L516 134Q520 128 526 128H820" />
+          <path className="homeSummary__accent" d="M180 128H474Q480 128 484 134L500 152L516 134Q520 128 526 128H820" />
+        </svg>
+        <dl className="homeSummary__items">
+          {summaryItems.map((item) => (
+            <div className="homeSummary__item" key={item.title}>
+              <dt className="homeSummary__title">{item.title}</dt>
+              <dd className="homeSummary__data">{item.value} {item.description}</dd>
+            </div>
+          ))}
+        </dl>
+        <button className="homeSummary__link" type="button" aria-label="Открыть общее окно статистики" aria-controls="home-statistics" onClick={statistics.scrollToStatistics} onPointerMove={statistics.moveGlow} />
       </div>
+      </div>
+      <div className="homeStatisticsConnection" ref={statistics.bridgeRef} aria-hidden="true">
+        <span className="homeStatisticsConnection__light" />
+      </div>
+      <section id="home-statistics" className="homeStatistics ds-v1 ui-v1-window" ref={statistics.windowRef} aria-labelledby="home-statistics-title">
+        <svg className="homeStatistics__connection" viewBox="0 0 1000 48" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <radialGradient id="homeStatisticsArrival" cx="0" cy="0" r="1" gradientTransform="translate(500 -156) scale(320 80)" gradientUnits="userSpaceOnUse">
+              <stop stopColor="white" stopOpacity=".9" />
+              <stop offset="1" stopColor="white" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <path className="homeStatistics__tail" d="M474 24Q480 24 484 18L500 0L516 18Q520 24 526 24Z" />
+          <path className="homeStatistics__arrival homeEdgeHalo" d="M180 24H474Q480 24 484 18L500 0L516 18Q520 24 526 24H820" />
+          <path className="homeStatistics__arrival" d="M180 24H474Q480 24 484 18L500 0L516 18Q520 24 526 24H820" />
+        </svg>
+        <StatisticsDraft />
+      </section>
     </main>
   )
 }
