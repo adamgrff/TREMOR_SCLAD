@@ -3,11 +3,9 @@ import { createPortal } from 'react-dom'
 import './PageIntro.css'
 
 const INTRO_DELAY_MS = 500
-const TRANSITION_DELAY_MS = 150
 const REDUCED_MOTION_DELAY_MS = 300
 const LOGO_MOVE_MS = 500
 const REVEAL_MS = 500
-const CLOSE_MS = 500
 const SOFT_EDGE_MARGIN = 320
 
 function setOpeningRect(rect: SVGRectElement, centerX: number, centerY: number, width: number, height: number) {
@@ -19,8 +17,7 @@ function setOpeningRect(rect: SVGRectElement, centerX: number, centerY: number, 
   rect.setAttribute('ry', String(height / 2))
 }
 
-export default function PageIntro({ closing, onClosed }: { closing: boolean; onClosed: () => void }) {
-  const initialTransition = useRef({ closing, onClosed })
+export default function PageIntro() {
   const [finished, setFinished] = useState(false)
   const logoRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -35,6 +32,16 @@ export default function PageIntro({ closing, onClosed }: { closing: boolean; onC
     const logo = logoElement
     const wasInert = root?.inert ?? false
     if(root) root.inert = true
+    let released = false
+    function releaseRoot() {
+      if (released) return
+      released = true
+      if(root) root.inert = wasInert
+    }
+    function finish() {
+      releaseRoot()
+      setFinished(true)
+    }
     let frame = 0
     let timer = 0
     let animation: Animation | undefined
@@ -78,7 +85,7 @@ export default function PageIntro({ closing, onClosed }: { closing: boolean; onC
           try { await animation.finished } catch { return }
         }
         if(cancelled) return
-        if(reducedMotion) { setFinished(true); return }
+        if(reducedMotion) { finish(); return }
         const width = window.innerWidth
         const height = window.innerHeight
         svgRef.current?.setAttribute('viewBox', `0 0 ${width} ${height}`)
@@ -95,48 +102,20 @@ export default function PageIntro({ closing, onClosed }: { closing: boolean; onC
           setOpeningRect(opening, centerX, centerY, rectWidth, rectHeight)
           logo.style.opacity = String(1 - Math.min(progress * 3, 1))
           if(progress < 1) frame = requestAnimationFrame(reveal)
-          else setFinished(true)
+          else finish()
         }
         frame = requestAnimationFrame(reveal)
-      }, reducedMotion ? REDUCED_MOTION_DELAY_MS : initialTransition.current.closing ? TRANSITION_DELAY_MS : INTRO_DELAY_MS)
+      }, reducedMotion ? REDUCED_MOTION_DELAY_MS : INTRO_DELAY_MS)
     }
-    if(initialTransition.current.closing && !reducedMotion) {
-      logo.style.opacity = '0'
-      const width = window.innerWidth
-      const height = window.innerHeight
-      const start = performance.now()
-      function closePage(now: number) {
-        if(cancelled || !opening) return
-        const progress = Math.min((now - start) / CLOSE_MS, 1)
-        const remaining = 1 - (progress * progress * (3 - 2 * progress))
-        const diameter = Math.hypot(width, height) + SOFT_EDGE_MARGIN
-        const rectWidth = diameter * remaining
-        const rectHeight = diameter * remaining
-        setOpeningRect(opening, width / 2, height / 2, rectWidth, rectHeight)
-        logo.style.opacity = String(Math.max(0, (progress - .5) * 2))
-        if(progress < 1) frame = requestAnimationFrame(closePage)
-        else { initialTransition.current.onClosed(); startIntro() }
-      }
-      closePage(start)
-    } else {
-      if(initialTransition.current.closing) initialTransition.current.onClosed()
-      startIntro()
-    }
+    startIntro()
     return () => {
       cancelled = true
       clearTimeout(timer)
       cancelAnimationFrame(frame)
       animation?.cancel()
-      if(root) root.inert = wasInert
+      releaseRoot()
     }
   }, [])
-
-  useEffect(() => {
-    if(finished) {
-      const root = document.getElementById('root')
-      if(root) root.inert = false
-    }
-  }, [finished])
 
   if(finished) return null
   return createPortal(<div className="pageIntro" role="status" aria-label="Открытие страницы TREMOR СКЛАД">

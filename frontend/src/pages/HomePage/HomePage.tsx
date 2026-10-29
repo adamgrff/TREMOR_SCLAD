@@ -1,17 +1,15 @@
 import { useNavigate } from 'react-router'
 import '../../App.css'
 
-import Header from '../../components/Header/Header'
-import { useTheme } from '../../hooks/useTheme'
+import type { Theme } from '../../components/Header/Header'
 import { useHomeStatistics } from './useHomeStatistics'
 import { useHomeSummary } from './useHomeSummary'
 import StatisticsDraft from './StatisticsDraft'
 
 import { mainActions } from '../../config/mainActions'
 
-function HomePage() {
+function HomePage({ theme }: { theme: Theme }) {
   const navigate = useNavigate()
-  const { theme, toggleTheme } = useTheme('dark')
   const statistics = useHomeStatistics()
   const summary = useHomeSummary()
   const summaryItems = [
@@ -25,7 +23,7 @@ function HomePage() {
   return (
     <main className={`homePage homePage--${theme}`}>
       <div className="homePage__screen" ref={statistics.screenRef}>
-      <Header logoMode="static" theme={theme} onToggleTheme={toggleTheme} />
+      <div className="pageHeaderSpace" aria-hidden="true" />
 
       <section className="hero" aria-labelledby="home-title">
         <p className="hero__eyebrow">СКЛАДСКАЯ СИСТЕМА</p>

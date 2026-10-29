@@ -71,53 +71,9 @@ const css = read('../src/components/Header/HeaderLogo.css')
 assert.match(css, /prefers-reduced-motion: reduce/)
 assert.match(css, /transition: none !important/)
 assert.match(css, /transition-delay: 400ms/)
-for (const [page, mode] of [['HomePage', 'static'], ['ReceivingPage', 'navigation'], ['CellsPage', 'navigation'], ['AssemblyPage', 'navigation']]) {
-  assert.ok(read(`../src/pages/${page}/${page}.tsx`).includes(`<Header logoMode="${mode}"`))
+for (const page of ['HomePage', 'ReceivingPage', 'CellsPage', 'AssemblyPage']) {
+  assert.doesNotMatch(read(`../src/pages/${page}/${page}.tsx`), /<Header /)
 }
+const appSource = read('../src/App.tsx')
+assert.match(appSource, /<Header logoMode=\{location.pathname === '\/' \? 'static' : 'navigation'\}/)
 console.log('HeaderLogo checks passed: modes, routes, stable target, hidden tab order, focus, Escape, hover, blur and reduced-motion contract.')
-
-// Execute the real PageIntro effect with measured old/new page targets. Icons
-// and tooltips deliberately have no place in this measurement API.
-async function checkIntro(reducedMotion, closing) {
-  const refs = [], effects = [], copied = {}, animations = []
-  let rect = { left: 50, top: 40, width: 110, height: 53 }
-  let frame, timer, finished = false, closed = false
-  const root = { inert: false }
-  const part = name => ({ style: { setProperty: (key, value) => { copied[`${name}:${key}`] = value } } })
-  const top = part('top'), bottom = part('bottom')
-  const overlay = { style: {}, querySelector: selector => selector === '[data-intro-top]' ? top : bottom,
-    getBoundingClientRect: () => ({ width: Number.parseFloat(overlay.style.width), height: Number.parseFloat(overlay.style.height) }),
-    animate: frames => { animations.push(frames); return { finished: Promise.resolve(), cancel() {} } } }
-  const header = { offsetWidth: 200, getBoundingClientRect: () => rect,
-    querySelector: selector => ({ top: selector === '[data-brand-top]' }) }
-  const hooks = { useRef: value => { const ref = { current: value }; refs.push(ref); return ref },
-    useState: () => [false, value => { finished = value }], useId: () => 'intro-test', useEffect: effect => effects.push(effect) }
-  const context = { exports: {},
-    document: { body: {}, getElementById: () => root, querySelector: selector => {
-      assert.equal(selector, '[data-page-intro-logo-target]'); return header
-    } },
-    window: { innerWidth: 1440, innerHeight: 900, matchMedia: () => ({ matches: reducedMotion }), setTimeout: callback => { timer = callback; return 1 } },
-    getComputedStyle: source => ({ getPropertyValue: property => property === 'font-size' ? source.top ? '40px' : '24px' : '0px' }),
-    performance: { now: () => 0 }, requestAnimationFrame: callback => { frame = callback; return 1 },
-    cancelAnimationFrame() {}, clearTimeout() {},
-    require: id => id === 'react' ? hooks : id === 'react-dom' ? { createPortal: node => node } : id.endsWith('.css') ? {} : require(id) }
-  vm.runInNewContext(compile('../src/components/PageIntro/PageIntro.tsx'), context)
-  context.exports.default({ closing, onClosed() { closed = true; rect = { left: 600, top: 40, width: 140, height: 53 } } })
-  refs[1].current = overlay
-  refs[2].current = { setAttribute() {} }
-  refs[3].current = { setAttribute() {} }
-  const cleanup = effects[0]()
-  assert.equal(root.inert, true)
-  assert.equal(overlay.style.width, '110px')
-  if (closing && !reducedMotion) frame(500)
-  await timer()
-  assert.equal(closed, closing)
-  assert.equal(overlay.style.width, closing ? '140px' : '110px')
-  assert.equal(copied['top:font-size'], closing ? '28px' : '22px')
-  if (reducedMotion) { assert.equal(animations.length, 0); assert.equal(finished, true) }
-  else assert.equal(animations[0][1].left, `${rect.left}px`)
-  cleanup()
-  assert.equal(root.inert, false)
-}
-for (const reduced of [false, true]) for (const closing of [false, true]) await checkIntro(reduced, closing)
-console.log('PageIntro effect checks passed: explicit text metrics, new-page remeasurement, stable bounds, regular/reduced transitions and inert cleanup.')

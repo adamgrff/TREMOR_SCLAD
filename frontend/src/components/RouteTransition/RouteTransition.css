@@ -1,0 +1,61 @@
+html { scrollbar-gutter: stable; }
+.appShell { position: relative; }
+.appHeaderFrame { position: absolute; top: 20px; left: 120px; right: 120px; z-index: 1; pointer-events: none; }
+.appHeaderFrame > .header { pointer-events: auto; }
+.pageHeaderSpace { height: 150px; flex-shrink: 0; }
+@media (max-width: 1100px) {
+  .appShell--home .appHeaderFrame { left: 32px; right: 32px; }
+}
+
+/* Keep the live Header outside every captured ancestor: named participants
+   cannot receive pointer hits, even when their snapshot has pointer-events:none. */
+html[data-route-transition] { view-transition-name: none; }
+html[data-route-transition] [data-route-content] > main { view-transition-name: route-content; }
+html[data-route-transition]::view-transition {
+  pointer-events: none;
+  overflow: clip;
+  /* Viewport-pixel geometry must compensate the site's global CSS zoom. */
+  zoom: calc(1 / var(--site-scale));
+  /* Main reserves 20px + 150px for the shared header. Keep its live area
+     above the outgoing content even when the old page was deeply scrolled. */
+  clip-path: inset(calc(170px * var(--site-scale)) 0 0 0);
+}
+html[data-route-transition]::view-transition-group(route-content) {
+  animation: none;
+  z-index: 1;
+  transform: none;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+html[data-route-transition]::view-transition-image-pair(route-content) { isolation: auto; }
+html[data-route-transition]::view-transition-old(route-content),
+html[data-route-transition]::view-transition-new(route-content) {
+  position: absolute;
+  max-width: none;
+  max-height: none;
+  height: auto;
+  mix-blend-mode: normal;
+  object-fit: fill;
+  transform-origin: top center;
+  animation-duration: 220ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+html[data-route-transition]::view-transition-old(route-content) {
+  left: var(--route-old-x); top: var(--route-old-y);
+  width: var(--route-old-width);
+  animation-name: routeFadeOut;
+}
+html[data-route-transition]::view-transition-new(route-content) {
+  left: var(--route-new-x); top: var(--route-new-y);
+  width: var(--route-new-width);
+  animation-name: routeFadeIn;
+}
+@keyframes routeFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes routeFadeIn { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-route-transition]::view-transition-group(*),
+  html[data-route-transition]::view-transition-old(*),
+  html[data-route-transition]::view-transition-new(*) { animation: none !important; }
+}

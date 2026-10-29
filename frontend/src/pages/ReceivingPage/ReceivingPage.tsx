@@ -1,11 +1,10 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
-import Header from '../../components/Header/Header'
+import type { Theme } from '../../components/Header/Header'
 import ReceivingHistory from './ReceivingHistory'
 import ProductCatalog from './ProductCatalog'
 import ReceivingQuantityDialog from './ReceivingQuantityDialog'
 import ReceivingScrollProgress from './ReceivingScrollProgress'
-import { useTheme } from '../../hooks/useTheme'
 import './ReceivingPage.css'
 import { API_BASE_URL } from '../../config/api'
 
@@ -167,12 +166,11 @@ async function loadInitialReceivingData(): Promise<InitialReceivingData> {
   }
 }
 
-function ReceivingPage() {
+function ReceivingPage({ theme }: { theme: Theme }) {
   const location = useLocation()
   useEffect(() => {
     if (location.hash === '#receiving-scan') document.getElementById('receiving-scan')?.scrollIntoView({ block: 'start' })
   }, [location.hash])
-  const { theme, toggleTheme } = useTheme('light')
   const initialDataPromise = useRef<Promise<InitialReceivingData> | null>(null)
 
   const [receivingState, setReceivingState] =
@@ -707,7 +705,7 @@ function ReceivingPage() {
 
   return (
     <main className={`receivingPage receivingPage--${theme}`}>
-      <Header logoMode="navigation" theme={theme} onToggleTheme={toggleTheme} />
+      <div className="pageHeaderSpace" aria-hidden="true" />
       <ReceivingScrollProgress />
 
       <section

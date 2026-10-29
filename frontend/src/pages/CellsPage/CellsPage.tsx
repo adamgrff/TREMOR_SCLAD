@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { API_BASE_URL } from '../../config/api'
 
-import Header from '../../components/Header/Header'
+import type { Theme } from '../../components/Header/Header'
 import CreateRackDialog from './CreateRackDialog'
-import { useTheme } from '../../hooks/useTheme'
 import './CellsPage.css'
 
 type ProductCategory = string
@@ -45,8 +44,7 @@ async function getCellContents(
   return (await response.json()) as CellItem[]
 }
 
-function CellsPage() {
-  const { theme, toggleTheme } = useTheme('light')
+function CellsPage({ theme }: { theme: Theme }) {
   const [racks, setRacks] = useState<RackConfig[]>([])
   const [rackError, setRackError] = useState('')
   const [rackReloadKey, setRackReloadKey] = useState(0)
@@ -189,7 +187,7 @@ function CellsPage() {
 
   return (
     <main className={`cellsPage cellsPage--${theme}`}>
-      <Header logoMode="navigation" theme={theme} onToggleTheme={toggleTheme} />
+      <div className="pageHeaderSpace" aria-hidden="true" />
 
       <section className="cellsPage__content">
         <div className="cellsPage__toolbar">

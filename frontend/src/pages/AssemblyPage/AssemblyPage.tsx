@@ -1,7 +1,7 @@
 import { emptyAssemblyState } from './assemblyState'
 import { getQueueOrders } from './assemblyQueue'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import Header from '../../components/Header/Header'
+import type { Theme } from '../../components/Header/Header'
 import ErrorTooltip from '../../components/ErrorTooltip/ErrorTooltip'
 import ActiveAssembly, { type ActiveAssemblyState, type AssemblyProblemSnapshot, type AssemblyPreviewOrder } from './ActiveAssembly'
 import useAssemblyDraft from './useAssemblyDraft'
@@ -9,7 +9,6 @@ import ProblemOrders from './ProblemOrders'
 import ProblemArchive from './ProblemArchive'
 import Disassembly, { type DisassemblySession } from './Disassembly'
 import OrderProblemDialog, { type OrderProblemDetails, type SavedOrderProblem } from './OrderProblemDialog'
-import { useTheme } from '../../hooks/useTheme'
 import '../ReceivingPage/ReceivingPage.css'
 import '../ReceivingPage/ReceivingHistory.css'
 import './AssemblyPage.css'
@@ -107,8 +106,7 @@ function revealQueueSearchRow(container: HTMLDivElement, row: HTMLTableRowElemen
   return cancel
 }
 
-export default function AssemblyPage() {
-  const { theme, toggleTheme } = useTheme('dark')
+export default function AssemblyPage({ theme }: { theme: Theme }) {
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [selectedNumber, setSelectedNumber] = useState('')
   const draft = useAssemblyDraft(initialWorkspace)
@@ -222,7 +220,7 @@ export default function AssemblyPage() {
 
   return (
     <main className={`receivingPage receivingPage--${theme} assemblyPage`}>
-      <Header logoMode="navigation" theme={theme} onToggleTheme={toggleTheme} />
+      <div className="pageHeaderSpace" aria-hidden="true" />
       <div className="receivingPage__content">
         {(!draft.ready || draft.saving || draft.error) && <div className={`assemblyPersistenceStatus ds-v1 ui-v1-feedback${draft.error ? ' ui-v1-feedback--error' : ''}`} role="status">
           {draft.error || (draft.saving ? 'Сохранение сборки…' : 'Восстановление сборки…')}
