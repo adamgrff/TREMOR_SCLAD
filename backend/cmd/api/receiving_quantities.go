@@ -8,22 +8,33 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var errReceivingQuantityRequestConflict = errors.New("Операция уже использована с другими данными")
 
 // Lock the request token before checking it, so concurrent retries cannot add twice.
 func receivingQuantityRetry(ctx context.Context, tx pgx.Tx, token, payload string) (int64, error) {
 	if len(token) != 36 {
 		return 0, errors.New("Некорректный идентификатор операции")
 	}
-	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, token); err != nil {
+	token = strings.ToLower(token)
+	if err := lockReceivingRequest(ctx, tx, token); err != nil {
 		return 0, err
+	}
+	var operationReceipt bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM receiving_operation_requests WHERE request_id::text=$1)`, token).Scan(&operationReceipt); err != nil {
+		return 0, err
+	}
+	if operationReceipt {
+		return 0, errReceivingQuantityRequestConflict
 	}
 	var previous string
 	var id int64
-	err := tx.QueryRow(ctx, `SELECT payload, product_id FROM receiving_quantity_requests WHERE request_id=$1`, token).Scan(&previous, &id)
+	err := tx.QueryRow(ctx, `SELECT payload, product_id FROM receiving_quantity_requests WHERE lower(request_id)=$1`, token).Scan(&previous, &id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, nil
 	}
@@ -31,13 +42,13 @@ func receivingQuantityRetry(ctx context.Context, tx pgx.Tx, token, payload strin
 		return 0, err
 	}
 	if previous != payload {
-		return 0, errors.New("Операция уже использована с другими данными")
+		return 0, errReceivingQuantityRequestConflict
 	}
 	return id, nil
 }
 
 func saveReceivingQuantityRequest(ctx context.Context, tx pgx.Tx, token, payload string, productID int64) error {
-	_, err := tx.Exec(ctx, `INSERT INTO receiving_quantity_requests (request_id,payload,product_id) VALUES ($1,$2,$3)`, token, payload, productID)
+	_, err := tx.Exec(ctx, `INSERT INTO receiving_quantity_requests (request_id,payload,product_id) VALUES ($1,$2,$3)`, strings.ToLower(token), payload, productID)
 	return err
 }
 

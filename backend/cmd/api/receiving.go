@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 )
 
 type receivingPlacementRequest struct {
+	RequestID string                          `json:"requestId"`
 	SessionID int64                           `json:"sessionId"`
 	CellCode  string                          `json:"cellCode"`
 	Items     []receivingPlacementRequestItem `json:"items"`
@@ -145,18 +147,13 @@ func createReceivingPlacementHandler(
 		seenSKU[request.Items[i].SKU] = true
 	}
 
-	tx, err := database.Begin(r.Context())
-	if err != nil {
-		log.Printf("failed to start placement transaction: %v", err)
-		writeErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"failed to place items",
-		)
+	sort.Slice(request.Items, func(i, j int) bool { return request.Items[i].SKU < request.Items[j].SKU })
+	tx := beginReceivingOperation(database, w, r, request.RequestID, "place", request)
+	if tx == nil {
 		return
 	}
 	defer tx.Rollback(r.Context())
-
+	var err error
 	err = lockActiveReceivingSession(r.Context(), tx, request.SessionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeErrorResponse(w, http.StatusNotFound, "receiving session not found")
@@ -243,29 +240,42 @@ func createReceivingPlacementHandler(
 		return
 	}
 
+	// Match the stock checker/assembly lock order (product ID, then cell ID).
+	// Keep request.Items in canonical SKU order for receipt identity.
+	skus := make([]string, 0, len(request.Items))
 	for _, item := range request.Items {
-		var productID int64
-
-		err := tx.QueryRow(
-			r.Context(),
-			`SELECT id FROM products WHERE sku = $1 AND NOT archived FOR SHARE`,
-			item.SKU,
-		).Scan(&productID)
-
-		if errors.Is(err, pgx.ErrNoRows) {
-			writeErrorResponse(w, http.StatusNotFound, "product not found")
+		skus = append(skus, item.SKU)
+	}
+	productRows, err := tx.Query(r.Context(), `SELECT id,sku FROM products WHERE sku=ANY($1::text[]) AND NOT archived ORDER BY id FOR SHARE`, skus)
+	if err != nil {
+		writeErrorResponse(w, 500, "failed to load placement products")
+		return
+	}
+	productIDs := make(map[string]int64, len(skus))
+	for productRows.Next() {
+		var id int64
+		var sku string
+		if err = productRows.Scan(&id, &sku); err != nil {
+			productRows.Close()
+			writeErrorResponse(w, 500, "failed to read placement products")
 			return
 		}
-
-		if err != nil {
-			log.Printf("failed to find product %s: %v", item.SKU, err)
-			writeErrorResponse(
-				w,
-				http.StatusInternalServerError,
-				"failed to place items",
-			)
-			return
-		}
+		productIDs[sku] = id
+	}
+	err = productRows.Err()
+	productRows.Close()
+	if err != nil {
+		writeErrorResponse(w, 500, "failed to read placement products")
+		return
+	}
+	if len(productIDs) != len(skus) {
+		writeErrorResponse(w, 404, "product not found")
+		return
+	}
+	stockItems := append([]receivingPlacementRequestItem(nil), request.Items...)
+	sort.Slice(stockItems, func(i, j int) bool { return productIDs[stockItems[i].SKU] < productIDs[stockItems[j].SKU] })
+	for _, item := range stockItems {
+		productID := productIDs[item.SKU]
 
 		_, err = tx.Exec(
 			r.Context(),
@@ -326,25 +336,7 @@ func createReceivingPlacementHandler(
 		return
 	}
 
-	if err := tx.Commit(r.Context()); err != nil {
-		log.Printf("failed to commit placement: %v", err)
-		writeErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"failed to place items",
-		)
-		return
-	}
-
-	response := receivingPlacementResponse{
-		ID:        placementID,
-		CellCode:  request.CellCode,
-		CreatedAt: createdAt,
-	}
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("failed to encode placement response: %v", err)
-	}
+	tx.respond(w, r, http.StatusOK, receivingPlacementResponse{ID: placementID, CellCode: request.CellCode, CreatedAt: createdAt})
 }
 
 func undoReceivingPlacementHandler(
@@ -360,18 +352,15 @@ func undoReceivingPlacementHandler(
 		return
 	}
 
-	tx, err := database.Begin(r.Context())
-	if err != nil {
-		log.Printf("failed to start undo transaction: %v", err)
-		writeErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"failed to undo placement",
-		)
+	var request receivingCommandRequest
+	if !decodeReceivingCommand(w, r, &request) {
+		return
+	}
+	tx := beginReceivingOperation(database, w, r, request.RequestID, "undo-placement", map[string]any{"placementId": placementID})
+	if tx == nil {
 		return
 	}
 	defer tx.Rollback(r.Context())
-
 	var initialSessionID sql.NullInt64
 
 	err = tx.QueryRow(
@@ -454,6 +443,7 @@ func undoReceivingPlacementHandler(
 			SELECT product_id, quantity
 			FROM receiving_placement_items
 			WHERE placement_id = $1
+			ORDER BY product_id
 		`,
 		placementID,
 	)
@@ -584,22 +574,5 @@ func undoReceivingPlacementHandler(
 		}
 	}
 
-	if err := tx.Commit(r.Context()); err != nil {
-		log.Printf("failed to commit undo: %v", err)
-		writeErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"failed to undo placement",
-		)
-		return
-	}
-
-	response := undoPlacementResponse{
-		ID:     placementID,
-		Status: "undone",
-	}
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("failed to encode undo response: %v", err)
-	}
+	tx.respond(w, r, http.StatusOK, undoPlacementResponse{ID: placementID, Status: "undone"})
 }

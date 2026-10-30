@@ -142,17 +142,25 @@ func readHomeStatistics(ctx context.Context, db *pgxpool.Pool, start, end time.T
 func homeStatisticsHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	now := time.Now()
 	periods, exists := r.URL.Query()["period"]
 	if exists && len(periods) != 1 {
 		writeErrorResponse(w, http.StatusBadRequest, "period must be today, 7d or 30d")
 		return
 	}
-	start, valid := homeStatisticsPeriod(r.URL.Query().Get("period"), now)
+	_, valid := homeStatisticsPeriod(r.URL.Query().Get("period"), time.Time{})
 	if !valid {
 		writeErrorResponse(w, http.StatusBadRequest, "period must be today, 7d or 30d")
 		return
 	}
+	// Event timestamps use the database clock. A different API-host clock can
+	// otherwise exclude an intake that has already committed before this GET.
+	var now time.Time
+	if err := db.QueryRow(r.Context(), `SELECT clock_timestamp()`).Scan(&now); err != nil {
+		log.Printf("failed to read statistics time: %v", err)
+		writeErrorResponse(w, http.StatusInternalServerError, "failed to load statistics")
+		return
+	}
+	start, _ := homeStatisticsPeriod(r.URL.Query().Get("period"), now)
 	response, err := readHomeStatistics(r.Context(), db, start, now)
 	if err != nil {
 		log.Printf("failed to load home statistics: %v", err)

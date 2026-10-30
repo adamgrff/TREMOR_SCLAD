@@ -23,7 +23,7 @@ func TestMutationBodiesRejectTrailingDataWithoutWrites(t *testing.T) {
 		{"rack", createRackHandler, `{"name":"Unexpected rack","counts":[1,0,0]}`},
 		{"placement", createReceivingPlacementHandler, receivingPlaceBody(session, 1)},
 		{"finish", finishReceivingHandler, fmt.Sprintf(`{"sessionId":%d,"placementIds":[%d]}`, session, placement)},
-		{"add-item", addReceivingSessionItemHandler, `{"sku":"TEST-SKU","quantity":1}`},
+		{"add-item", addReceivingSessionItemHandler, `{"sku":"TEST-SKU","quantity":1,"requestId":"20000000-0000-4000-8000-000000000001"}`},
 		{"quantity", receivingQuantityHandler, `{"quantity":1,"requestId":"00000000-0000-4000-8000-000000000001"}`},
 	}
 	for _, tc := range cases {

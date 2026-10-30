@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -19,7 +20,7 @@ func TestReceivingPendingDeletionIsScopedAndIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	remove := func(sku string) *httptest.ResponseRecorder {
-		r := httptest.NewRequest(http.MethodDelete, "/", nil)
+		r := httptest.NewRequest(http.MethodDelete, "/", strings.NewReader(fmt.Sprintf(`{"requestId":%q,"expectedRevision":%q}`, newReceivingScanID(t), receivingDetails(t, db, session).PendingRevision)))
 		r.SetPathValue("sessionID", fmt.Sprint(session))
 		r.SetPathValue("sku", sku)
 		w := httptest.NewRecorder()

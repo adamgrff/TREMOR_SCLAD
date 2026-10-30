@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -25,10 +27,16 @@ func receivingTestDB(t *testing.T) *pgxpool.Pool {
 
 func receivingTestDBWithIntake(t *testing.T, includeIntake bool) *pgxpool.Pool {
 	t.Helper()
+	return receivingTestDBWithSchema(t, includeIntake, true)
+}
+
+func receivingTestDBWithSchema(t *testing.T, includeIntake, includeOperations bool) *pgxpool.Pool {
+	t.Helper()
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("set TEST_DATABASE_URL to run PostgreSQL integration tests")
 	}
+	requireSafeReceivingTestDatabase(t, url)
 	ctx := context.Background()
 	admin, err := pgx.Connect(ctx, url)
 	if err != nil {
@@ -61,6 +69,9 @@ func receivingTestDBWithIntake(t *testing.T, includeIntake bool) *pgxpool.Pool {
 	if includeIntake {
 		migrations = append(migrations, "020_receiving_intake_events.sql")
 	}
+	if includeOperations {
+		migrations = append(migrations, "022_receiving_operation_receipts.sql", "023_receiving_receipts_immutable.sql")
+	}
 	for _, name := range migrations {
 		migration, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
 		if err != nil {
@@ -86,6 +97,24 @@ func receivingTestDBWithIntake(t *testing.T, includeIntake bool) *pgxpool.Pool {
 type receivingTestHandler func(*pgxpool.Pool, http.ResponseWriter, *http.Request)
 
 func receivingRequest(db *pgxpool.Pool, handler receivingTestHandler, body string, pathKey string, id int64) *httptest.ResponseRecorder {
+	for _, command := range []receivingTestHandler{createReceivingSessionHandler, createReceivingPlacementHandler, undoReceivingPlacementHandler, finishReceivingHandler} {
+		if reflect.ValueOf(handler).Pointer() != reflect.ValueOf(command).Pointer() {
+			continue
+		}
+		fields := map[string]any{}
+		if body == "" || json.Unmarshal([]byte(body), &fields) == nil {
+			if _, exists := fields["requestId"]; !exists {
+				var token [16]byte
+				if _, err := rand.Read(token[:]); err != nil {
+					panic(err)
+				}
+				fields["requestId"] = fmt.Sprintf("%x-%x-%x-%x-%x", token[:4], token[4:6], token[6:8], token[8:10], token[10:])
+			}
+			raw, _ := json.Marshal(fields)
+			body = string(raw)
+		}
+		break
+	}
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 	if pathKey != "" {
 		r.SetPathValue(pathKey, fmt.Sprint(id))
@@ -115,7 +144,7 @@ func receivingSession(t *testing.T, db *pgxpool.Pool) int64 {
 
 func receivingAdd(t *testing.T, db *pgxpool.Pool, session int64, quantity int) {
 	t.Helper()
-	w := receivingRequest(db, addReceivingSessionItemHandler, fmt.Sprintf(`{"sku":"TEST-SKU","quantity":%d}`, quantity), "sessionID", session)
+	w := receivingRequest(db, addReceivingSessionItemHandler, fmt.Sprintf(`{"sku":"TEST-SKU","quantity":%d,"requestId":%q}`, quantity, newReceivingScanID(t)), "sessionID", session)
 	requireReceivingStatus(t, w, http.StatusOK)
 }
 
@@ -192,7 +221,7 @@ func TestReceivingLifecycle(t *testing.T) {
 	requireReceivingStatus(t, w, http.StatusOK)
 	w = receivingRequest(db, finishReceivingHandler, finishBody, "", 0)
 	requireReceivingStatus(t, w, http.StatusConflict)
-	w = receivingRequest(db, addReceivingSessionItemHandler, `{"sku":"TEST-SKU","quantity":1}`, "sessionID", session)
+	w = receivingRequest(db, addReceivingSessionItemHandler, `{"sku":"TEST-SKU","quantity":1,"requestId":"10000000-0000-4000-8000-000000000001"}`, "sessionID", session)
 	requireReceivingStatus(t, w, http.StatusConflict)
 	w = receivingRequest(db, undoReceivingPlacementHandler, "", "placementID", placement)
 	requireReceivingStatus(t, w, http.StatusConflict)
@@ -333,4 +362,15 @@ func TestReceivingUndoInsufficientStock(t *testing.T) {
 	if receivingStock(t, db) != 4 || len(details.PendingItems) != 0 || len(details.PlacedItems) != 1 {
 		t.Fatalf("failed undo partially changed state: %+v", details)
 	}
+}
+
+func newReceivingScanID(t *testing.T) string {
+	t.Helper()
+	var id [16]byte
+	if _, err := rand.Read(id[:]); err != nil {
+		t.Fatal(err)
+	}
+	id[6] = (id[6] & 0x0f) | 0x40
+	id[8] = (id[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", id[:4], id[4:6], id[6:8], id[8:10], id[10:])
 }
