@@ -18,6 +18,7 @@ func TestAssemblyDraftPersistence(t *testing.T) {
 	if url == "" {
 		t.Skip("TEST_DATABASE_URL required")
 	}
+	requireSafeReceivingTestDatabase(t, url)
 	ctx := context.Background()
 	admin, err := pgxpool.New(ctx, url)
 	if err != nil {

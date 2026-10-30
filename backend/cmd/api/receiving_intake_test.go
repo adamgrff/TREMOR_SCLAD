@@ -37,12 +37,13 @@ func TestReceivingIntakeJournalLifecycle(t *testing.T) {
 	if _, err := db.Exec(ctx, `INSERT INTO products(category_id,sku,name) VALUES(1,'SECOND','Second SKU')`); err != nil {
 		t.Fatal(err)
 	}
-	w := receivingRequest(db, addReceivingSessionItemHandler, `{"sku":"SECOND","quantity":4}`, "sessionID", session)
+	w := receivingRequest(db, addReceivingSessionItemHandler, `{"sku":"SECOND","quantity":4,"requestId":"20000000-0000-4000-8000-000000000001"}`, "sessionID", session)
 	requireReceivingStatus(t, w, http.StatusOK)
 	receivingAdd(t, db, other, 7)
 	requireIntakeTotals(t, db, 4, 19)
 	checkStatistics := func() {
 		t.Helper()
+		requestedAt := time.Now()
 		w := httptest.NewRecorder()
 		homeStatisticsHandler(db, w, httptest.NewRequest(http.MethodGet, "/api/home/statistics?period=today", nil))
 		requireReceivingStatus(t, w, http.StatusOK)
@@ -51,7 +52,10 @@ func TestReceivingIntakeJournalLifecycle(t *testing.T) {
 			t.Fatal(err)
 		}
 		if result.Receiving.ReceivedQuantity != 19 {
-			t.Fatalf("received quantity=%d", result.Receiving.ReceivedQuantity)
+			var databaseNow time.Time
+			var events string
+			_ = db.QueryRow(ctx, `SELECT clock_timestamp(),COALESCE(jsonb_agg(jsonb_build_object('quantity',quantity,'occurredAt',occurred_at))::text,'[]') FROM receiving_intake_events`).Scan(&databaseNow, &events)
+			t.Fatalf("received quantity=%d; Go request=%s; Go now=%s; PostgreSQL now=%s; events=%s", result.Receiving.ReceivedQuantity, requestedAt.Format(time.RFC3339Nano), time.Now().Format(time.RFC3339Nano), databaseNow.Format(time.RFC3339Nano), events)
 		}
 	}
 	checkStatistics()
@@ -67,7 +71,7 @@ func TestReceivingIntakeJournalLifecycle(t *testing.T) {
 	requireReceivingStatus(t, w, http.StatusOK)
 	requireIntakeTotals(t, db, 4, 19)
 	// Deleting a current pending SKU is not a reversal of its intake history.
-	r := httptest.NewRequest(http.MethodDelete, "/", nil)
+	r := httptest.NewRequest(http.MethodDelete, "/", strings.NewReader(fmt.Sprintf(`{"requestId":%q,"expectedRevision":%q}`, newReceivingScanID(t), receivingDetails(t, db, session).PendingRevision)))
 	r.SetPathValue("sessionID", fmt.Sprint(session))
 	r.SetPathValue("sku", "TEST-SKU")
 	w = httptest.NewRecorder()
@@ -155,7 +159,7 @@ func TestReceivingIntakeWriteFailureRollsBack(t *testing.T) {
 		CREATE TRIGGER fail_intake BEFORE INSERT ON receiving_intake_events FOR EACH ROW EXECUTE FUNCTION fail_intake()`); err != nil {
 		t.Fatal(err)
 	}
-	w := receivingRequest(db, addReceivingSessionItemHandler, `{"sku":"TEST-SKU","quantity":5}`, "sessionID", session)
+	w := receivingRequest(db, addReceivingSessionItemHandler, `{"sku":"TEST-SKU","quantity":5,"requestId":"20000000-0000-4000-8000-000000000001"}`, "sessionID", session)
 	requireReceivingStatus(t, w, http.StatusInternalServerError)
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"quantity":3,"requestId":"00000000-0000-4000-8000-000000000099"}`))
 	r.SetPathValue("sessionID", fmt.Sprint(session))

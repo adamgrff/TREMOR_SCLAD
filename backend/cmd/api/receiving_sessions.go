@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -40,17 +42,21 @@ type receivingSessionPlacedItem struct {
 }
 
 type receivingSessionDetailsResponse struct {
-	ID           int64                         `json:"id"`
-	Status       string                        `json:"status"`
-	StartedAt    time.Time                     `json:"startedAt"`
-	CompletedAt  *time.Time                    `json:"completedAt"`
-	PendingItems []receivingSessionPendingItem `json:"pendingItems"`
-	PlacedItems  []receivingSessionPlacedItem  `json:"placedItems"`
+	PendingRevision string                        `json:"pendingRevision"`
+	ID              int64                         `json:"id"`
+	Status          string                        `json:"status"`
+	StartedAt       time.Time                     `json:"startedAt"`
+	CompletedAt     *time.Time                    `json:"completedAt"`
+	PendingItems    []receivingSessionPendingItem `json:"pendingItems"`
+	PlacedItems     []receivingSessionPlacedItem  `json:"placedItems"`
 }
 
+var receivingScanRequestID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
 type addReceivingSessionItemRequest struct {
-	SKU      string `json:"sku"`
-	Quantity int    `json:"quantity"`
+	RequestID string `json:"requestId"`
+	SKU       string `json:"sku"`
+	Quantity  int    `json:"quantity"`
 }
 
 type receivingSessionStatusResponse struct {
@@ -94,38 +100,24 @@ func lockActiveReceivingSession(
 	return nil
 }
 
-func createReceivingSessionHandler(
-	database *pgxpool.Pool,
-	w http.ResponseWriter,
-	r *http.Request,
-) {
+func createReceivingSessionHandler(database *pgxpool.Pool, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-	var response createReceivingSessionResponse
-
-	err := database.QueryRow(
-		r.Context(),
-		`
-			INSERT INTO receiving_sessions (status, completed_at)
-			VALUES ('active', NULL)
-			RETURNING id, status, started_at
-		`,
-	).Scan(&response.ID, &response.Status, &response.StartedAt)
-	if err != nil {
-		log.Printf("failed to create receiving session: %v", err)
-		writeErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"failed to create receiving session",
-		)
+	var request receivingCommandRequest
+	if !decodeReceivingCommand(w, r, &request) {
 		return
 	}
-
-	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("failed to encode receiving session response: %v", err)
+	tx := beginReceivingOperation(database, w, r, request.RequestID, "create-session", struct{}{})
+	if tx == nil {
+		return
 	}
+	defer tx.Rollback(r.Context())
+	var response createReceivingSessionResponse
+	err := tx.QueryRow(r.Context(), `INSERT INTO receiving_sessions(status,completed_at) VALUES('active',NULL) RETURNING id,status,started_at`).Scan(&response.ID, &response.Status, &response.StartedAt)
+	if err != nil {
+		writeErrorResponse(w, 500, "failed to create receiving session")
+		return
+	}
+	tx.respond(w, r, http.StatusCreated, response)
 }
 
 func getReceivingSessionHandler(
@@ -134,6 +126,7 @@ func getReceivingSessionHandler(
 	r *http.Request,
 ) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 
 	sessionID, err := parseReceivingSessionID(r)
 	if err != nil {
@@ -141,13 +134,19 @@ func getReceivingSessionHandler(
 		return
 	}
 
+	tx, err := database.BeginTx(r.Context(), pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		writeErrorResponse(w, 500, "failed to read receiving session")
+		return
+	}
+	defer tx.Rollback(r.Context())
 	var response receivingSessionDetailsResponse
 	var completedAt sql.NullTime
 
-	err = database.QueryRow(
+	err = tx.QueryRow(
 		r.Context(),
 		`
-			SELECT id, status, started_at, completed_at
+			SELECT id, status, started_at, completed_at, pending_revision::text
 			FROM receiving_sessions
 			WHERE id = $1 AND deleted_at IS NULL
 		`,
@@ -157,6 +156,7 @@ func getReceivingSessionHandler(
 		&response.Status,
 		&response.StartedAt,
 		&completedAt,
+		&response.PendingRevision,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeErrorResponse(
@@ -181,7 +181,7 @@ func getReceivingSessionHandler(
 	}
 
 	response.PendingItems = make([]receivingSessionPendingItem, 0)
-	pendingRows, err := database.Query(
+	pendingRows, err := tx.Query(
 		r.Context(),
 		`
 			SELECT products.name, products.sku, session_items.quantity
@@ -233,7 +233,7 @@ func getReceivingSessionHandler(
 	pendingRows.Close()
 
 	response.PlacedItems = make([]receivingSessionPlacedItem, 0)
-	placedRows, err := database.Query(
+	placedRows, err := tx.Query(
 		r.Context(),
 		`
 			SELECT
@@ -302,6 +302,10 @@ func getReceivingSessionHandler(
 	}
 	placedRows.Close()
 
+	if err := tx.Commit(r.Context()); err != nil {
+		writeErrorResponse(w, 500, "failed to read receiving session")
+		return
+	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("failed to encode receiving session details: %v", err)
 	}
@@ -331,6 +335,11 @@ func addReceivingSessionItemHandler(
 		return
 	}
 
+	request.RequestID = strings.ToLower(strings.TrimSpace(request.RequestID))
+	if !receivingScanRequestID.MatchString(request.RequestID) {
+		writeErrorResponse(w, http.StatusBadRequest, "requestId must be a UUID")
+		return
+	}
 	request.SKU = strings.ToUpper(strings.TrimSpace(request.SKU))
 	if request.SKU == "" || request.Quantity <= 0 {
 		writeErrorResponse(
@@ -352,6 +361,28 @@ func addReceivingSessionItemHandler(
 		return
 	}
 	defer tx.Rollback(r.Context())
+
+	// Match the quantity API: request lock/receipt first, then session and product.
+	// Check the receipt before session status so a committed scan can be replayed
+	// after completion, placement or product archival without touching quantities.
+	payload := fmt.Sprintf("receiving-scan:%d:%q:%d", sessionID, request.SKU, request.Quantity)
+	prior, err := receivingQuantityRetry(r.Context(), tx, request.RequestID, payload)
+	if err != nil {
+		if errors.Is(err, errReceivingQuantityRequestConflict) {
+			writeErrorResponse(w, http.StatusConflict, err.Error())
+		} else {
+			writeErrorResponse(w, http.StatusInternalServerError, "failed to check scan receipt")
+		}
+		return
+	}
+	if prior != 0 {
+		_ = json.NewEncoder(w).Encode(receivingSessionStatusResponse{Status: "saved"})
+		return
+	}
+	// Like the shared operation receipt API, distinguish a proven fresh
+	// business rejection from an identity conflict or uncertain COMMIT.
+	w.Header().Set("Access-Control-Expose-Headers", "X-Receiving-Command-Rejected")
+	w.Header().Set("X-Receiving-Command-Rejected", "true")
 
 	err = lockActiveReceivingSession(r.Context(), tx, sessionID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -412,6 +443,13 @@ func addReceivingSessionItemHandler(
 		return
 	}
 
+	if err := saveReceivingQuantityRequest(r.Context(), tx, request.RequestID, payload, productID); err != nil {
+		log.Printf("failed to save scan receipt: %v", err)
+		writeErrorResponse(w, http.StatusInternalServerError, "failed to save scan receipt")
+		return
+	}
+
+	w.Header().Del("X-Receiving-Command-Rejected")
 	if err := tx.Commit(r.Context()); err != nil {
 		log.Printf("failed to commit pending item: %v", err)
 		writeErrorResponse(
@@ -442,18 +480,32 @@ func deleteReceivingSessionItemHandler(
 		return
 	}
 
-	tx, err := database.Begin(r.Context())
-	if err != nil {
-		log.Printf("failed to start delete-item transaction: %v", err)
-		writeErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"failed to delete pending item",
-		)
+	var input struct {
+		receivingCommandRequest
+		ExpectedRevision *string `json:"expectedRevision"`
+	}
+	if !decodeReceivingCommand(w, r, &input) {
+		return
+	}
+	if input.ExpectedRevision == nil {
+		writeErrorResponse(w, 400, "expectedRevision is required")
+		return
+	}
+	revision, err := strconv.ParseInt(*input.ExpectedRevision, 10, 64)
+	if err != nil || revision < 0 {
+		writeErrorResponse(w, 400, "invalid expectedRevision")
+		return
+	}
+	sku := strings.ToUpper(strings.TrimSpace(r.PathValue("sku")))
+	if sku == "" {
+		writeErrorResponse(w, 400, "SKU is required")
+		return
+	}
+	tx := beginReceivingOperation(database, w, r, input.RequestID, "delete-item", map[string]any{"sessionId": sessionID, "sku": sku, "expectedRevision": revision})
+	if tx == nil {
 		return
 	}
 	defer tx.Rollback(r.Context())
-
 	err = lockActiveReceivingSession(r.Context(), tx, sessionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeErrorResponse(
@@ -481,12 +533,21 @@ func deleteReceivingSessionItemHandler(
 		return
 	}
 
+	var currentRevision int64
+	if err = tx.QueryRow(r.Context(), `SELECT pending_revision FROM receiving_sessions WHERE id=$1`, sessionID).Scan(&currentRevision); err != nil {
+		writeErrorResponse(w, 500, "failed to read pending revision")
+		return
+	}
+	if currentRevision != revision {
+		writeErrorResponse(w, 409, "pending group changed; reload before deleting")
+		return
+	}
 	_, err = tx.Exec(
 		r.Context(),
 		`DELETE FROM receiving_session_items WHERE session_id = $1
 		 AND product_id = (SELECT id FROM products WHERE sku = $2)`,
 		sessionID,
-		r.PathValue("sku"),
+		sku,
 	)
 	if err != nil {
 		log.Printf("failed to delete pending item for session %d: %v", sessionID, err)
@@ -498,19 +559,5 @@ func deleteReceivingSessionItemHandler(
 		return
 	}
 
-	if err := tx.Commit(r.Context()); err != nil {
-		log.Printf("failed to commit delete-item transaction: %v", err)
-		writeErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"failed to delete pending item",
-		)
-		return
-	}
-
-	if err := json.NewEncoder(w).Encode(
-		receivingSessionStatusResponse{Status: "deleted"},
-	); err != nil {
-		log.Printf("failed to encode delete-item response: %v", err)
-	}
+	tx.respond(w, r, http.StatusOK, receivingSessionStatusResponse{Status: "deleted"})
 }

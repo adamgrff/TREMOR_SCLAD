@@ -151,6 +151,10 @@ func main() {
 	)
 
 	mux.HandleFunc(
+		"GET /api/receiving/sessions/active",
+		func(w http.ResponseWriter, r *http.Request) { activeReceivingSessionsHandler(database, w, r) },
+	)
+	mux.HandleFunc(
 		"GET /api/receiving/sessions/latest",
 		func(w http.ResponseWriter, r *http.Request) {
 			latestReceivingHandler(database, w, r)

@@ -7,6 +7,7 @@ import ReceivingQuantityDialog from './ReceivingQuantityDialog'
 import ReceivingScrollProgress from './ReceivingScrollProgress'
 import './ReceivingPage.css'
 import { API_BASE_URL } from '../../config/api'
+import { ReceivingScanCommands, ReceivingCommandRejected, ReceivingRecoveryOrderUnknown, ReceivingJournalUnavailable, type ReceivingAction, readActiveReceivingSession, rememberActiveReceivingSession } from './receivingScanCommands'
 
 type ReceivingState = 'start' | 'scanned' | 'placed' | 'finished'
 type LastScanKind = 'product' | 'cell' | 'receiving' | null
@@ -31,12 +32,6 @@ type PlacedItem = ReceivingItem & {
   placementId: string
 }
 
-type PlacementResponse = {
-  id: number
-  cellCode: string
-  createdAt: string
-}
-
 type LatestReceivingItem = {
   placementId: number
   cellCode: string
@@ -52,6 +47,7 @@ type LatestReceivingResponse = {
 }
 
 type ReceivingSessionDetails = {
+  pendingRevision: string
   id: number
   status: 'active' | 'completed'
   pendingItems: Array<{
@@ -62,16 +58,13 @@ type ReceivingSessionDetails = {
   placedItems: LatestReceivingItem[]
 }
 
-type CreateReceivingSessionResponse = {
-  id: number
-  status: 'active'
-}
+type ActiveSession = { id: number; startedAt: string; pendingQuantity: number; placementCount: number }
 
 type InitialReceivingData =
+  | { type: 'empty' }
+  | { type: 'choose'; sessions: ActiveSession[] }
   | { type: 'session'; session: ReceivingSessionDetails }
   | { type: 'latest'; receiving: LatestReceivingResponse }
-
-const ACTIVE_SESSION_STORAGE_KEY = 'tremor.receiving.activeSessionId'
 
 function getUnitWord(count: number) {
   const lastTwoDigits = count % 100
@@ -100,70 +93,41 @@ function formatPlacementTime(value: string) {
   }).format(new Date(value))
 }
 
-async function createReceivingSession() {
-  const response = await fetch(`${API_BASE_URL}/receiving/sessions`, {
-    method: 'POST',
-  })
+async function loadReceivingSession(id: number): Promise<ReceivingSessionDetails> {
+  const response = await fetch(`${API_BASE_URL}/receiving/sessions/${id}`, { cache: 'no-store' })
+  if (!response.ok) throw new Error('Не удалось подтвердить состояние приёмки на сервере')
+  const session = await response.json() as ReceivingSessionDetails
+  return validateReceivingSession(session, id)
+}
 
-  if (!response.ok) {
-    throw new Error(`Не удалось создать сессию: ${response.status}`)
-  }
-
-  return (await response.json()) as CreateReceivingSessionResponse
+function validateReceivingSession(session: ReceivingSessionDetails, id: number) {
+  if (session.id !== id || !['active', 'completed'].includes(session.status)
+    || typeof session.pendingRevision !== 'string' || !/^(0|[1-9][0-9]*)$/.test(session.pendingRevision)
+    || !Array.isArray(session.pendingItems) || !Array.isArray(session.placedItems)) throw new Error('Некорректный ответ приёмки')
+  return session
 }
 
 async function loadInitialReceivingData(): Promise<InitialReceivingData> {
-  const storedSessionID = Number(
-    localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY),
-  )
-
-  if (Number.isSafeInteger(storedSessionID) && storedSessionID > 0) {
-    const response = await fetch(
-      `${API_BASE_URL}/receiving/sessions/${storedSessionID}`,
-    )
-
+  const stored = readActiveReceivingSession()
+  if (stored && /^[1-9][0-9]*$/.test(stored) && Number.isSafeInteger(Number(stored))) {
+    const response = await fetch(`${API_BASE_URL}/receiving/sessions/${stored}`, { cache: 'no-store' })
     if (response.ok) {
-      const session = (await response.json()) as ReceivingSessionDetails
-      return { type: 'session', session }
-    }
-
-    if (response.status !== 404) {
-      throw new Error(`Не удалось восстановить сессию: ${response.status}`)
-    }
-
-    localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
-  } else if (localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY)) {
-    localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+      const session = validateReceivingSession(await response.json() as ReceivingSessionDetails, Number(stored))
+      if (session.status === 'active') return { type: 'session', session }
+    } else if (response.status !== 404) throw new Error('Не удалось восстановить приёмку на сервере. Нажмите «Повторить».')
   }
-
-  const latestResponse = await fetch(
-    `${API_BASE_URL}/receiving/sessions/latest`,
-  )
-
-  if (latestResponse.ok) {
-    const receiving = (await latestResponse.json()) as LatestReceivingResponse
-    return { type: 'latest', receiving }
-  }
-
-  if (latestResponse.status !== 404) {
-    throw new Error(`Не удалось загрузить историю: ${latestResponse.status}`)
-  }
-
-  const createdSession = await createReceivingSession()
-  localStorage.setItem(
-    ACTIVE_SESSION_STORAGE_KEY,
-    String(createdSession.id),
-  )
-
-  return {
-    type: 'session',
-    session: {
-      id: createdSession.id,
-      status: createdSession.status,
-      pendingItems: [],
-      placedItems: [],
-    },
-  }
+  const response = await fetch(`${API_BASE_URL}/receiving/sessions/active`, { cache: 'no-store' })
+  if (!response.ok) throw new Error('Не удалось загрузить активные приёмки. Нажмите «Повторить».')
+  const sessions = await response.json() as ActiveSession[]
+  if (!Array.isArray(sessions) || sessions.some(item => !Number.isSafeInteger(item.id) || item.id <= 0
+    || !Number.isFinite(Date.parse(item.startedAt)) || !Number.isSafeInteger(item.pendingQuantity) || item.pendingQuantity < 0
+    || !Number.isSafeInteger(item.placementCount) || item.placementCount < 0)) throw new Error('Некорректный список активных приёмок')
+  if (sessions.length > 1) return { type: 'choose', sessions }
+  if (sessions.length === 1) return { type: 'session', session: await loadReceivingSession(sessions[0].id) }
+  const latest = await fetch(`${API_BASE_URL}/receiving/sessions/latest`, { cache: 'no-store' })
+  if (latest.ok) return { type: 'latest', receiving: await latest.json() as LatestReceivingResponse }
+  if (latest.status !== 404) throw new Error('Не удалось загрузить последнюю приёмку. Нажмите «Повторить».')
+  return { type: 'empty' }
 }
 
 function ReceivingPage({ theme }: { theme: Theme }) {
@@ -172,10 +136,18 @@ function ReceivingPage({ theme }: { theme: Theme }) {
     if (location.hash === '#receiving-scan') document.getElementById('receiving-scan')?.scrollIntoView({ block: 'start' })
   }, [location.hash])
   const initialDataPromise = useRef<Promise<InitialReceivingData> | null>(null)
+  const scanCommands = useRef<ReceivingScanCommands | null>(null)
+  scanCommands.current ??= new ReceivingScanCommands()
+  const scanInFlight = useRef(false)
+  const [manualRecovery, setManualRecovery] = useState(false)
+  const [journalUnavailable, setJournalUnavailable] = useState(false)
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
+  const [scanRecoveryNeeded, setScanRecoveryNeeded] = useState(false)
 
   const [receivingState, setReceivingState] =
     useState<ReceivingState>('start')
   const [sessionId, setSessionId] = useState<number | null>(null)
+  const [pendingRevision, setPendingRevision] = useState<string | null>(null)
   const [quantityItem, setQuantityItem] = useState<ReceivingItem | null>(null)
   const [currentItems, setCurrentItems] = useState<ReceivingItem[]>([])
   const [placedItems, setPlacedItems] = useState<PlacedItem[]>([])
@@ -203,7 +175,8 @@ function ReceivingPage({ theme }: { theme: Theme }) {
     isFinishing ||
     isRemovingItem ||
     isCreatingSession ||
-    isLoadingHistory
+    isLoadingHistory ||
+    scanRecoveryNeeded || journalUnavailable || activeSessions.length > 0
 
   const hasScannedItems =
     receivingState === 'scanned' && currentItems.length > 0
@@ -244,71 +217,31 @@ function ReceivingPage({ theme }: { theme: Theme }) {
           ? 'Последняя приёмка загружена из базы'
           : 'Первый товар появится здесь'
 
-  async function handleUndoLastPlacement() {
-    if (!latestPlacementId || isBusy || isFinished) return
-
-    setIsUndoing(true)
-
+  async function performReceivingAction(action: ReceivingAction) {
+    if (scanInFlight.current) return false
+    scanInFlight.current = true
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/receiving/placements/${encodeURIComponent(latestPlacementId)}/undo`,
-        { method: 'POST' },
-      )
+      await scanCommands.current!.execute(action, async id => { restoreSession(await loadReceivingSession(id)) })
+      setScanRecoveryNeeded(false)
+      setHistoryRevision(value => value + 1)
+      setCatalogRevision(value => value + 1)
+      return true
+    } catch (reason) {
+      setManualRecovery(reason instanceof ReceivingRecoveryOrderUnknown)
+      setScanRecoveryNeeded(!(reason instanceof ReceivingCommandRejected))
+      setScanMessage(reason instanceof Error ? reason.message : 'Результат операции не определён. Нажмите «Повторить».')
+      return false
+    } finally { scanInFlight.current = false }
+  }
 
-      if (!response.ok) {
-        setScanMessage(
-          response.status === 409
-            ? 'Не удалось отменить размещение: остаток в ячейке изменился'
-            : 'Не удалось отменить размещение в базе',
-        )
-        return
+  async function handleUndoLastPlacement() {
+    if (!latestPlacementId || sessionId === null || isBusy || isFinished) return
+    setIsUndoing(true)
+    try {
+      if (await performReceivingAction({ kind: 'undo-placement', sessionId, placementId: Number(latestPlacementId) })) {
+        setScanMessage('Последнее размещение отменено; товары возвращены в группу')
       }
-
-      const lastPlacedGroup = placedItems.filter(
-        (item) => item.placementId === latestPlacementId,
-      )
-
-      const restoredItems: ReceivingItem[] = lastPlacedGroup.map(
-        ({ name, code, quantity }) => ({ name, code, quantity }),
-      )
-
-      setPlacedItems((items) =>
-        items.filter((item) => item.placementId !== latestPlacementId),
-      )
-
-      setCurrentItems((items) => {
-        const mergedItems = new Map(
-          items.map((item) => [item.code, { ...item }]),
-        )
-
-        for (const restoredItem of restoredItems) {
-          const existingItem = mergedItems.get(restoredItem.code)
-
-          if (existingItem) {
-            existingItem.quantity += restoredItem.quantity
-          } else {
-            mergedItems.set(restoredItem.code, restoredItem)
-          }
-        }
-
-        return [...mergedItems.values()]
-      })
-
-      setReceivingState(
-        restoredItems.length > 0 ? 'scanned' : 'start',
-      )
-      setLastScannedName(
-        restoredItems[restoredItems.length - 1]?.name ?? '',
-      )
-      setLastScanKind(restoredItems.length > 0 ? 'product' : null)
-      setScanMessage(
-        'Последнее размещение отменено; товары возвращены в группу',
-      )
-    } catch {
-      setScanMessage('Не удалось связаться с API при отмене размещения')
-    } finally {
-      setIsUndoing(false)
-    }
+    } finally { setIsUndoing(false) }
   }
 
   function restoreSession(session: ReceivingSessionDetails) {
@@ -330,12 +263,14 @@ function ReceivingPage({ theme }: { theme: Theme }) {
       }),
     )
 
+    setActiveSessions([])
+    setPendingRevision(session.pendingRevision)
     setSessionId(session.status === 'active' ? session.id : null)
     setCompletedSessionId(session.status === 'completed' ? session.id : null)
     if (session.status === 'active') {
-      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, String(session.id))
+      rememberActiveReceivingSession(session.id)
     } else {
-      localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+      rememberActiveReceivingSession(null)
     }
 
     setCurrentItems(restoredPendingItems)
@@ -375,6 +310,10 @@ function ReceivingPage({ theme }: { theme: Theme }) {
   }
 
   function restoreLatestReceiving(receiving: LatestReceivingResponse) {
+    setActiveSessions([])
+    setPendingRevision(null)
+    setQuantityItem(null)
+    setScanCode('')
     setCompletedSessionId(receiving.id)
     const restoredItems: PlacedItem[] = receiving.items.map((item) => ({
       name: item.name,
@@ -386,7 +325,7 @@ function ReceivingPage({ theme }: { theme: Theme }) {
     }))
 
     setSessionId(null)
-    localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+    rememberActiveReceivingSession(null)
     setCurrentItems([])
     setPlacedItems(restoredItems)
     setReceivingState('finished')
@@ -397,21 +336,19 @@ function ReceivingPage({ theme }: { theme: Theme }) {
 
   useEffect(() => {
     let ignoreResult = false
-    initialDataPromise.current ??= loadInitialReceivingData()
+    initialDataPromise.current ??= recoverInitialReceivingData()
 
     void initialDataPromise.current
       .then((initialData) => {
         if (ignoreResult) return
 
-        if (initialData.type === 'session') {
-          restoreSession(initialData.session)
-        } else {
-          restoreLatestReceiving(initialData.receiving)
-        }
+        applyInitialReceivingData(initialData)
       })
-      .catch(() => {
+      .catch((reason: unknown) => {
         if (!ignoreResult) {
-          setScanMessage('Не удалось загрузить приёмку из базы')
+          setScanRecoveryNeeded(true)
+          setManualRecovery(reason instanceof ReceivingRecoveryOrderUnknown)
+          setScanMessage(reason instanceof Error ? reason.message : 'Не удалось подтвердить состояние приёмки или прочитать команды сканирования. Новые действия заблокированы. Нажмите «Повторить».')
         }
       })
       .finally(() => {
@@ -441,112 +378,111 @@ function ReceivingPage({ theme }: { theme: Theme }) {
     }
 
     setIsFinishing(true)
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/receiving/finish`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ sessionId, placementIds }),
-        },
-      )
-
-      if (response.status === 409) {
-        setScanMessage(
-          'Не удалось завершить приёмку: одно из размещений изменилось',
-        )
-        return
+      if (await performReceivingAction({ kind: 'finish', sessionId, placementIds })) {
+        setScanCode('')
+        setScanMessage('Приёмка завершена и сохранена в базе')
       }
-
-      if (!response.ok) {
-        throw new Error(`Ошибка API: ${response.status}`)
-      }
-
-      setSessionId(null)
-      localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
-      setReceivingState('finished')
-      setScanCode('')
-      setScanMessage('Приёмка завершена и сохранена в базе')
-      setCompletedSessionId(sessionId)
-      setHistoryRevision((revision) => revision + 1)
-      setCatalogRevision((revision) => revision + 1)
-    } catch {
-      setScanMessage(
-        'Не удалось завершить приёмку. Проверьте, что backend запущен.',
-      )
-    } finally {
-      setIsFinishing(false)
-    }
+    } finally { setIsFinishing(false) }
   }
 
   async function handleStartNewReceiving() {
     if (isBusy) return
-
     setIsCreatingSession(true)
-
     try {
-      const session = await createReceivingSession()
+      if (await performReceivingAction({ kind: 'create-session' })) {
+        setScanCode('')
+        setScanMessage('Новая приёмка начата')
+      }
+    } finally { setIsCreatingSession(false) }
+  }
 
-      localStorage.setItem(
-        ACTIVE_SESSION_STORAGE_KEY,
-        String(session.id),
-      )
-      setSessionId(session.id)
+  function applyInitialReceivingData(initial: InitialReceivingData) {
+    if (initial.type === 'session') restoreSession(initial.session)
+    else if (initial.type === 'latest') restoreLatestReceiving(initial.receiving)
+    else {
+      setSessionId(null)
+      setPendingRevision(null)
       setCompletedSessionId(null)
+      setQuantityItem(null)
       setCurrentItems([])
       setPlacedItems([])
+      setReceivingState('start')
       setScanCode('')
-      setScanMessage(`Новая приёмка №${session.id} начата`)
       setLastScannedName('')
       setLastScanKind(null)
-      setReceivingState('start')
-    } catch {
-      setScanMessage('Не удалось начать новую приёмку. Проверьте backend.')
-    } finally {
-      setIsCreatingSession(false)
+      rememberActiveReceivingSession(null)
+      setActiveSessions(initial.type === 'choose' ? initial.sessions : [])
+      setScanMessage(initial.type === 'choose'
+        ? 'Выберите активную приёмку для продолжения.'
+        : 'Активных приёмок нет. Нажмите «Новая приёмка», чтобы начать.')
     }
+  }
+
+  async function recoverInitialReceivingData(): Promise<InitialReceivingData> {
+    let recovered: InitialReceivingData | null = null
+    try {
+      await scanCommands.current!.recover(async id => {
+        recovered = { type: 'session', session: await loadReceivingSession(id) }
+      })
+      setJournalUnavailable(false)
+    } catch (reason) {
+      if (!(reason instanceof ReceivingJournalUnavailable)) throw reason
+      setJournalUnavailable(true)
+    }
+    return recovered ?? await loadInitialReceivingData()
+  }
+
+  async function selectReceivingSession(id: number) {
+    setIsLoadingHistory(true)
+    try {
+      const session = await loadReceivingSession(id)
+      if (session.status !== 'active') { applyInitialReceivingData(await loadInitialReceivingData()); return }
+      restoreSession(session)
+    } catch (reason) {
+      setScanMessage(reason instanceof Error ? reason.message : 'Не удалось загрузить приёмку')
+    } finally { setIsLoadingHistory(false) }
+  }
+
+  async function recoverScan() {
+    if (manualRecovery || scanInFlight.current || isScanBusy || isLoadingHistory) return
+    scanInFlight.current = true
+    setIsLookingUpProduct(true)
+    try {
+      const initial = await recoverInitialReceivingData()
+      applyInitialReceivingData(initial)
+      setScanRecoveryNeeded(false)
+      setScanCode('')
+      setHistoryRevision(value => value + 1)
+      setCatalogRevision(value => value + 1)
+      if (initial.type === 'session') setScanMessage('Результат подтверждён. Данные приёмки загружены с сервера; можно продолжать.')
+    } catch (reason) {
+      setScanRecoveryNeeded(true)
+      setManualRecovery(reason instanceof ReceivingRecoveryOrderUnknown)
+      setScanMessage(reason instanceof Error ? reason.message : 'Результат сканирования не определён. Новые действия заблокированы.')
+    } finally { scanInFlight.current = false; setIsLookingUpProduct(false) }
   }
 
   async function refreshReceivingSession() {
     if (sessionId === null) return
-    const response = await fetch(`${API_BASE_URL}/receiving/sessions/${sessionId}`)
-    if (!response.ok) throw new Error('Количество сохранено, но приёмку не удалось обновить. Повторите или перезагрузите страницу.')
-    restoreSession(await response.json() as ReceivingSessionDetails)
+    restoreSession(await loadReceivingSession(sessionId))
   }
 
   async function handleRemovePendingItem(code: string) {
-    if (sessionId === null || isBusy || currentItems.length === 0) return
-
+    if (sessionId === null || pendingRevision === null || isBusy || currentItems.length === 0) return
     setIsRemovingItem(true)
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/receiving/sessions/${sessionId}/items/${encodeURIComponent(code)}`,
-        { method: 'DELETE' },
-      )
-
-      if (!response.ok) {
-        throw new Error(`Ошибка API: ${response.status}`)
+      if (await performReceivingAction({ kind: 'delete-item', sessionId, sku: code, expectedRevision: pendingRevision })) {
+        setScanMessage(`Товар ${code} удалён из ожидающих размещения`)
       }
-
-      const remaining = currentItems.filter((item) => item.code !== code)
-      setCurrentItems(remaining)
-      if (remaining.length === 0) setReceivingState(placedItems.length > 0 ? 'placed' : 'start')
-      setScanMessage(`Товар ${code} удалён из ожидающих размещения`)
-    } catch {
-      setScanMessage('Не удалось удалить товар из базы')
-    } finally {
-      setIsRemovingItem(false)
-    }
+    } finally { setIsRemovingItem(false) }
   }
 
   async function handleProductScan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (isFinished || isBusy) return
+    if (scanRecoveryNeeded) { await recoverScan(); return }
+    if (isFinished || isBusy || scanInFlight.current) return
     if (sessionId === null) {
       setScanMessage('Активная приёмка не загружена. Перезагрузите страницу.')
       return
@@ -568,68 +504,19 @@ function ReceivingPage({ theme }: { theme: Theme }) {
 
       setIsCheckingCell(true)
       setScanCode('')
-
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/receiving/placements`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              sessionId,
-              cellCode: cell,
-              items: currentItems.map((item) => ({
-                sku: item.code,
-                quantity: item.quantity,
-              })),
-            }),
-          },
-        )
-
-        if (response.status === 404) {
-          const error = await response.json() as { error?: string }
-          setScanMessage(error.error || `Ячейка ${cell} или товар не найдены в базе`)
-          return
+        if (await performReceivingAction({ kind: 'place', sessionId, cellCode: cell,
+          items: currentItems.map(item => ({ sku: item.code, quantity: item.quantity })) })) {
+          setLastScannedName(`Ячейка ${cell}`)
+          setLastScanKind('cell')
+          setScanMessage(`Группа размещена в ячейке ${cell}`)
         }
-
-        if (!response.ok) {
-          throw new Error(`Ошибка API: ${response.status}`)
-        }
-
-        const placement =
-          (await response.json()) as PlacementResponse
-
-        const placementId = String(placement.id)
-        const time = formatPlacementTime(placement.createdAt)
-
-        const newPlacedItems = currentItems.map((item) => ({
-          ...item,
-          cell: placement.cellCode,
-          time,
-          placementId,
-        }))
-
-        setPlacedItems((items) => [...items, ...newPlacedItems])
-        setCurrentItems([])
-        setReceivingState('placed')
-        setLastScannedName(`Ячейка ${placement.cellCode}`)
-        setLastScanKind('cell')
-        setScanMessage(
-          `Группа размещена в ячейке ${placement.cellCode}`,
-        )
-      } catch {
-        setScanMessage(
-          'Не удалось проверить ячейку. Проверьте, что backend запущен.',
-        )
-      } finally {
-        setIsCheckingCell(false)
-      }
+      } finally { setIsCheckingCell(false) }
 
       return
     }
 
+    scanInFlight.current = true
     setIsLookingUpProduct(true)
     setScanCode('')
 
@@ -655,50 +542,26 @@ function ReceivingPage({ theme }: { theme: Theme }) {
         code: productData.sku,
       }
 
-      const saveResponse = await fetch(
-        `${API_BASE_URL}/receiving/sessions/${sessionId}/items`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ sku: product.code, quantity: 1 }),
-        },
-      )
-
-      if (!saveResponse.ok) {
-        if (saveResponse.status === 409) {
-          setScanMessage('Приёмка уже завершена. Начните новую приёмку.')
-          return
-        }
-        throw new Error(`Не удалось сохранить товар: ${saveResponse.status}`)
+      try {
+        await scanCommands.current!.scan(sessionId, product.code, async (id) => {
+          restoreSession(await loadReceivingSession(id))
+        })
+      } catch (reason) {
+        setScanRecoveryNeeded(!(reason instanceof ReceivingCommandRejected))
+        setManualRecovery(reason instanceof ReceivingRecoveryOrderUnknown)
+        setScanMessage(reason instanceof Error ? reason.message : 'Результат сканирования не определён. Нажмите «Повторить».')
+        return
       }
-
-      setCurrentItems((items) => {
-        const existingItem = items.find(
-          (item) => item.code === product.code,
-        )
-
-        if (existingItem) {
-          return items.map((item) =>
-            item.code === product.code
-              ? { ...item, quantity: item.quantity + 1 }
-              : item,
-          )
-        }
-
-        return [...items, { ...product, quantity: 1 }]
-      })
 
       setLastScannedName(product.name)
       setLastScanKind('product')
-      setReceivingState('scanned')
       setScanMessage(`Добавлен товар: ${product.name}`)
     } catch {
       setScanMessage(
         'Не удалось связаться с API. Проверьте, что backend запущен.',
       )
     } finally {
+      scanInFlight.current = false
       setIsLookingUpProduct(false)
     }
   }
@@ -745,7 +608,7 @@ function ReceivingPage({ theme }: { theme: Theme }) {
                 aria-label="Код товара или ячейки"
                 autoComplete="off"
                 autoFocus
-                disabled={isBusy || isFinished}
+                disabled={isBusy || isFinished || sessionId === null}
                 placeholder="Введите или отсканируйте код"
                 value={scanCode}
                 onChange={(event) => {
@@ -758,11 +621,11 @@ function ReceivingPage({ theme }: { theme: Theme }) {
                 className="receivingPage__scanSubmit ds-v1 ui-v1-action ui-v1-action--primary"
                 aria-busy={isScanBusy}
                 type="submit"
-                disabled={isBusy || isFinished}
+                disabled={manualRecovery || isScanBusy || isLoadingHistory || (!scanRecoveryNeeded && (isBusy || isFinished || sessionId === null))}
               >
                 {isLookingUpProduct || isCheckingCell
                   ? 'ПРОВЕРЯЮ...'
-                  : 'ДОБАВИТЬ'}
+                  : manualRecovery ? 'ТРЕБУЕТСЯ ПРОВЕРКА' : scanRecoveryNeeded ? 'ПОВТОРИТЬ' : 'ДОБАВИТЬ'}
               </button>
             </form>
 
@@ -776,10 +639,15 @@ function ReceivingPage({ theme }: { theme: Theme }) {
           <span className="receivingPage__scanStatus">
             {isFinished
               ? 'Приёмка ЗАВЕРШЕНА'
-              : 'Сканирование АКТИВНО'}
+              : isBusy || sessionId === null ? 'Сканирование недоступно' : 'Сканирование АКТИВНО'}
           </span>
         </div>
 
+        {journalUnavailable && <p role="status" className="receivingPage__scanMessage ds-v1 ui-v1-type-secondary">Журнал команд недоступен. Доступен только просмотр. Для восстановления записи включите хранилище и обновите страницу.</p>}
+        {activeSessions.length > 0 && <section className="receivingPage__panel ds-v1 ui-v1-window" aria-label="Выбор активной приёмки">
+          <h2 className="receivingPage__panelTitle ds-v1 ui-v1-type-section">АКТИВНЫЕ ПРИЁМКИ</h2>
+          {activeSessions.map(session => <p key={session.id}><button type="button" className="receivingHistory__button ds-v1 ui-v1-button" disabled={isLoadingHistory || scanRecoveryNeeded} onClick={() => void selectReceivingSession(session.id)}>Приёмка №{session.id} · {formatPlacementTime(session.startedAt)} · ожидают: {session.pendingQuantity} · размещений: {session.placementCount}</button></p>)}
+        </section>}
         <div className="receivingPage__workspace">
           <section
             className="receivingPage__panel receivingPage__pending ds-v1 ui-v1-window"
@@ -927,7 +795,7 @@ function ReceivingPage({ theme }: { theme: Theme }) {
                 Отменить последнее действие
               </button>
 
-              {isFinished ? (
+              {isFinished || (sessionId === null && activeSessions.length === 0) ? (
                 <button
                   className="receivingPage__finishButton ds-v1 ui-v1-action ui-v1-action--primary"
                   type="button"
@@ -986,7 +854,7 @@ function ReceivingPage({ theme }: { theme: Theme }) {
             </tbody>
           </table>
         </section>
-        <ReceivingHistory revision={historyRevision} onDeleted={(id) => {
+        <ReceivingHistory readOnly={isBusy} revision={historyRevision} onDeleted={(id) => {
           if (id === completedSessionId) {
             setCompletedSessionId(null)
             setPlacedItems([])
@@ -995,7 +863,7 @@ function ReceivingPage({ theme }: { theme: Theme }) {
             setScanMessage(`Приёмка №${id} удалена из истории. Остатки товаров сохранены.`)
           }
         }} />
-        <ProductCatalog sessionId={sessionId} disabled={isBusy || isFinished} revision={catalogRevision} onReceivingChanged={refreshReceivingSession} />
+        <ProductCatalog sessionId={sessionId} disabled={isBusy || isFinished || sessionId === null} revision={catalogRevision} onReceivingChanged={refreshReceivingSession} />
         {quantityItem && sessionId !== null && <ReceivingQuantityDialog sessionId={sessionId} product={{ name: quantityItem.name, sku: quantityItem.code, quantity: quantityItem.quantity }} onClose={() => setQuantityItem(null)} onSaved={refreshReceivingSession} />}
       </section>
     </main>

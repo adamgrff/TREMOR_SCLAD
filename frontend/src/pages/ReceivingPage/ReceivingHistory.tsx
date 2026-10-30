@@ -81,8 +81,8 @@ function DeleteReceivingDialog({ session, onCancel, onDeleted }: {
   )
 }
 
-function HistoryRow({ session, loading, onDelete }: {
-  session: Summary; loading: boolean
+function HistoryRow({ session, loading, readOnly, onDelete }: {
+  session: Summary; loading: boolean; readOnly: boolean
   onDelete: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -138,7 +138,7 @@ function HistoryRow({ session, loading, onDelete }: {
             {expanded && <path d="m3 3 18 18" />}
           </svg>
         </button>
-        <button type="button" disabled={loading} className="receivingHistory__button receivingHistory__deleteButton receivingHistory__iconButton ds-v1 ui-v1-button ui-v1-icon-button ui-v1-button--delete" aria-label={`Удалить приёмку №${session.id} из истории`} title={`Удалить приёмку №${session.id} из истории`} onClick={onDelete}>
+        <button type="button" disabled={loading || readOnly} className="receivingHistory__button receivingHistory__deleteButton receivingHistory__iconButton ds-v1 ui-v1-button ui-v1-icon-button ui-v1-button--delete" aria-label={`Удалить приёмку №${session.id} из истории`} title={`Удалить приёмку №${session.id} из истории`} onClick={onDelete}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg>
         </button>
       </div>{error && <p role="alert" className="receivingHistory__rowError ds-v1 ui-v1-feedback ui-v1-feedback--error">{error}</p>}</td>
@@ -166,7 +166,7 @@ function CloseHistoryDialog({ onClose, onConfirm }: { onClose: () => void; onCon
   </dialog>
 }
 
-function HistoryList({ onDeleted }: { onDeleted: (id: number) => void }) {
+function HistoryList({ onDeleted, readOnly }: { onDeleted: (id: number) => void; readOnly: boolean }) {
   const [order, setOrder] = useState<'asc' | 'desc'>(() => {
     try { return localStorage.getItem(HISTORY_ORDER_STORAGE_KEY) === 'asc' ? 'asc' : 'desc' }
     catch { return 'desc' }
@@ -232,7 +232,7 @@ function HistoryList({ onDeleted }: { onDeleted: (id: number) => void }) {
       </div>
       {notice && <p role="status" className="ds-v1 ui-v1-feedback">{notice}</p>}
       {pendingClose && <CloseHistoryDialog onClose={() => setPendingClose(false)} onConfirm={() => { setPendingClose(false); setNotice('Экспорт в Excel пока не подключён. История сохранена без изменений.') }} />}
-      {pendingDelete && <DeleteReceivingDialog session={pendingDelete} onCancel={() => setPendingDelete(null)} onDeleted={(id) => {
+      {!readOnly && pendingDelete && <DeleteReceivingDialog session={pendingDelete} onCancel={() => setPendingDelete(null)} onDeleted={(id) => {
         setPendingDelete(null)
         setNotice(`Приёмка №${id} удалена из истории. Остатки товаров сохранены.`)
         refreshHistory()
@@ -247,7 +247,7 @@ function HistoryList({ onDeleted }: { onDeleted: (id: number) => void }) {
                 <colgroup><col className="receivingHistory__receiptCol" /><col /><col className="receivingHistory__cellCol" /><col className="receivingHistory__quantityCol" /><col className="receivingHistory__dateCol" /><col className="receivingHistory__actionsCol" /></colgroup>
                 <thead><tr><th>Приёмка</th><th>Позиций</th><th>Ячейки</th><th>Кол-во</th><th aria-sort={order === 'asc' ? 'ascending' : 'descending'}><span className="receivingHistory__columnHeading">Завершена <button type="button" disabled={loading} aria-busy={loading} className="receivingHistory__button receivingHistory__sort ds-v1 ui-v1-button ui-v1-sort-button" aria-label={`Сортировка по времени завершения: ${order === 'asc' ? 'от старых к новым' : 'от новых к старым'}. Нажмите, чтобы изменить`} title={order === 'asc' ? 'От старых к новым' : 'От новых к старым'} onClick={toggleOrder}><span aria-hidden="true">{order === 'asc' ? '↑' : '↓'}</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={order === 'asc' ? 'M12 20V4m-7 7 7-7 7 7' : 'M12 4v16m-7-7 7 7 7-7'} /></svg></button></span></th><th aria-label="Действия">Действия</th></tr></thead>
                 <tbody>{page.sessions.map((session) => (
-                  <HistoryRow key={session.id} session={session} loading={loading} onDelete={() => setPendingDelete(session)} />
+                  <HistoryRow key={session.id} session={session} loading={loading} readOnly={readOnly} onDelete={() => setPendingDelete(session)} />
                 ))}</tbody>
               </table>
             </div>
@@ -261,11 +261,11 @@ function HistoryList({ onDeleted }: { onDeleted: (id: number) => void }) {
   )
 }
 
-export default function ReceivingHistory({ revision, onDeleted }: { revision: number; onDeleted: (id: number) => void }) {
+export default function ReceivingHistory({ revision, onDeleted, readOnly = false }: { revision: number; onDeleted: (id: number) => void; readOnly?: boolean }) {
   return (
     <section className="receivingPage__panel receivingHistory ds-v1 ui-v1-window" id="receiving-history" aria-labelledby="receiving-history-title">
       <h2 className="receivingPage__panelTitle ds-v1 ui-v1-page-title" id="receiving-history-title">ИСТОРИЯ ПРИЁМОК</h2>
-      <HistoryList key={revision} onDeleted={onDeleted} />
+      <HistoryList key={revision} onDeleted={onDeleted} readOnly={readOnly} />
     </section>
   )
 }

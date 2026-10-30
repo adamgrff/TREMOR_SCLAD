@@ -13,6 +13,7 @@ import (
 )
 
 type finishReceivingRequest struct {
+	RequestID    string  `json:"requestId"`
 	SessionID    int64   `json:"sessionId"`
 	PlacementIDs []int64 `json:"placementIds"`
 }
@@ -64,14 +65,12 @@ func finishReceivingHandler(
 		return request.PlacementIDs[i] < request.PlacementIDs[j]
 	})
 
-	tx, err := database.Begin(r.Context())
-	if err != nil {
-		log.Printf("failed to start receiving completion: %v", err)
-		writeErrorResponse(w, http.StatusInternalServerError, "failed to finish receiving")
+	tx := beginReceivingOperation(database, w, r, request.RequestID, "finish", request)
+	if tx == nil {
 		return
 	}
 	defer tx.Rollback(r.Context())
-
+	var err error
 	err = lockActiveReceivingSession(r.Context(), tx, request.SessionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeErrorResponse(w, http.StatusNotFound, "receiving session not found")
@@ -170,17 +169,5 @@ func finishReceivingHandler(
 		return
 	}
 
-	if err := tx.Commit(r.Context()); err != nil {
-		log.Printf("failed to commit receiving completion: %v", err)
-		writeErrorResponse(w, http.StatusInternalServerError, "failed to finish receiving")
-		return
-	}
-
-	response := finishReceivingResponse{
-		ID:             request.SessionID,
-		PlacementCount: len(activePlacementIDs),
-	}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("failed to encode receiving completion response: %v", err)
-	}
+	tx.respond(w, r, http.StatusOK, finishReceivingResponse{ID: request.SessionID, PlacementCount: len(activePlacementIDs)})
 }
