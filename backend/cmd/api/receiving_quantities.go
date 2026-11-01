@@ -82,6 +82,9 @@ func receivingQuantityHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.R
 		return
 	}
 	defer tx.Rollback(r.Context())
+	if !requireReceivingDeployment(w, r, tx) {
+		return
+	}
 	prior, err := receivingQuantityRetry(r.Context(), tx, input.RequestID, payload)
 	if err != nil {
 		writeErrorResponse(w, 409, err.Error())

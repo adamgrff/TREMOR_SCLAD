@@ -16,7 +16,7 @@ func TestReceivingQuantityRetryAndCorrection(t *testing.T) {
 		r.SetPathValue("sessionID", fmt.Sprint(session))
 		r.SetPathValue("productID", "1")
 		w := httptest.NewRecorder()
-		receivingQuantityHandler(db, w, r)
+		receivingQuantityHandler(db, w, receivingIdentityRequest(db, r))
 		return w
 	}
 	token := "00000000-0000-4000-8000-000000000001"
@@ -50,7 +50,7 @@ func TestCatalogCreateAndReceivingQuantityAtomicRetry(t *testing.T) {
 	body := fmt.Sprintf(`{"name":"New","sku":"NEW","categoryId":1,"receivingQuantity":10,"sessionId":%d,"requestId":"00000000-0000-4000-8000-000000000001"}`, session)
 	for i := 0; i < 2; i++ {
 		w := httptest.NewRecorder()
-		saveCatalogProductHandler(db, w, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body)))
+		saveCatalogProductHandler(db, w, receivingIdentityRequest(db, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))))
 		if w.Code != http.StatusCreated && w.Code != http.StatusOK {
 			t.Fatalf("create: %d %s", w.Code, w.Body.String())
 		}
@@ -62,6 +62,6 @@ func TestCatalogCreateAndReceivingQuantityAtomicRetry(t *testing.T) {
 	}
 	body = `{"name":"Rollback","sku":"ROLLBACK","categoryId":1,"receivingQuantity":10,"sessionId":999999,"requestId":"00000000-0000-4000-8000-000000000002"}`
 	w := httptest.NewRecorder()
-	saveCatalogProductHandler(db, w, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body)))
+	saveCatalogProductHandler(db, w, receivingIdentityRequest(db, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))))
 	requireReceivingStatus(t, w, http.StatusConflict)
 }

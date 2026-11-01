@@ -1,0 +1,1962 @@
+{
+  "tables": [
+    "assembly_cell_references",
+    "assembly_disassembly_items",
+    "assembly_disassembly_return_reversals",
+    "assembly_disassembly_returns",
+    "assembly_disassembly_sessions",
+    "assembly_lifecycle_events",
+    "assembly_order_heads",
+    "assembly_order_imports",
+    "assembly_order_positions",
+    "assembly_order_records",
+    "assembly_order_reservations",
+    "assembly_order_versions",
+    "assembly_ozon_observations",
+    "assembly_ozon_operations",
+    "assembly_ozon_problem_links",
+    "assembly_ozon_reconciliations",
+    "assembly_pick_records",
+    "assembly_preview_drafts",
+    "assembly_preview_requests",
+    "assembly_preview_stock_holds",
+    "assembly_problem_affected_positions",
+    "assembly_problem_clearances",
+    "assembly_problem_contexts",
+    "assembly_problem_events",
+    "assembly_problem_pick_links",
+    "assembly_problem_positions",
+    "assembly_problem_records",
+    "assembly_sku_mappings",
+    "assembly_stock_checks",
+    "assembly_warehouse_operations",
+    "assembly_workspace_migration_backup",
+    "assembly_workspace_pick_links",
+    "categories",
+    "cell_stock",
+    "cells",
+    "products",
+    "receiving_intake_events",
+    "receiving_operation_requests",
+    "receiving_placement_items",
+    "receiving_placements",
+    "receiving_quantity_requests",
+    "receiving_session_items",
+    "receiving_sessions",
+    "warehouses"
+  ],
+  "constraints": [
+    {
+      "name": "assembly_cell_references_display_code_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_cell_references",
+      "definition": "CHECK ((length(display_code) > 0))"
+    },
+    {
+      "name": "assembly_cell_references_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_cell_references",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_cell_references_scope_display_code_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_cell_references",
+      "definition": "UNIQUE (scope, display_code)"
+    },
+    {
+      "name": "assembly_cell_references_warehouse_cell_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_cell_references",
+      "definition": "UNIQUE (warehouse_cell_id)"
+    },
+    {
+      "name": "assembly_real_cell_fk",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_cell_references",
+      "definition": "FOREIGN KEY (warehouse_cell_id) REFERENCES cells(id)"
+    },
+    {
+      "name": "assembly_disassembly_items_id_session_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_disassembly_items",
+      "definition": "UNIQUE (id, session_id)"
+    },
+    {
+      "name": "assembly_disassembly_items_original_operation_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_items",
+      "definition": "FOREIGN KEY (original_operation_id) REFERENCES assembly_warehouse_operations(id)"
+    },
+    {
+      "name": "assembly_disassembly_items_original_operation_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_disassembly_items",
+      "definition": "UNIQUE (original_operation_id)"
+    },
+    {
+      "name": "assembly_disassembly_items_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_disassembly_items",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_disassembly_items_session_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_items",
+      "definition": "FOREIGN KEY (session_id) REFERENCES assembly_disassembly_sessions(id)"
+    },
+    {
+      "name": "assembly_disassembly_items_session_id_ordinal_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_disassembly_items",
+      "definition": "UNIQUE (session_id, ordinal)"
+    },
+    {
+      "name": "assembly_disassembly_return_reversals_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_disassembly_return_reversals",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_disassembly_return_reversals_request_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_return_reversals",
+      "definition": "FOREIGN KEY (request_id) REFERENCES assembly_preview_requests(request_id) DEFERRABLE INITIALLY DEFERRED"
+    },
+    {
+      "name": "assembly_disassembly_return_reversals_request_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_disassembly_return_reversals",
+      "definition": "UNIQUE (request_id)"
+    },
+    {
+      "name": "assembly_disassembly_return_reversals_return_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_return_reversals",
+      "definition": "FOREIGN KEY (return_id) REFERENCES assembly_disassembly_returns(id)"
+    },
+    {
+      "name": "assembly_disassembly_return_reversals_return_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_disassembly_return_reversals",
+      "definition": "UNIQUE (return_id)"
+    },
+    {
+      "name": "assembly_disassembly_returns_cell_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_returns",
+      "definition": "FOREIGN KEY (cell_id) REFERENCES cells(id)"
+    },
+    {
+      "name": "assembly_disassembly_returns_item_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_returns",
+      "definition": "FOREIGN KEY (item_id) REFERENCES assembly_disassembly_items(id)"
+    },
+    {
+      "name": "assembly_disassembly_returns_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_disassembly_returns",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_disassembly_returns_product_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_returns",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id)"
+    },
+    {
+      "name": "assembly_disassembly_returns_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_disassembly_returns",
+      "definition": "CHECK ((quantity = 1))"
+    },
+    {
+      "name": "assembly_disassembly_returns_request_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_returns",
+      "definition": "FOREIGN KEY (request_id) REFERENCES assembly_preview_requests(request_id) DEFERRABLE INITIALLY DEFERRED"
+    },
+    {
+      "name": "assembly_disassembly_returns_request_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_disassembly_returns",
+      "definition": "UNIQUE (request_id)"
+    },
+    {
+      "name": "assembly_disassembly_sessions_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_disassembly_sessions",
+      "definition": "CHECK (((status <> 'completed'::text) OR ((pending_item_id IS NULL) AND (completed_at IS NOT NULL))))"
+    },
+    {
+      "name": "assembly_disassembly_sessions_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_sessions",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_disassembly_sessions_order_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_disassembly_sessions",
+      "definition": "UNIQUE (order_id)"
+    },
+    {
+      "name": "assembly_disassembly_sessions_pending_item_id_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_sessions",
+      "definition": "FOREIGN KEY (pending_item_id, id) REFERENCES assembly_disassembly_items(id, session_id)"
+    },
+    {
+      "name": "assembly_disassembly_sessions_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_disassembly_sessions",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_disassembly_sessions_problem_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_disassembly_sessions",
+      "definition": "FOREIGN KEY (problem_id) REFERENCES assembly_problem_records(id)"
+    },
+    {
+      "name": "assembly_disassembly_sessions_status_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_disassembly_sessions",
+      "definition": "CHECK ((status = ANY (ARRAY['waiting'::text, 'active'::text, 'completed'::text])))"
+    },
+    {
+      "name": "assembly_lifecycle_events_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_lifecycle_events",
+      "definition": "CHECK ((((event_type = 'started'::text) AND (request_id IS NOT NULL) AND (cycle_id = request_id) AND (operation_id IS NULL)) OR ((event_type = 'completed'::text) AND (request_id IS NULL) AND (operation_id IS NOT NULL))))"
+    },
+    {
+      "name": "assembly_lifecycle_events_event_type_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_lifecycle_events",
+      "definition": "CHECK ((event_type = ANY (ARRAY['started'::text, 'completed'::text])))"
+    },
+    {
+      "name": "assembly_lifecycle_events_operation_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_lifecycle_events",
+      "definition": "UNIQUE (operation_id)"
+    },
+    {
+      "name": "assembly_lifecycle_events_order_id_cycle_id_event_type_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_lifecycle_events",
+      "definition": "UNIQUE (order_id, cycle_id, event_type)"
+    },
+    {
+      "name": "assembly_lifecycle_events_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_lifecycle_events",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "assembly_lifecycle_events_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_lifecycle_events",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_lifecycle_events_request_id_event_type_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_lifecycle_events",
+      "definition": "UNIQUE (request_id, event_type)"
+    },
+    {
+      "name": "assembly_head_owner_fk",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_heads",
+      "definition": "FOREIGN KEY (version_id, order_id) REFERENCES assembly_order_versions(id, order_id)"
+    },
+    {
+      "name": "assembly_order_heads_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_heads",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_order_heads_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_order_heads",
+      "definition": "PRIMARY KEY (order_id)"
+    },
+    {
+      "name": "assembly_order_heads_version_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_heads",
+      "definition": "FOREIGN KEY (version_id) REFERENCES assembly_order_versions(id)"
+    },
+    {
+      "name": "assembly_import_owner_fk",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_imports",
+      "definition": "FOREIGN KEY (version_id, order_id) REFERENCES assembly_order_versions(id, order_id)"
+    },
+    {
+      "name": "assembly_order_imports_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_imports",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_order_imports_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_order_imports",
+      "definition": "PRIMARY KEY (request_id)"
+    },
+    {
+      "name": "assembly_order_imports_version_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_imports",
+      "definition": "FOREIGN KEY (version_id) REFERENCES assembly_order_versions(id)"
+    },
+    {
+      "name": "assembly_order_positions_ordinal_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_positions",
+      "definition": "CHECK ((ordinal >= 0))"
+    },
+    {
+      "name": "assembly_order_positions_payload_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_positions",
+      "definition": "CHECK ((jsonb_typeof(payload) = 'object'::text))"
+    },
+    {
+      "name": "assembly_order_positions_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_order_positions",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_order_positions_required_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_positions",
+      "definition": "CHECK (((required_quantity > 0) AND (required_quantity <= 10000)))"
+    },
+    {
+      "name": "assembly_order_positions_sku_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_positions",
+      "definition": "CHECK ((length(sku) > 0))"
+    },
+    {
+      "name": "assembly_order_positions_version_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_positions",
+      "definition": "FOREIGN KEY (version_id) REFERENCES assembly_order_versions(id)"
+    },
+    {
+      "name": "assembly_order_positions_version_id_ordinal_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_order_positions",
+      "definition": "UNIQUE (version_id, ordinal)"
+    },
+    {
+      "name": "assembly_order_positions_version_id_sku_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_order_positions",
+      "definition": "UNIQUE (version_id, sku)"
+    },
+    {
+      "name": "assembly_order_records_order_number_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_records",
+      "definition": "CHECK ((length(order_number) > 0))"
+    },
+    {
+      "name": "assembly_order_records_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_order_records",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_order_records_source_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_records",
+      "definition": "CHECK ((source = ANY (ARRAY['preview'::text, 'ozon'::text])))"
+    },
+    {
+      "name": "assembly_order_records_source_order_number_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_order_records",
+      "definition": "UNIQUE (source, order_number)"
+    },
+    {
+      "name": "assembly_order_records_status_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_records",
+      "definition": "CHECK ((status = ANY (ARRAY['queued'::text, 'in_progress'::text, 'problem'::text, 'completed'::text, 'cancelled'::text, 'awaiting_disassembly'::text, 'disassembling'::text, 'disassembled'::text])))"
+    },
+    {
+      "name": "assembly_order_reservations_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_reservations",
+      "definition": "CHECK (((status = 'held'::text) OR (quantity = 0)))"
+    },
+    {
+      "name": "assembly_order_reservations_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_reservations",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_order_reservations_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_order_reservations",
+      "definition": "PRIMARY KEY (order_id, product_id)"
+    },
+    {
+      "name": "assembly_order_reservations_product_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_reservations",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id)"
+    },
+    {
+      "name": "assembly_order_reservations_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_reservations",
+      "definition": "CHECK ((quantity >= 0))"
+    },
+    {
+      "name": "assembly_order_reservations_status_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_reservations",
+      "definition": "CHECK ((status = ANY (ARRAY['held'::text, 'released'::text])))"
+    },
+    {
+      "name": "assembly_order_versions_metadata_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_order_versions",
+      "definition": "CHECK ((jsonb_typeof(metadata) = 'object'::text))"
+    },
+    {
+      "name": "assembly_order_versions_order_id_fingerprint_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_order_versions",
+      "definition": "UNIQUE (order_id, fingerprint)"
+    },
+    {
+      "name": "assembly_order_versions_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_order_versions",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_order_versions_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_order_versions",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_version_owner_unique",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_order_versions",
+      "definition": "UNIQUE (id, order_id)"
+    },
+    {
+      "name": "assembly_ozon_observations_evidence_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_ozon_observations",
+      "definition": "CHECK ((jsonb_typeof(evidence) = 'object'::text))"
+    },
+    {
+      "name": "assembly_ozon_observations_evidence_id_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_ozon_observations",
+      "definition": "CHECK ((length(evidence_id) > 0))"
+    },
+    {
+      "name": "assembly_ozon_observations_evidence_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_ozon_observations",
+      "definition": "UNIQUE (evidence_id)"
+    },
+    {
+      "name": "assembly_ozon_observations_operation_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_ozon_observations",
+      "definition": "FOREIGN KEY (operation_id) REFERENCES assembly_ozon_operations(id)"
+    },
+    {
+      "name": "assembly_ozon_observations_operation_id_payload_hash_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_ozon_observations",
+      "definition": "FOREIGN KEY (operation_id, payload_hash) REFERENCES assembly_ozon_operations(id, payload_hash)"
+    },
+    {
+      "name": "assembly_ozon_observations_outcome_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_ozon_observations",
+      "definition": "CHECK ((outcome = ANY (ARRAY['unknown'::text, 'not_applied'::text, 'applied'::text, 'rejected'::text, 'cancelled'::text])))"
+    },
+    {
+      "name": "assembly_ozon_observations_payload_hash_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_ozon_observations",
+      "definition": "CHECK ((length(payload_hash) = 64))"
+    },
+    {
+      "name": "assembly_ozon_observations_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_ozon_observations",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_ozon_operations_business_key_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_ozon_operations",
+      "definition": "UNIQUE (business_key)"
+    },
+    {
+      "name": "assembly_ozon_operations_id_payload_hash_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_ozon_operations",
+      "definition": "UNIQUE (id, payload_hash)"
+    },
+    {
+      "name": "assembly_ozon_operations_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_ozon_operations",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_ozon_operations_order_id_purpose_payload_hash_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_ozon_operations",
+      "definition": "UNIQUE (order_id, purpose, payload_hash)"
+    },
+    {
+      "name": "assembly_ozon_operations_order_version_id_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_ozon_operations",
+      "definition": "FOREIGN KEY (order_version_id, order_id) REFERENCES assembly_order_versions(id, order_id)"
+    },
+    {
+      "name": "assembly_ozon_operations_payload_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_ozon_operations",
+      "definition": "CHECK ((jsonb_typeof(payload) = 'object'::text))"
+    },
+    {
+      "name": "assembly_ozon_operations_payload_hash_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_ozon_operations",
+      "definition": "CHECK ((length(payload_hash) = 64))"
+    },
+    {
+      "name": "assembly_ozon_operations_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_ozon_operations",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_ozon_operations_purpose_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_ozon_operations",
+      "definition": "CHECK ((purpose = ANY (ARRAY['confirm_shipment'::text, 'refresh_order'::text])))"
+    },
+    {
+      "name": "assembly_ozon_problem_links_operation_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_ozon_problem_links",
+      "definition": "FOREIGN KEY (operation_id) REFERENCES assembly_ozon_operations(id)"
+    },
+    {
+      "name": "assembly_ozon_problem_links_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_ozon_problem_links",
+      "definition": "PRIMARY KEY (problem_id)"
+    },
+    {
+      "name": "assembly_ozon_problem_links_problem_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_ozon_problem_links",
+      "definition": "FOREIGN KEY (problem_id) REFERENCES assembly_problem_records(id)"
+    },
+    {
+      "name": "assembly_ozon_reconciliations_kind_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_ozon_reconciliations",
+      "definition": "CHECK ((kind = ANY (ARRAY['requested'::text, 'unavailable'::text])))"
+    },
+    {
+      "name": "assembly_ozon_reconciliations_operation_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_ozon_reconciliations",
+      "definition": "FOREIGN KEY (operation_id) REFERENCES assembly_ozon_operations(id)"
+    },
+    {
+      "name": "assembly_ozon_reconciliations_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_ozon_reconciliations",
+      "definition": "PRIMARY KEY (request_id)"
+    },
+    {
+      "name": "assembly_ozon_reconciliations_request_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_ozon_reconciliations",
+      "definition": "FOREIGN KEY (request_id) REFERENCES assembly_preview_requests(request_id) DEFERRABLE INITIALLY DEFERRED"
+    },
+    {
+      "name": "assembly_pick_operation_fk",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "FOREIGN KEY (warehouse_operation_id) REFERENCES assembly_warehouse_operations(id)"
+    },
+    {
+      "name": "assembly_pick_records_cell_reference_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "FOREIGN KEY (cell_reference_id) REFERENCES assembly_cell_references(id)"
+    },
+    {
+      "name": "assembly_pick_records_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "CHECK (((source <> 'warehouse_operation'::text) OR ((warehouse_operation_id IS NOT NULL) AND (occurred_at IS NOT NULL))))"
+    },
+    {
+      "name": "assembly_pick_records_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_pick_records_order_id_snapshot_key_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "UNIQUE (order_id, snapshot_key)"
+    },
+    {
+      "name": "assembly_pick_records_order_position_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "FOREIGN KEY (order_position_id) REFERENCES assembly_order_positions(id)"
+    },
+    {
+      "name": "assembly_pick_records_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_pick_records_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "CHECK ((quantity > 0))"
+    },
+    {
+      "name": "assembly_pick_records_source_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "CHECK ((source = ANY (ARRAY['preview_snapshot'::text, 'warehouse_operation'::text])))"
+    },
+    {
+      "name": "assembly_pick_records_warehouse_operation_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_pick_records",
+      "definition": "UNIQUE (warehouse_operation_id)"
+    },
+    {
+      "name": "assembly_preview_drafts_id_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_preview_drafts",
+      "definition": "CHECK (id)"
+    },
+    {
+      "name": "assembly_preview_drafts_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_preview_drafts",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_preview_drafts_state_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_preview_drafts",
+      "definition": "CHECK (((state IS NULL) OR (jsonb_typeof(state) = 'object'::text)))"
+    },
+    {
+      "name": "assembly_preview_drafts_version_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_preview_drafts",
+      "definition": "CHECK ((version >= 0))"
+    },
+    {
+      "name": "assembly_preview_requests_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_preview_requests",
+      "definition": "PRIMARY KEY (request_id)"
+    },
+    {
+      "name": "assembly_preview_stock_holds_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_preview_stock_holds",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_preview_stock_holds_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_preview_stock_holds",
+      "definition": "PRIMARY KEY (order_id, product_id)"
+    },
+    {
+      "name": "assembly_preview_stock_holds_product_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_preview_stock_holds",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id)"
+    },
+    {
+      "name": "assembly_preview_stock_holds_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_preview_stock_holds",
+      "definition": "CHECK ((quantity >= 0))"
+    },
+    {
+      "name": "assembly_problem_affected_positions_order_position_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_affected_positions",
+      "definition": "FOREIGN KEY (order_position_id) REFERENCES assembly_order_positions(id)"
+    },
+    {
+      "name": "assembly_problem_affected_positions_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_problem_affected_positions",
+      "definition": "PRIMARY KEY (problem_id, sku)"
+    },
+    {
+      "name": "assembly_problem_affected_positions_problem_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_affected_positions",
+      "definition": "FOREIGN KEY (problem_id) REFERENCES assembly_problem_records(id)"
+    },
+    {
+      "name": "assembly_problem_clearances_evidence_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_clearances",
+      "definition": "CHECK (((jsonb_typeof(evidence) = 'object'::text) AND (evidence <> '{}'::jsonb)))"
+    },
+    {
+      "name": "assembly_problem_clearances_kind_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_clearances",
+      "definition": "CHECK ((kind = ANY (ARRAY['physical_check'::text, 'damage_handled'::text, 'sku_mapping'::text, 'order_verified'::text, 'manual_resolution'::text])))"
+    },
+    {
+      "name": "assembly_problem_clearances_order_version_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_clearances",
+      "definition": "FOREIGN KEY (order_version_id) REFERENCES assembly_order_versions(id)"
+    },
+    {
+      "name": "assembly_problem_clearances_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_problem_clearances",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_problem_clearances_problem_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_clearances",
+      "definition": "FOREIGN KEY (problem_id) REFERENCES assembly_problem_records(id)"
+    },
+    {
+      "name": "assembly_problem_contexts_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_problem_contexts",
+      "definition": "PRIMARY KEY (problem_id)"
+    },
+    {
+      "name": "assembly_problem_contexts_problem_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_contexts",
+      "definition": "FOREIGN KEY (problem_id) REFERENCES assembly_problem_records(id)"
+    },
+    {
+      "name": "assembly_problem_contexts_snapshot_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_contexts",
+      "definition": "CHECK ((jsonb_typeof(snapshot) = 'object'::text))"
+    },
+    {
+      "name": "assembly_problem_contexts_source_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_contexts",
+      "definition": "CHECK ((source = ANY (ARRAY['queue'::text, 'assembly'::text])))"
+    },
+    {
+      "name": "assembly_problem_events_ordinal_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_events",
+      "definition": "CHECK ((ordinal >= 0))"
+    },
+    {
+      "name": "assembly_problem_events_payload_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_events",
+      "definition": "CHECK ((jsonb_typeof(payload) = 'object'::text))"
+    },
+    {
+      "name": "assembly_problem_events_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_problem_events",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_problem_events_problem_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_events",
+      "definition": "FOREIGN KEY (problem_id) REFERENCES assembly_problem_records(id)"
+    },
+    {
+      "name": "assembly_problem_events_problem_id_ordinal_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_problem_events",
+      "definition": "UNIQUE (problem_id, ordinal)"
+    },
+    {
+      "name": "assembly_problem_pick_links_ordinal_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_pick_links",
+      "definition": "CHECK ((ordinal >= 0))"
+    },
+    {
+      "name": "assembly_problem_pick_links_pick_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_pick_links",
+      "definition": "FOREIGN KEY (pick_id) REFERENCES assembly_pick_records(id)"
+    },
+    {
+      "name": "assembly_problem_pick_links_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_problem_pick_links",
+      "definition": "PRIMARY KEY (problem_id, ordinal)"
+    },
+    {
+      "name": "assembly_problem_pick_links_problem_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_pick_links",
+      "definition": "FOREIGN KEY (problem_id) REFERENCES assembly_problem_records(id)"
+    },
+    {
+      "name": "assembly_problem_pick_links_problem_id_pick_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_problem_pick_links",
+      "definition": "UNIQUE (problem_id, pick_id)"
+    },
+    {
+      "name": "assembly_problem_positions_available_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_positions",
+      "definition": "CHECK ((available_quantity >= 0))"
+    },
+    {
+      "name": "assembly_problem_positions_missing_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_positions",
+      "definition": "CHECK ((missing_quantity >= 0))"
+    },
+    {
+      "name": "assembly_problem_positions_order_position_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_positions",
+      "definition": "FOREIGN KEY (order_position_id) REFERENCES assembly_order_positions(id)"
+    },
+    {
+      "name": "assembly_problem_positions_ordinal_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_positions",
+      "definition": "CHECK ((ordinal >= 0))"
+    },
+    {
+      "name": "assembly_problem_positions_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_problem_positions",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_problem_positions_problem_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_positions",
+      "definition": "FOREIGN KEY (problem_id) REFERENCES assembly_problem_records(id)"
+    },
+    {
+      "name": "assembly_problem_positions_problem_id_sku_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_problem_positions",
+      "definition": "UNIQUE (problem_id, sku)"
+    },
+    {
+      "name": "assembly_problem_positions_required_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_positions",
+      "definition": "CHECK ((required_quantity >= 0))"
+    },
+    {
+      "name": "assembly_problem_records_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_records",
+      "definition": "CHECK (((disposition <> 'returned'::text) OR (resolution_status = 'resolved'::text)))"
+    },
+    {
+      "name": "assembly_problem_records_creation_order_version_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_records",
+      "definition": "FOREIGN KEY (creation_order_version_id) REFERENCES assembly_order_versions(id)"
+    },
+    {
+      "name": "assembly_problem_records_disposition_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_records",
+      "definition": "CHECK ((disposition = ANY (ARRAY['problem'::text, 'returned'::text])))"
+    },
+    {
+      "name": "assembly_problem_records_legacy_key_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_problem_records",
+      "definition": "UNIQUE (legacy_key)"
+    },
+    {
+      "name": "assembly_problem_records_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_records",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_problem_records_order_version_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_problem_records",
+      "definition": "FOREIGN KEY (order_version_id) REFERENCES assembly_order_versions(id)"
+    },
+    {
+      "name": "assembly_problem_records_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_problem_records",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_problem_records_problem_type_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_records",
+      "definition": "CHECK ((problem_type = ANY (ARRAY['insufficient_stock'::text, 'missing_in_cell'::text, 'unknown_sku'::text, 'damaged_product'::text, 'invalid_order'::text, 'other'::text, 'cancelled_order'::text, 'ozon_error'::text])))"
+    },
+    {
+      "name": "assembly_problem_records_resolution_status_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_problem_records",
+      "definition": "CHECK ((resolution_status = ANY (ARRAY['awaiting'::text, 'resolved'::text])))"
+    },
+    {
+      "name": "assembly_sku_mappings_external_key_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_sku_mappings",
+      "definition": "CHECK ((length(external_key) > 5))"
+    },
+    {
+      "name": "assembly_sku_mappings_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_sku_mappings",
+      "definition": "PRIMARY KEY (external_key)"
+    },
+    {
+      "name": "assembly_sku_mappings_problem_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_sku_mappings",
+      "definition": "FOREIGN KEY (problem_id) REFERENCES assembly_problem_records(id)"
+    },
+    {
+      "name": "assembly_sku_mappings_product_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_sku_mappings",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id)"
+    },
+    {
+      "name": "assembly_sku_mappings_request_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_sku_mappings",
+      "definition": "UNIQUE (request_id)"
+    },
+    {
+      "name": "assembly_stock_checks_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_stock_checks",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_stock_checks_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_stock_checks",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_stock_checks_purpose_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_stock_checks",
+      "definition": "CHECK ((purpose = ANY (ARRAY['check-stock'::text, 'return'::text, 'start'::text, 'preview-progress'::text])))"
+    },
+    {
+      "name": "assembly_stock_checks_request_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_stock_checks",
+      "definition": "UNIQUE (request_id)"
+    },
+    {
+      "name": "assembly_warehouse_operations_cell_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "FOREIGN KEY (cell_id) REFERENCES cells(id)"
+    },
+    {
+      "name": "assembly_warehouse_operations_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "CHECK (((kind = 'undo_pick'::text) = (reverses_operation_id IS NOT NULL)))"
+    },
+    {
+      "name": "assembly_warehouse_operations_kind_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "CHECK ((kind = ANY (ARRAY['pick'::text, 'undo_pick'::text])))"
+    },
+    {
+      "name": "assembly_warehouse_operations_order_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "FOREIGN KEY (order_id) REFERENCES assembly_order_records(id)"
+    },
+    {
+      "name": "assembly_warehouse_operations_order_position_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "FOREIGN KEY (order_position_id) REFERENCES assembly_order_positions(id)"
+    },
+    {
+      "name": "assembly_warehouse_operations_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_warehouse_operations_product_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id)"
+    },
+    {
+      "name": "assembly_warehouse_operations_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "CHECK ((quantity = 1))"
+    },
+    {
+      "name": "assembly_warehouse_operations_request_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "UNIQUE (request_id)"
+    },
+    {
+      "name": "assembly_warehouse_operations_reverses_operation_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "FOREIGN KEY (reverses_operation_id) REFERENCES assembly_warehouse_operations(id)"
+    },
+    {
+      "name": "assembly_warehouse_operations_reverses_operation_id_key",
+      "type": "u",
+      "validated": true,
+      "table": "assembly_warehouse_operations",
+      "definition": "UNIQUE (reverses_operation_id)"
+    },
+    {
+      "name": "assembly_workspace_migration_backup_id_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_workspace_migration_backup",
+      "definition": "CHECK (id)"
+    },
+    {
+      "name": "assembly_workspace_migration_backup_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_workspace_migration_backup",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "assembly_workspace_pick_links_ordinal_check",
+      "type": "c",
+      "validated": true,
+      "table": "assembly_workspace_pick_links",
+      "definition": "CHECK ((ordinal >= 0))"
+    },
+    {
+      "name": "assembly_workspace_pick_links_pick_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "assembly_workspace_pick_links",
+      "definition": "FOREIGN KEY (pick_id) REFERENCES assembly_pick_records(id)"
+    },
+    {
+      "name": "assembly_workspace_pick_links_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "assembly_workspace_pick_links",
+      "definition": "PRIMARY KEY (ordinal)"
+    },
+    {
+      "name": "categories_code_key",
+      "type": "u",
+      "validated": true,
+      "table": "categories",
+      "definition": "UNIQUE (code)"
+    },
+    {
+      "name": "categories_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "categories",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "cell_stock_cell_fk",
+      "type": "f",
+      "validated": true,
+      "table": "cell_stock",
+      "definition": "FOREIGN KEY (cell_id) REFERENCES cells(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "cell_stock_pk",
+      "type": "p",
+      "validated": true,
+      "table": "cell_stock",
+      "definition": "PRIMARY KEY (cell_id, product_id)"
+    },
+    {
+      "name": "cell_stock_product_fk",
+      "type": "f",
+      "validated": true,
+      "table": "cell_stock",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "cell_stock_quantity_non_negative",
+      "type": "c",
+      "validated": true,
+      "table": "cell_stock",
+      "definition": "CHECK ((quantity >= 0))"
+    },
+    {
+      "name": "cells_category_fk",
+      "type": "f",
+      "validated": true,
+      "table": "cells",
+      "definition": "FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "cells_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "cells",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "cells_position_number_positive",
+      "type": "c",
+      "validated": true,
+      "table": "cells",
+      "definition": "CHECK ((position_number > 0))"
+    },
+    {
+      "name": "cells_position_unique",
+      "type": "u",
+      "validated": true,
+      "table": "cells",
+      "definition": "UNIQUE (warehouse_id, category_id, row_number, position_number)"
+    },
+    {
+      "name": "cells_rack_code_unique",
+      "type": "u",
+      "validated": true,
+      "table": "cells",
+      "definition": "UNIQUE (warehouse_id, category_id, code)"
+    },
+    {
+      "name": "cells_row_number_positive",
+      "type": "c",
+      "validated": true,
+      "table": "cells",
+      "definition": "CHECK ((row_number > 0))"
+    },
+    {
+      "name": "cells_warehouse_fk",
+      "type": "f",
+      "validated": true,
+      "table": "cells",
+      "definition": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "products_category_fk",
+      "type": "f",
+      "validated": true,
+      "table": "products",
+      "definition": "FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "products_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "products",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "products_sku_key",
+      "type": "u",
+      "validated": true,
+      "table": "products",
+      "definition": "UNIQUE (sku)"
+    },
+    {
+      "name": "receiving_intake_events_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "receiving_intake_events",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "receiving_intake_events_product_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "receiving_intake_events",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "receiving_intake_events_quantity_check",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_intake_events",
+      "definition": "CHECK ((quantity > 0))"
+    },
+    {
+      "name": "receiving_intake_events_session_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "receiving_intake_events",
+      "definition": "FOREIGN KEY (session_id) REFERENCES receiving_sessions(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "receiving_operation_requests_operation_check",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_operation_requests",
+      "definition": "CHECK ((operation = ANY (ARRAY['create-session'::text, 'place'::text, 'undo-placement'::text, 'finish'::text, 'delete-item'::text])))"
+    },
+    {
+      "name": "receiving_operation_requests_payload_check",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_operation_requests",
+      "definition": "CHECK ((jsonb_typeof(payload) = 'object'::text))"
+    },
+    {
+      "name": "receiving_operation_requests_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "receiving_operation_requests",
+      "definition": "PRIMARY KEY (request_id)"
+    },
+    {
+      "name": "receiving_operation_requests_response_check",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_operation_requests",
+      "definition": "CHECK ((jsonb_typeof(response) = 'object'::text))"
+    },
+    {
+      "name": "receiving_operation_requests_status_code_check",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_operation_requests",
+      "definition": "CHECK (((status_code >= 200) AND (status_code <= 299)))"
+    },
+    {
+      "name": "receiving_placement_items_pk",
+      "type": "p",
+      "validated": true,
+      "table": "receiving_placement_items",
+      "definition": "PRIMARY KEY (placement_id, product_id)"
+    },
+    {
+      "name": "receiving_placement_items_placement_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "receiving_placement_items",
+      "definition": "FOREIGN KEY (placement_id) REFERENCES receiving_placements(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "receiving_placement_items_product_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "receiving_placement_items",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "receiving_placement_items_quantity_positive",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_placement_items",
+      "definition": "CHECK ((quantity > 0))"
+    },
+    {
+      "name": "receiving_placements_cell_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "receiving_placements",
+      "definition": "FOREIGN KEY (cell_id) REFERENCES cells(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "receiving_placements_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "receiving_placements",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "receiving_placements_receiving_session_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "receiving_placements",
+      "definition": "FOREIGN KEY (receiving_session_id) REFERENCES receiving_sessions(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "receiving_placements_status_valid",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_placements",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'undone'::text])))"
+    },
+    {
+      "name": "receiving_placements_undo_state_valid",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_placements",
+      "definition": "CHECK ((((status = 'active'::text) AND (undone_at IS NULL)) OR ((status = 'undone'::text) AND (undone_at IS NOT NULL))))"
+    },
+    {
+      "name": "receiving_quantity_requests_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "receiving_quantity_requests",
+      "definition": "PRIMARY KEY (request_id)"
+    },
+    {
+      "name": "receiving_quantity_requests_product_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "receiving_quantity_requests",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id)"
+    },
+    {
+      "name": "receiving_session_items_pk",
+      "type": "p",
+      "validated": true,
+      "table": "receiving_session_items",
+      "definition": "PRIMARY KEY (session_id, product_id)"
+    },
+    {
+      "name": "receiving_session_items_product_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "receiving_session_items",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "receiving_session_items_quantity_positive",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_session_items",
+      "definition": "CHECK ((quantity > 0))"
+    },
+    {
+      "name": "receiving_session_items_session_id_fkey",
+      "type": "f",
+      "validated": true,
+      "table": "receiving_session_items",
+      "definition": "FOREIGN KEY (session_id) REFERENCES receiving_sessions(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "receiving_sessions_deletion_state_valid",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_sessions",
+      "definition": "CHECK (((deleted_at IS NULL) OR (status = 'completed'::text)))"
+    },
+    {
+      "name": "receiving_sessions_pending_revision_check",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_sessions",
+      "definition": "CHECK ((pending_revision >= 0))"
+    },
+    {
+      "name": "receiving_sessions_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "receiving_sessions",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "receiving_sessions_state_valid",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_sessions",
+      "definition": "CHECK ((((status = 'active'::text) AND (completed_at IS NULL)) OR ((status = 'completed'::text) AND (completed_at IS NOT NULL))))"
+    },
+    {
+      "name": "receiving_sessions_status_valid",
+      "type": "c",
+      "validated": true,
+      "table": "receiving_sessions",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'completed'::text])))"
+    },
+    {
+      "name": "warehouses_name_key",
+      "type": "u",
+      "validated": true,
+      "table": "warehouses",
+      "definition": "UNIQUE (name)"
+    },
+    {
+      "name": "warehouses_pkey",
+      "type": "p",
+      "validated": true,
+      "table": "warehouses",
+      "definition": "PRIMARY KEY (id)"
+    }
+  ],
+  "triggers": [
+    {
+      "name": "assembly_affected_no_rewrite",
+      "table": "assembly_problem_affected_positions",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_affected_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_problem_affected_positions FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_checks_no_rewrite",
+      "table": "assembly_stock_checks",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_checks_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_stock_checks FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_clearances_no_rewrite",
+      "table": "assembly_problem_clearances",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_clearances_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_problem_clearances FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_context_no_rewrite",
+      "table": "assembly_problem_contexts",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_context_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_problem_contexts FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_disassembly_items_immutable",
+      "table": "assembly_disassembly_items",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_disassembly_items_immutable BEFORE DELETE OR UPDATE ON public.assembly_disassembly_items FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_disassembly_return_reversals_immutable",
+      "table": "assembly_disassembly_return_reversals",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_disassembly_return_reversals_immutable BEFORE DELETE OR UPDATE ON public.assembly_disassembly_return_reversals FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_disassembly_return_reversals_validate",
+      "table": "assembly_disassembly_return_reversals",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_disassembly_return_reversals_validate BEFORE INSERT ON public.assembly_disassembly_return_reversals FOR EACH ROW EXECUTE FUNCTION assembly_validate_disassembly_return_reversal()"
+    },
+    {
+      "name": "assembly_disassembly_returns_immutable",
+      "table": "assembly_disassembly_returns",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_disassembly_returns_immutable BEFORE DELETE OR UPDATE ON public.assembly_disassembly_returns FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_disassembly_returns_validate",
+      "table": "assembly_disassembly_returns",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_disassembly_returns_validate BEFORE INSERT ON public.assembly_disassembly_returns FOR EACH ROW EXECUTE FUNCTION assembly_validate_disassembly_return()"
+    },
+    {
+      "name": "assembly_disassembly_sessions_identity",
+      "table": "assembly_disassembly_sessions",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_disassembly_sessions_identity BEFORE UPDATE ON public.assembly_disassembly_sessions FOR EACH ROW EXECUTE FUNCTION assembly_disassembly_session_identity()"
+    },
+    {
+      "name": "assembly_disassembly_warehouse_guard",
+      "table": "assembly_warehouse_operations",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_disassembly_warehouse_guard BEFORE INSERT ON public.assembly_warehouse_operations FOR EACH ROW EXECUTE FUNCTION assembly_disassembly_no_undo_returned()"
+    },
+    {
+      "name": "assembly_events_no_rewrite",
+      "table": "assembly_problem_events",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_events_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_problem_events FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_imports_no_rewrite",
+      "table": "assembly_order_imports",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_imports_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_order_imports FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_lifecycle_no_rewrite",
+      "table": "assembly_lifecycle_events",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_lifecycle_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_lifecycle_events FOR EACH ROW EXECUTE FUNCTION assembly_lifecycle_events_immutable()"
+    },
+    {
+      "name": "assembly_lifecycle_no_truncate",
+      "table": "assembly_lifecycle_events",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_lifecycle_no_truncate BEFORE TRUNCATE ON public.assembly_lifecycle_events FOR EACH STATEMENT EXECUTE FUNCTION assembly_lifecycle_events_immutable()"
+    },
+    {
+      "name": "assembly_lifecycle_real_order",
+      "table": "assembly_lifecycle_events",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_lifecycle_real_order BEFORE INSERT ON public.assembly_lifecycle_events FOR EACH ROW EXECUTE FUNCTION assembly_lifecycle_validate_order()"
+    },
+    {
+      "name": "assembly_mappings_no_rewrite",
+      "table": "assembly_sku_mappings",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_mappings_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_sku_mappings FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_operations_no_rewrite",
+      "table": "assembly_warehouse_operations",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_operations_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_warehouse_operations FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_operations_validate",
+      "table": "assembly_warehouse_operations",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_operations_validate BEFORE INSERT ON public.assembly_warehouse_operations FOR EACH ROW EXECUTE FUNCTION assembly_validate_warehouse_operation()"
+    },
+    {
+      "name": "assembly_ozon_observations_immutable",
+      "table": "assembly_ozon_observations",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_ozon_observations_immutable BEFORE DELETE OR UPDATE ON public.assembly_ozon_observations FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_ozon_operations_immutable",
+      "table": "assembly_ozon_operations",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_ozon_operations_immutable BEFORE DELETE OR UPDATE ON public.assembly_ozon_operations FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_ozon_problem_links_immutable",
+      "table": "assembly_ozon_problem_links",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_ozon_problem_links_immutable BEFORE DELETE OR UPDATE ON public.assembly_ozon_problem_links FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_ozon_reconciliations_immutable",
+      "table": "assembly_ozon_reconciliations",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_ozon_reconciliations_immutable BEFORE DELETE OR UPDATE ON public.assembly_ozon_reconciliations FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_positions_no_rewrite",
+      "table": "assembly_order_positions",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_positions_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_order_positions FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_problem_picks_no_rewrite",
+      "table": "assembly_problem_pick_links",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_problem_picks_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_problem_pick_links FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "assembly_versions_no_rewrite",
+      "table": "assembly_order_versions",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assembly_versions_no_rewrite BEFORE DELETE OR UPDATE ON public.assembly_order_versions FOR EACH ROW EXECUTE FUNCTION assembly_events_immutable()"
+    },
+    {
+      "name": "receiving_intake_events_no_rewrite",
+      "table": "receiving_intake_events",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER receiving_intake_events_no_rewrite BEFORE DELETE OR UPDATE ON public.receiving_intake_events FOR EACH ROW EXECUTE FUNCTION receiving_intake_events_immutable()"
+    },
+    {
+      "name": "receiving_intake_events_no_truncate",
+      "table": "receiving_intake_events",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER receiving_intake_events_no_truncate BEFORE TRUNCATE ON public.receiving_intake_events FOR EACH STATEMENT EXECUTE FUNCTION receiving_intake_events_immutable()"
+    },
+    {
+      "name": "receiving_operation_requests_no_rewrite",
+      "table": "receiving_operation_requests",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER receiving_operation_requests_no_rewrite BEFORE DELETE OR UPDATE ON public.receiving_operation_requests FOR EACH ROW EXECUTE FUNCTION receiving_receipt_immutable()"
+    },
+    {
+      "name": "receiving_operation_requests_no_truncate",
+      "table": "receiving_operation_requests",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER receiving_operation_requests_no_truncate BEFORE TRUNCATE ON public.receiving_operation_requests FOR EACH STATEMENT EXECUTE FUNCTION receiving_receipt_immutable()"
+    },
+    {
+      "name": "receiving_pending_revision",
+      "table": "receiving_session_items",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER receiving_pending_revision AFTER INSERT OR DELETE OR UPDATE ON public.receiving_session_items FOR EACH ROW EXECUTE FUNCTION receiving_advance_pending_revision()"
+    },
+    {
+      "name": "receiving_quantity_requests_no_rewrite",
+      "table": "receiving_quantity_requests",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER receiving_quantity_requests_no_rewrite BEFORE DELETE OR UPDATE ON public.receiving_quantity_requests FOR EACH ROW EXECUTE FUNCTION receiving_receipt_immutable()"
+    },
+    {
+      "name": "receiving_quantity_requests_no_truncate",
+      "table": "receiving_quantity_requests",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER receiving_quantity_requests_no_truncate BEFORE TRUNCATE ON public.receiving_quantity_requests FOR EACH STATEMENT EXECUTE FUNCTION receiving_receipt_immutable()"
+    }
+  ],
+  "functions": [
+    {
+      "name": "assembly_capture_problem_context",
+      "arguments": "pid uuid, raw jsonb"
+    },
+    {
+      "name": "assembly_disassembly_no_undo_returned",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.assembly_disassembly_no_undo_returned()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n IF NEW.kind='undo_pick' AND EXISTS(SELECT 1 FROM assembly_disassembly_items i JOIN assembly_disassembly_effective_returns r ON r.item_id=i.id WHERE i.original_operation_id=NEW.reverses_operation_id) THEN\n RAISE EXCEPTION 'A physically returned pick cannot be undone again' USING ERRCODE='23514'; END IF;\n RETURN NEW;\nEND $function$\n"
+    },
+    {
+      "name": "assembly_disassembly_session_identity",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.assembly_disassembly_session_identity()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n IF NEW.id<>OLD.id OR NEW.order_id<>OLD.order_id OR NEW.problem_id<>OLD.problem_id OR NEW.snapshot<>OLD.snapshot OR NEW.created_at<>OLD.created_at OR OLD.status='completed' THEN\n RAISE EXCEPTION 'Disassembly source context is immutable and completed session cannot reopen' USING ERRCODE='23514'; END IF;\n RETURN NEW;\nEND $function$\n"
+    },
+    {
+      "name": "assembly_events_immutable",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.assembly_events_immutable()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN RAISE EXCEPTION 'Problem history is append-only' USING ERRCODE='23514'; END $function$\n"
+    },
+    {
+      "name": "assembly_external_key",
+      "arguments": "item jsonb"
+    },
+    {
+      "name": "assembly_lifecycle_events_immutable",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.assembly_lifecycle_events_immutable()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    RAISE EXCEPTION 'Assembly lifecycle events are immutable' USING ERRCODE = '23514';\nEND;\n$function$\n"
+    },
+    {
+      "name": "assembly_lifecycle_validate_order",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.assembly_lifecycle_validate_order()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    IF NOT EXISTS (SELECT 1 FROM assembly_order_records WHERE id = NEW.order_id AND source = 'ozon') THEN\n        RAISE EXCEPTION 'Lifecycle events require a real Ozon order' USING ERRCODE = '23514';\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "name": "assembly_load_disassembly",
+      "arguments": ""
+    },
+    {
+      "name": "assembly_load_order",
+      "arguments": "vid uuid"
+    },
+    {
+      "name": "assembly_load_problem",
+      "arguments": "pid uuid"
+    },
+    {
+      "name": "assembly_load_problem_v2",
+      "arguments": "pid uuid"
+    },
+    {
+      "name": "assembly_load_problem_v4",
+      "arguments": "pid uuid"
+    },
+    {
+      "name": "assembly_load_workspace",
+      "arguments": "compact jsonb"
+    },
+    {
+      "name": "assembly_load_workspace_v4",
+      "arguments": "compact jsonb"
+    },
+    {
+      "name": "assembly_load_workspace_v7",
+      "arguments": "compact jsonb"
+    },
+    {
+      "name": "assembly_pick_payload",
+      "arguments": "pid uuid"
+    },
+    {
+      "name": "assembly_resolve_product",
+      "arguments": "item jsonb, origin text"
+    },
+    {
+      "name": "assembly_store_order",
+      "arguments": "raw jsonb"
+    },
+    {
+      "name": "assembly_store_pick",
+      "arguments": "oid uuid, raw jsonb, n integer, vid uuid"
+    },
+    {
+      "name": "assembly_store_preview_pick",
+      "arguments": "oid uuid, raw jsonb, n integer, vid uuid"
+    },
+    {
+      "name": "assembly_store_workspace",
+      "arguments": "raw jsonb, importing boolean"
+    },
+    {
+      "name": "assembly_store_workspace_v2",
+      "arguments": "raw jsonb, importing boolean"
+    },
+    {
+      "name": "assembly_store_workspace_v3",
+      "arguments": "raw jsonb, importing boolean"
+    },
+    {
+      "name": "assembly_store_workspace_v6",
+      "arguments": "raw jsonb, importing boolean"
+    },
+    {
+      "name": "assembly_store_workspace_v7",
+      "arguments": "raw jsonb, importing boolean"
+    },
+    {
+      "name": "assembly_validate_disassembly_return",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.assembly_validate_disassembly_return()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n -- A fixed REPEATABLE READ snapshot could miss a just-committed rival return\n -- after waiting for the item lock. Reject that write mode; history reads may\n -- still use REPEATABLE READ. Existing mutation handlers use READ COMMITTED.\n IF current_setting('transaction_isolation')='repeatable read' THEN\n RAISE EXCEPTION 'Disassembly ledger writes require READ COMMITTED or SERIALIZABLE' USING ERRCODE='0A000'; END IF;\n -- Serialize attempts for the same immutable source unit. The existing write\n -- handlers use READ COMMITTED and also hold the workspace/session locks.\n PERFORM 1 FROM assembly_disassembly_items WHERE id=NEW.item_id FOR UPDATE;\n IF NOT EXISTS(SELECT 1 FROM assembly_disassembly_items i JOIN assembly_disassembly_sessions s ON s.id=i.session_id\n JOIN assembly_warehouse_operations original ON original.id=i.original_operation_id\n WHERE i.id=NEW.item_id AND i.returnable AND s.status='active' AND s.pending_item_id=i.id\n AND original.kind='pick' AND original.order_id=s.order_id AND original.product_id=NEW.product_id AND original.cell_id=NEW.cell_id\n AND NOT EXISTS(SELECT 1 FROM assembly_warehouse_operations undo WHERE undo.reverses_operation_id=original.id)) THEN\n RAISE EXCEPTION 'Return must confirm its pending eligible original pick and source cell' USING ERRCODE='23514';\n END IF;\n IF EXISTS(SELECT 1 FROM assembly_disassembly_effective_returns r WHERE r.item_id=NEW.item_id) THEN\n RAISE EXCEPTION 'Source item already has an effective disassembly return' USING ERRCODE='23505';\n END IF;\n RETURN NEW;\nEND $function$\n"
+    },
+    {
+      "name": "assembly_validate_disassembly_return_reversal",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.assembly_validate_disassembly_return_reversal()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n IF current_setting('transaction_isolation')='repeatable read' THEN\n RAISE EXCEPTION 'Disassembly ledger writes require READ COMMITTED or SERIALIZABLE' USING ERRCODE='0A000'; END IF;\n PERFORM 1 FROM assembly_disassembly_items i JOIN assembly_disassembly_returns r ON r.item_id=i.id\n WHERE r.id=NEW.return_id FOR UPDATE OF i;\n IF NOT FOUND THEN\n RAISE EXCEPTION 'Reversal must reference an existing physical return' USING ERRCODE='23503';\n END IF;\n RETURN NEW;\nEND $function$\n"
+    },
+    {
+      "name": "assembly_validate_warehouse_operation",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.assembly_validate_warehouse_operation()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n IF NOT EXISTS(SELECT 1 FROM assembly_order_positions p JOIN assembly_order_versions v ON v.id=p.version_id\n WHERE p.id=NEW.order_position_id AND v.order_id=NEW.order_id AND p.warehouse_product_id=NEW.product_id) THEN\n  RAISE EXCEPTION 'Warehouse operation does not match order position' USING ERRCODE='23514';\n END IF;\n IF NEW.kind='undo_pick' AND NOT EXISTS(SELECT 1 FROM assembly_warehouse_operations original\n WHERE original.id=NEW.reverses_operation_id AND original.kind='pick' AND original.order_id=NEW.order_id\n AND original.order_position_id=NEW.order_position_id AND original.cell_id=NEW.cell_id AND original.product_id=NEW.product_id) THEN\n  RAISE EXCEPTION 'Undo must match its original pick' USING ERRCODE='23514';\n END IF;\n RETURN NEW;\nEND $function$\n"
+    },
+    {
+      "name": "receiving_advance_pending_revision",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.receiving_advance_pending_revision()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    IF TG_OP = 'DELETE' THEN\n        UPDATE receiving_sessions SET pending_revision = pending_revision + 1 WHERE id = OLD.session_id;\n    ELSE\n        UPDATE receiving_sessions SET pending_revision = pending_revision + 1 WHERE id = NEW.session_id;\n        IF TG_OP = 'UPDATE' AND OLD.session_id <> NEW.session_id THEN\n            UPDATE receiving_sessions SET pending_revision = pending_revision + 1 WHERE id = OLD.session_id;\n        END IF;\n    END IF;\n    RETURN NULL;\nEND;\n$function$\n"
+    },
+    {
+      "name": "receiving_intake_events_immutable",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.receiving_intake_events_immutable()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    RAISE EXCEPTION 'Receiving intake events are immutable' USING ERRCODE = '23514';\nEND;\n$function$\n"
+    },
+    {
+      "name": "receiving_receipt_immutable",
+      "arguments": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.receiving_receipt_immutable()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    RAISE EXCEPTION 'Receiving command receipts are immutable' USING ERRCODE = '23514';\nEND;\n$function$\n"
+    }
+  ],
+  "indexes": [
+    {
+      "name": "products_sku_case_insensitive_unique",
+      "valid": true,
+      "ready": true,
+      "definition": "CREATE UNIQUE INDEX products_sku_case_insensitive_unique ON public.products USING btree (upper((sku)::text))"
+    }
+  ],
+  "views": [
+    {
+      "name": "assembly_disassembly_effective_returns",
+      "definition": " SELECT id,\n    request_id,\n    item_id,\n    product_id,\n    cell_id,\n    quantity,\n    occurred_at\n   FROM assembly_disassembly_returns r\n  WHERE (NOT (EXISTS ( SELECT 1\n           FROM assembly_disassembly_return_reversals reversal\n          WHERE (reversal.return_id = r.id))));"
+    }
+  ]
+}

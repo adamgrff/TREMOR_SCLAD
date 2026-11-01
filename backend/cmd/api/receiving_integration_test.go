@@ -72,6 +72,7 @@ func receivingTestDBWithSchema(t *testing.T, includeIntake, includeOperations bo
 	if includeOperations {
 		migrations = append(migrations, "022_receiving_operation_receipts.sql", "023_receiving_receipts_immutable.sql")
 	}
+	migrations = append(migrations, "024_deployment_identity.sql")
 	for _, name := range migrations {
 		migration, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
 		if err != nil {
@@ -120,7 +121,7 @@ func receivingRequest(db *pgxpool.Pool, handler receivingTestHandler, body strin
 		r.SetPathValue(pathKey, fmt.Sprint(id))
 	}
 	w := httptest.NewRecorder()
-	handler(db, w, r)
+	handler(db, w, receivingIdentityRequest(db, r))
 	return w
 }
 
@@ -373,4 +374,16 @@ func newReceivingScanID(t *testing.T) string {
 	id[6] = (id[6] & 0x0f) | 0x40
 	id[8] = (id[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", id[:4], id[4:6], id[6:8], id[8:10], id[10:])
+}
+
+// Tests bind requests to the actual identity of their own isolated fixture.
+func receivingIdentityRequest(db *pgxpool.Pool, r *http.Request) *http.Request {
+	if db != nil {
+		var id string
+		if err := db.QueryRow(context.Background(), `SELECT deployment_id::text FROM deployment_identity WHERE singleton`).Scan(&id); err != nil {
+			panic(err)
+		}
+		r.Header.Set(deploymentHeader, id)
+	}
+	return r
 }

@@ -42,6 +42,7 @@ type receivingSessionPlacedItem struct {
 }
 
 type receivingSessionDetailsResponse struct {
+	DeploymentID    string                        `json:"deploymentId,omitempty"`
 	PendingRevision string                        `json:"pendingRevision"`
 	ID              int64                         `json:"id"`
 	Status          string                        `json:"status"`
@@ -142,6 +143,17 @@ func getReceivingSessionHandler(
 	defer tx.Rollback(r.Context())
 	var response receivingSessionDetailsResponse
 	var completedAt sql.NullTime
+	var hasIdentity bool
+	if tx.QueryRow(r.Context(), `SELECT to_regclass('deployment_identity') IS NOT NULL`).Scan(&hasIdentity) != nil {
+		writeErrorResponse(w, 500, "failed to identify receiving snapshot")
+		return
+	}
+	if hasIdentity {
+		if tx.QueryRow(r.Context(), `SELECT deployment_id::text FROM deployment_identity WHERE singleton`).Scan(&response.DeploymentID) != nil {
+			deploymentError(w, 503, "deployment_identity_unavailable")
+			return
+		}
+	}
 
 	err = tx.QueryRow(
 		r.Context(),
@@ -361,6 +373,9 @@ func addReceivingSessionItemHandler(
 		return
 	}
 	defer tx.Rollback(r.Context())
+	if !requireReceivingDeployment(w, r, tx) {
+		return
+	}
 
 	// Match the quantity API: request lock/receipt first, then session and product.
 	// Check the receipt before session status so a committed scan can be replayed

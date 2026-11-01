@@ -1,9 +1,11 @@
 import useModalFocusReturn from '../../components/useModalFocusReturn'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { isReceivingDeployment, ReceivingDeploymentBlocked, sendReceivingAction } from './receivingScanCommands'
 import { API_BASE_URL } from '../../config/api'
 
-export default function ReceivingQuantityDialog({ sessionId, product, onClose, onSaved }: {
+export default function ReceivingQuantityDialog({ sessionId, deploymentId, product, onClose, onSaved }: {
   sessionId: number; product: { id?: number; sku: string; name: string; quantity?: number }
+  deploymentId: string | null
   onClose: () => void; onSaved: () => Promise<void>
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -12,27 +14,24 @@ export default function ReceivingQuantityDialog({ sessionId, product, onClose, o
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const inFlight = useRef(false)
-  const operation = useRef<{ payload: string; token: string } | null>(null)
   useEffect(() => { const dialog = dialogRef.current; dialog?.showModal(); return () => dialog?.close() }, [])
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (inFlight.current) return
     inFlight.current = true; setSaving(true); setError('')
     try {
+      if (!isReceivingDeployment(deploymentId)) throw new ReceivingDeploymentBlocked('Источник данных не подтверждён. Обновите приёмку; разрешён только просмотр.')
       let id = product.id
       if (!id) {
-        const lookup = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(product.sku)}`)
+        const lookup = await fetch(`${API_BASE_URL}/product-catalog`, { cache: 'no-store' })
         if (!lookup.ok) throw new Error('Товар недоступен. Обновите приёмку.')
-        id = Number((await lookup.json() as { id: string }).id)
+        const catalog = await lookup.json() as { deploymentId?: string; products: Array<{ id: number; sku: string }> }
+        if (catalog.deploymentId !== deploymentId) throw new ReceivingDeploymentBlocked('Развёртывание изменилось. Операция не отправлена; обновите приёмку.')
+        id = catalog.products.find(item => item.sku === product.sku)?.id
+        if (!id) throw new Error('Товар недоступен. Обновите приёмку.')
       }
       const data = { quantity: Number(quantity), expectedQuantity: product.quantity ?? 0 }
-      const payload = JSON.stringify(data)
-      if (operation.current?.payload !== payload) operation.current = { payload, token: crypto.randomUUID() }
-      const response = await fetch(`${API_BASE_URL}/receiving/sessions/${sessionId}/quantities/${id}`, {
-        method: product.quantity === undefined ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, requestId: operation.current.token }),
-      })
-      if (!response.ok) throw new Error((await response.json() as { error: string }).error)
+      await sendReceivingAction({ kind: 'quantity', sessionId, productId: id!, method: product.quantity === undefined ? 'POST' : 'PUT', ...data }, deploymentId)
       await onSaved(); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не удалось сохранить количество. Повторите с теми же данными.') }
     finally { inFlight.current = false; setSaving(false) }
@@ -47,7 +46,7 @@ export default function ReceivingQuantityDialog({ sessionId, product, onClose, o
       <p>Меняется только количество, ожидающее ячейку. Размещённые остатки не изменятся.</p>
       {error && <p role="alert" className="ds-v1 ui-v1-feedback ui-v1-feedback--error"><span className="productCatalog__errorLabel">ОШИБКА</span>: {error}</p>}
       </div>
-      <div className="receivingHistory__dialogActions"><button type="button" className="receivingHistory__button ds-v1 ui-v1-button" disabled={saving} onClick={onClose}>Отмена</button><button className="receivingHistory__button ds-v1 ui-v1-button" disabled={saving} aria-busy={saving}>{saving ? 'Сохраняю…' : 'Сохранить'}</button></div>
+      <div className="receivingHistory__dialogActions"><button type="button" className="receivingHistory__button ds-v1 ui-v1-button" disabled={saving} onClick={onClose}>Отмена</button><button className="receivingHistory__button ds-v1 ui-v1-button" disabled={saving || !isReceivingDeployment(deploymentId)} aria-busy={saving}>{saving ? 'Сохраняю…' : 'Сохранить'}</button></div>
     </form>
   </dialog>
 }

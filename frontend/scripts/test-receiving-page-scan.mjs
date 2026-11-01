@@ -10,6 +10,7 @@ const transpile = file => ts.transpileModule(readFileSync(new URL(file, import.m
 const pageCode = transpile('../src/pages/ReceivingPage/ReceivingPage.tsx')
 const commandCode = transpile('../src/pages/ReceivingPage/receivingScanCommands.ts')
 const stored = new Map([['tremor.receiving.activeSessionId', '1']]), receipts = new Map(), requests = []
+let snapshotDeploymentId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 let rejectFreshScan = false
 let activeOverride = null, latestOverride = null, completedID = null, failAPI = false, missingID = null
 let nextSession = 1, placementId = 0, placedQuantity = 0, stock = 0, revision = 0
@@ -22,6 +23,7 @@ const storage = {
   removeItem: key => { if (denyStorage) throw new Error('SecurityError'); stored.delete(key) },
 }
 async function fetchServer(url, options = {}) {
+  if (url.endsWith('/deployment')) { if (failAPI) return { ok: false, status: 503 }; return { ok: true, json: async () => ({ deploymentId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }) } }
   requests.push({ url, ...options })
   if (failAPI) return { ok: false, status: 503 }
   if (url.endsWith('/sessions/active')) return { ok: true, json: async () => activeOverride ?? (sessionStatus === 'active' ? [{ id: nextSession, startedAt: '2026-10-30T00:00:00Z', pendingQuantity: quantity, placementCount: placedQuantity ? 1 : 0 }] : []) }
@@ -60,7 +62,7 @@ async function fetchServer(url, options = {}) {
     return { ok: true, json: async () => result }
   }
   const id = Number(url.split('/').at(-1))
-  return { ok: true, json: async () => ({ id, status: id === completedID ? 'completed' : sessionStatus, pendingRevision: String(revision),
+  return { ok: true, json: async () => ({ deploymentId: snapshotDeploymentId, id, status: id === completedID ? 'completed' : sessionStatus, pendingRevision: String(revision),
     pendingItems: quantity ? [{ name: 'Test', sku: 'TEST-SKU', quantity }] : [],
     placedItems: placedQuantity ? [{ placementId, cellCode: 'A1', createdAt: '2026-10-30T00:00:00Z', name: 'Test', sku: 'TEST-SKU', quantity: placedQuantity }] : [] }) }
 }
@@ -218,7 +220,8 @@ for (const local of [null, 'broken', '999', '1.5']) {
 stored.clear(); stored.set('tremor.receiving.activeSessionId', '900'); completedID = 900
 let beforeDiscovery = writes(), fromCompleted = mount(); fromCompleted(); await settle()
 assert.equal(input(fromCompleted).props.disabled, false)
-assert.equal(stored.get('tremor.receiving.activeSessionId'), String(nextSession))
+assert.equal(JSON.parse(stored.get('tremor.receiving.activeSession.v2')).id, nextSession)
+assert.equal(stored.get('tremor.receiving.activeSessionId'), '900')
 assert.equal(writes(), beforeDiscovery)
 completedID = null
 // With no active sessions, show the last completion without creating anything.
@@ -240,7 +243,7 @@ assert.equal(choices.length, 2)
 assert.equal(writes(), beforeWrites)
 await choices[1].props.onClick(); await settle()
 assert.equal(input(render).props.disabled, false)
-assert.equal(stored.get('tremor.receiving.activeSessionId'), '2')
+assert.equal(JSON.parse(stored.get('tremor.receiving.activeSession.v2')).id, 2)
 // Selection races with completion elsewhere: rediscovery must replace the
 // choice list and leave neither a stale lock nor a stale active session.
 const sessionChoices = render => nodes(render()).filter(node => node.type === 'button' && Array.isArray(node.props.children) && node.props.children[0] === 'Приёмка №')
@@ -260,16 +263,16 @@ for (const readOnly of [false, true]) {
     if (outcome === 'empty' || outcome === 'latest') {
       assert.equal(actionButton(race, 'НОВАЯ ПРИЁМКА').props.disabled, readOnly, 'Old choices must not leave isBusy stuck')
       assert.equal(input(race).props.disabled, true)
-      assert.equal(stored.has('tremor.receiving.activeSessionId'), false)
+      assert.equal(stored.has('tremor.receiving.activeSession.v2'), false)
       assert.equal(nodes(race()).some(node => node.type === 'td' && node.props.children === 'Test'), false)
       assert.equal(nodes(race()).some(node => node.type === 'td' && node.props.children === 'Completed item'), outcome === 'latest')
     } else if (outcome === 'one') {
       assert.equal(input(race).props.disabled, readOnly)
-      assert.equal(stored.get('tremor.receiving.activeSessionId'), readOnly ? undefined : '2')
+      assert.equal(stored.get('tremor.receiving.activeSession.v2') ? JSON.parse(stored.get('tremor.receiving.activeSession.v2')).id : undefined, readOnly ? undefined : 2)
       assert.ok(nodes(race()).some(node => node.type === 'td' && node.props.children === 'Test'))
     } else {
       assert.equal(input(race).props.disabled, true)
-      assert.equal(stored.has('tremor.receiving.activeSessionId'), false)
+      assert.equal(stored.has('tremor.receiving.activeSession.v2'), false)
       assert.equal(nodes(race()).some(node => node.type === 'td' && node.props.children === 'Test'), false)
     }
   }
@@ -293,7 +296,7 @@ denyWrites = false
 // Unknown ordering requires manual resolution, with no replay button or effects.
 stored.clear()
 for (const id of ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222']) {
-  stored.set('tremor.receiving.scan.' + id, JSON.stringify({ requestId: id, sessionId: 1, sku: 'TEST-SKU', quantity: 1 }))
+  stored.set('tremor.receiving.scan.' + id, JSON.stringify({ deploymentId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', requestId: id, sessionId: 1, sku: 'TEST-SKU', quantity: 1 }))
 }
 const journal = [...stored.entries()]
 render = mount(); render(); await settle()
@@ -302,3 +305,28 @@ assert.ok(nodes(render()).some(node => node.type === 'p' && typeof node.props.ch
 assert.deepEqual([...stored.entries()], journal)
 assert.equal(writes(), beforeWrites)
 console.log('Session discovery passed: missing/invalid/stale ID, zero/one/multiple sessions, explicit selection, pending/placed reload, API/storage denial, no implicit creation and manual ambiguity lock.')
+
+// A legacy command is not silently adopted. The actual page still renders
+// server data, blocks writes and preserves the original unbound JSON exactly.
+stored.clear()
+const legacyToken = '33333333-3333-4333-8333-333333333333'
+const legacyValue = JSON.stringify({ requestId: legacyToken, sessionId: 1, sku: 'TEST-SKU', quantity: 1 })
+stored.set('tremor.receiving.scan.' + legacyToken, legacyValue)
+render = mount(); render(); await settle()
+assert.equal(input(render).props.disabled, true)
+assert.ok(nodes(render()).some(node => node.type === 'td' && node.props.children === 'Test'))
+assert.ok(nodes(render()).some(node => node.type === 'p' && typeof node.props.children === 'string' && node.props.children.includes('Идентичность развёртывания')))
+assert.deepEqual([...stored.entries()], [['tremor.receiving.scan.' + legacyToken, legacyValue]])
+assert.equal(writes(), beforeWrites)
+console.log('Legacy journal page passed: read-only server view, explicit identity error, no rebind/deletion/replay.')
+
+// A session snapshot from B cannot be bound using the page journal's A handshake.
+stored.clear(); snapshotDeploymentId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+const beforeForeignSnapshot = writes()
+render = mount(); render(); await settle()
+assert.equal(input(render).props.disabled, true)
+assert.equal(stored.has('tremor.receiving.activeSession.v2'), false)
+assert.ok(nodes(render()).some(node => node.type === 'td' && node.props.children === 'Test'))
+assert.equal(writes(), beforeForeignSnapshot)
+snapshotDeploymentId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+console.log('Page snapshot binding passed: foreign read is view-only and cannot create deployment-bound session metadata or mutate.')

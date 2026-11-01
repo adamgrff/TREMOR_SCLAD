@@ -83,7 +83,7 @@ func TestReceivingScanConflictingPayloadAndOperation(t *testing.T) {
 	r.SetPathValue("sessionID", fmt.Sprint(session))
 	r.SetPathValue("productID", "1")
 	w := httptest.NewRecorder()
-	receivingQuantityHandler(db, w, r)
+	receivingQuantityHandler(db, w, receivingIdentityRequest(db, r))
 	requireReceivingStatus(t, w, http.StatusConflict)
 	requireScanTotals(t, db, 1, 1, 1)
 }

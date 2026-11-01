@@ -2,6 +2,7 @@ import useModalFocusReturn from '../../components/useModalFocusReturn'
 import { useEffect, useRef, useState } from 'react'
 import '../../styles/ui.css'
 import './ReceivingHistory.css'
+import { isReceivingDeployment, sendReceivingAction } from './receivingScanCommands'
 import { API_BASE_URL as API } from '../../config/api'
 
 type Summary = {
@@ -12,7 +13,7 @@ type Summary = {
   quantity: number
 }
 
-type HistoryPage = { sessions: Summary[]; nextCursor: number | null }
+type HistoryPage = { deploymentId?: string; sessions: Summary[]; nextCursor: number | null }
 type HistoryItem = {
   placementId: number
   cellCode: string
@@ -27,8 +28,9 @@ const dateFormat = new Intl.DateTimeFormat('ru-RU', {
   hour: '2-digit', minute: '2-digit',
 })
 
-function DeleteReceivingDialog({ session, onCancel, onDeleted }: {
+function DeleteReceivingDialog({ session, deploymentId, onCancel, onDeleted }: {
   session: Summary
+  deploymentId: string
   onCancel: () => void
   onDeleted: (id: number) => void
 }) {
@@ -50,12 +52,7 @@ function DeleteReceivingDialog({ session, onCancel, onDeleted }: {
     setDeleting(true)
     setError('')
     try {
-      const response = await fetch(`${API}/receiving/sessions/${session.id}`, { method: 'DELETE' })
-      if (!response.ok && response.status !== 404) {
-        throw new Error(response.status === 409
-          ? 'Активную приёмку удалить нельзя. Обновите историю.'
-          : 'Не удалось удалить запись. Проверьте подключение и повторите попытку.')
-      }
+      await sendReceivingAction({ kind: 'delete-history', sessionId: session.id }, deploymentId)
       markConfirmed()
       onDeleted(session.id)
     } catch (reason) {
@@ -175,7 +172,7 @@ function HistoryList({ onDeleted, readOnly }: { onDeleted: (id: number) => void;
   const [page, setPage] = useState<HistoryPage | null>(null)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
-  const [pendingDelete, setPendingDelete] = useState<Summary | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ session: Summary; deploymentId: string } | null>(null)
   const [pendingClose, setPendingClose] = useState(false)
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
@@ -183,7 +180,7 @@ function HistoryList({ onDeleted, readOnly }: { onDeleted: (id: number) => void;
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch(`${API}/receiving/sessions?order=${order}${cursor ? `&before=${cursor}` : ''}`, { signal: controller.signal })
+    void fetch(`${API}/receiving/sessions?order=${order}${cursor ? `&before=${cursor}` : ''}`, { signal: controller.signal, cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('Не удалось загрузить историю. Проверьте, что backend обновлён и запущен')
         const data = await response.json() as HistoryPage
@@ -199,6 +196,7 @@ function HistoryList({ onDeleted, readOnly }: { onDeleted: (id: number) => void;
   }, [cursor, attempt, order])
 
   function resetView() {
+    setPendingDelete(null)
     setLoading(true)
     setError('')
   }
@@ -231,8 +229,9 @@ function HistoryList({ onDeleted, readOnly }: { onDeleted: (id: number) => void;
         </div>
       </div>
       {notice && <p role="status" className="ds-v1 ui-v1-feedback">{notice}</p>}
+      {page && !isReceivingDeployment(page.deploymentId) && <p role="alert" className="ds-v1 ui-v1-feedback ui-v1-feedback--error">Источник истории не подтверждён. Разрешён только просмотр; обновите данные.</p>}
       {pendingClose && <CloseHistoryDialog onClose={() => setPendingClose(false)} onConfirm={() => { setPendingClose(false); setNotice('Экспорт в Excel пока не подключён. История сохранена без изменений.') }} />}
-      {!readOnly && pendingDelete && <DeleteReceivingDialog session={pendingDelete} onCancel={() => setPendingDelete(null)} onDeleted={(id) => {
+      {!readOnly && pendingDelete && <DeleteReceivingDialog session={pendingDelete.session} deploymentId={pendingDelete.deploymentId} onCancel={() => setPendingDelete(null)} onDeleted={(id) => {
         setPendingDelete(null)
         setNotice(`Приёмка №${id} удалена из истории. Остатки товаров сохранены.`)
         refreshHistory()
@@ -247,7 +246,7 @@ function HistoryList({ onDeleted, readOnly }: { onDeleted: (id: number) => void;
                 <colgroup><col className="receivingHistory__receiptCol" /><col /><col className="receivingHistory__cellCol" /><col className="receivingHistory__quantityCol" /><col className="receivingHistory__dateCol" /><col className="receivingHistory__actionsCol" /></colgroup>
                 <thead><tr><th>Приёмка</th><th>Позиций</th><th>Ячейки</th><th>Кол-во</th><th aria-sort={order === 'asc' ? 'ascending' : 'descending'}><span className="receivingHistory__columnHeading">Завершена <button type="button" disabled={loading} aria-busy={loading} className="receivingHistory__button receivingHistory__sort ds-v1 ui-v1-button ui-v1-sort-button" aria-label={`Сортировка по времени завершения: ${order === 'asc' ? 'от старых к новым' : 'от новых к старым'}. Нажмите, чтобы изменить`} title={order === 'asc' ? 'От старых к новым' : 'От новых к старым'} onClick={toggleOrder}><span aria-hidden="true">{order === 'asc' ? '↑' : '↓'}</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={order === 'asc' ? 'M12 20V4m-7 7 7-7 7 7' : 'M12 4v16m-7-7 7 7 7-7'} /></svg></button></span></th><th aria-label="Действия">Действия</th></tr></thead>
                 <tbody>{page.sessions.map((session) => (
-                  <HistoryRow key={session.id} session={session} loading={loading} readOnly={readOnly} onDelete={() => setPendingDelete(session)} />
+                  <HistoryRow key={session.id} session={session} loading={loading} readOnly={readOnly || !isReceivingDeployment(page.deploymentId)} onDelete={() => { if (isReceivingDeployment(page.deploymentId)) setPendingDelete({ session, deploymentId: page.deploymentId }) }} />
                 ))}</tbody>
               </table>
             </div>

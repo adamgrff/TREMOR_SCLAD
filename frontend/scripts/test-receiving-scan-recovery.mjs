@@ -8,7 +8,11 @@ const source = readFileSync(new URL('../src/pages/ReceivingPage/receivingScanCom
 const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
 const context = { exports: {}, require: () => ({ API_BASE_URL: '/api' }), crypto: webcrypto, structuredClone }
 vm.runInNewContext(code, context)
-const { ReceivingScanCommands } = context.exports
+const BoundCommands = context.exports.ReceivingScanCommands
+const deploymentId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+class ReceivingScanCommands extends BoundCommands {
+  constructor(storage, request) { super(storage, (url, ...args) => url.endsWith('/deployment') ? Promise.resolve({ ok: true, json: async () => ({ deploymentId }) }) : request(url, ...args)) }
+}
 
 function fixture() {
   const data = new Map(), receipts = new Map(), requests = []
