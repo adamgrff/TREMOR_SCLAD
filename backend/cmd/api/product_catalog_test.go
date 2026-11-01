@@ -14,7 +14,7 @@ func TestProductCatalogPersistenceAndArchive(t *testing.T) {
 		r := httptest.NewRequest(method, "/", strings.NewReader(body))
 		r.SetPathValue("productID", id)
 		w := httptest.NewRecorder()
-		saveCatalogProductHandler(db, w, r)
+		saveCatalogProductHandler(db, w, receivingIdentityRequest(db, r))
 		return w
 	}
 	body := `{"name":"New product","sku":" new-code ","categoryId":1}`

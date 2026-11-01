@@ -24,12 +24,14 @@ type completedReceivingSummary struct {
 }
 
 type completedReceivingHistoryResponse struct {
-	Sessions   []completedReceivingSummary `json:"sessions"`
-	NextCursor *int64                      `json:"nextCursor"`
+	DeploymentID string                      `json:"deploymentId,omitempty"`
+	Sessions     []completedReceivingSummary `json:"sessions"`
+	NextCursor   *int64                      `json:"nextCursor"`
 }
 
 func completedReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 	order := r.URL.Query().Get("order")
 	if order != "" && order != "asc" && order != "desc" {
 		writeErrorResponse(w, http.StatusBadRequest, "order must be asc or desc")
@@ -45,7 +47,18 @@ func completedReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWri
 			return
 		}
 	}
-	rows, err := database.Query(r.Context(), `
+	tx, err := database.BeginTx(r.Context(), pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		writeErrorResponse(w, 500, "failed to read receiving history snapshot")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	identity, err := receivingSnapshotDeployment(r.Context(), tx)
+	if err != nil {
+		deploymentError(w, 503, "deployment_identity_unavailable")
+		return
+	}
+	rows, err := tx.Query(r.Context(), `
 		WITH page AS (
 			SELECT id, completed_at FROM receiving_sessions
 			WHERE status = 'completed' AND deleted_at IS NULL
@@ -73,7 +86,7 @@ func completedReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWri
 		return
 	}
 	defer rows.Close()
-	response := completedReceivingHistoryResponse{Sessions: make([]completedReceivingSummary, 0)}
+	response := completedReceivingHistoryResponse{DeploymentID: identity, Sessions: make([]completedReceivingSummary, 0)}
 	for rows.Next() {
 		var session completedReceivingSummary
 		if err := rows.Scan(&session.ID, &session.CompletedAt, &session.PlacementCount, &session.ProductCount, &session.CellCount, &session.Quantity); err != nil {
@@ -92,6 +105,10 @@ func completedReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWri
 		response.Sessions = response.Sessions[:receivingHistoryPageSize]
 		id := response.Sessions[receivingHistoryPageSize-1].ID
 		response.NextCursor = &id
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeErrorResponse(w, 500, "failed to read receiving history snapshot")
+		return
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("failed to encode receiving history: %v", err)
@@ -229,14 +246,23 @@ func deleteReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWriter
 		writeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	tx, err := database.Begin(r.Context())
+	if err != nil {
+		writeErrorResponse(w, 500, "failed to start history deletion")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	if !requireReceivingDeployment(w, r, tx) {
+		return
+	}
 	var id int64
-	err = database.QueryRow(r.Context(), `
+	err = tx.QueryRow(r.Context(), `
 		UPDATE receiving_sessions SET deleted_at = COALESCE(deleted_at, NOW())
 		WHERE id = $1 AND status = 'completed' RETURNING id
 	`, sessionID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		var exists bool
-		if err := database.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM receiving_sessions WHERE id = $1)`, sessionID).Scan(&exists); err != nil {
+		if err := tx.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM receiving_sessions WHERE id = $1)`, sessionID).Scan(&exists); err != nil {
 			log.Printf("failed to check receiving %d: %v", sessionID, err)
 			writeErrorResponse(w, http.StatusInternalServerError, "failed to delete receiving history")
 			return
@@ -251,6 +277,10 @@ func deleteReceivingHistoryHandler(database *pgxpool.Pool, w http.ResponseWriter
 	if err != nil {
 		log.Printf("failed to delete receiving history %d: %v", sessionID, err)
 		writeErrorResponse(w, http.StatusInternalServerError, "failed to delete receiving history")
+		return
+	}
+	if tx.Commit(r.Context()) != nil {
+		writeErrorResponse(w, 500, "history deletion commit outcome is unknown")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

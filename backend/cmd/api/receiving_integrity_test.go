@@ -536,7 +536,7 @@ func TestReceivingHTTPRestartAfterLostCommit(t *testing.T) {
 			r.SetPathValue("sessionID", os.Getenv("RECEIVING_TEST_SESSION"))
 			if os.Getenv("RECEIVING_TEST_DROP") == "1" {
 				result := httptest.NewRecorder()
-				addReceivingSessionItemHandler(db, result, r)
+				addReceivingSessionItemHandler(db, result, receivingIdentityRequest(db, r))
 				if result.Code != 200 {
 					t.Errorf("initial status %d: %s", result.Code, result.Body.String())
 				}
@@ -546,7 +546,7 @@ func TestReceivingHTTPRestartAfterLostCommit(t *testing.T) {
 				}
 				return
 			}
-			addReceivingSessionItemHandler(db, w, r)
+			addReceivingSessionItemHandler(db, w, receivingIdentityRequest(db, r))
 		}
 		if err := http.Serve(listener, http.HandlerFunc(handler)); err != nil {
 			t.Fatal(err)

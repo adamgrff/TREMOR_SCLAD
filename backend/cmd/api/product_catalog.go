@@ -30,11 +30,24 @@ type catalogProduct struct {
 // This read-only catalog also includes products with no remaining stock.
 func productCatalogHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	tx, err := db.BeginTx(r.Context(), pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		writeErrorResponse(w, 500, "failed to read catalog snapshot")
+		return
+	}
+	defer tx.Rollback(r.Context())
 	response := struct {
-		Categories []catalogCategory `json:"categories"`
-		Products   []catalogProduct  `json:"products"`
+		DeploymentID string            `json:"deploymentId,omitempty"`
+		Categories   []catalogCategory `json:"categories"`
+		Products     []catalogProduct  `json:"products"`
 	}{Categories: []catalogCategory{}, Products: []catalogProduct{}}
-	categories, err := db.Query(r.Context(), `SELECT id, name FROM categories ORDER BY id`)
+	response.DeploymentID, err = receivingSnapshotDeployment(r.Context(), tx)
+	if err != nil {
+		deploymentError(w, 503, "deployment_identity_unavailable")
+		return
+	}
+	categories, err := tx.Query(r.Context(), `SELECT id, name FROM categories ORDER BY id`)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, "failed to load catalog")
 		return
@@ -52,7 +65,7 @@ func productCatalogHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Requ
 		writeErrorResponse(w, http.StatusInternalServerError, "failed to load catalog")
 		return
 	}
-	rows, err := db.Query(r.Context(), `SELECT products.id, products.category_id, products.name, products.sku, products.archived,
+	rows, err := tx.Query(r.Context(), `SELECT products.id, products.category_id, products.name, products.sku, products.archived,
  COALESCE(SUM(cell_stock.quantity), 0)::bigint FROM products
  LEFT JOIN cell_stock ON cell_stock.product_id = products.id
  GROUP BY products.id ORDER BY products.name, products.id`)
@@ -71,6 +84,10 @@ func productCatalogHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.Requ
 	}
 	if rows.Err() != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, "failed to load catalog")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeErrorResponse(w, 500, "failed to read catalog snapshot")
 		return
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -120,6 +137,9 @@ func saveCatalogProductHandler(db *pgxpool.Pool, w http.ResponseWriter, r *http.
 		return
 	}
 	defer tx.Rollback(r.Context())
+	if !requireReceivingDeployment(w, r, tx) {
+		return
+	}
 	var quantityPayload string
 	if input.ReceivingQuantity > 0 {
 		data, _ := json.Marshal(input)

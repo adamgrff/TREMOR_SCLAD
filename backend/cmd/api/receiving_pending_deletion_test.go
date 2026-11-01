@@ -24,7 +24,7 @@ func TestReceivingPendingDeletionIsScopedAndIdempotent(t *testing.T) {
 		r.SetPathValue("sessionID", fmt.Sprint(session))
 		r.SetPathValue("sku", sku)
 		w := httptest.NewRecorder()
-		deleteReceivingSessionItemHandler(db, w, r)
+		deleteReceivingSessionItemHandler(db, w, receivingIdentityRequest(db, r))
 		return w
 	}
 	for i := 0; i < 2; i++ {

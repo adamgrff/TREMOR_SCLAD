@@ -35,8 +35,13 @@ type errorResponse struct {
 }
 
 func main() {
-	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
-		log.Fatalf("failed to load .env: %v", err)
+	if os.Getenv("TREMOR_SKIP_DOTENV") != "1" {
+		if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+			log.Fatalf("failed to load .env: %v", err)
+		}
+	}
+	if os.Getenv("TREMOR_DISABLE_OUTBOUND_HTTP") == "1" {
+		http.DefaultTransport = disabledOutboundHTTP{}
 	}
 
 	databaseURL := os.Getenv("DATABASE_URL")
@@ -68,6 +73,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("GET /api/deployment", func(w http.ResponseWriter, r *http.Request) { deploymentIdentityHandler(database, w, r) })
 	mux.HandleFunc("GET /api/assembly/orders", func(w http.ResponseWriter, r *http.Request) { assemblyOrdersHandler(database, w, r) })
 	mux.HandleFunc("GET /api/assembly/mapping-products", func(w http.ResponseWriter, r *http.Request) { assemblyMappingProductsHandler(database, w, r) })
 	mux.HandleFunc("POST /api/assembly/problems/{problemID}/map-product", func(w http.ResponseWriter, r *http.Request) { assemblyMappingHandler(database, w, r) })
@@ -207,13 +213,17 @@ func main() {
 		productStockHandler(database, w, r)
 	})
 
+	address := os.Getenv("API_ADDR")
+	if address == "" {
+		address = "127.0.0.1:8080"
+	}
 	server := &http.Server{
-		Addr:              "127.0.0.1:8080",
+		Addr:              address,
 		Handler:           corsMiddleware(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Println("API is running on http://127.0.0.1:8080")
+	log.Printf("API is running on http://%s", address)
 
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
@@ -460,7 +470,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
 
-			if origin == "http://127.0.0.1:5173" ||
+			if (origin != "" && origin == os.Getenv("FRONTEND_ORIGIN")) || origin == "http://127.0.0.1:5173" ||
 				origin == "http://localhost:5173" {
 				w.Header().Set(
 					"Access-Control-Allow-Origin",
@@ -475,7 +485,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 			)
 			w.Header().Set(
 				"Access-Control-Allow-Headers",
-				"Content-Type, Authorization",
+				"Content-Type, Authorization, X-Tremor-Deployment-Id",
 			)
 
 			if r.Method == http.MethodOptions {

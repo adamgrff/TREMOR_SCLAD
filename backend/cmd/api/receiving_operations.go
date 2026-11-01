@@ -71,6 +71,10 @@ func beginReceivingOperation(db *pgxpool.Pool, w http.ResponseWriter, r *http.Re
 		writeErrorResponse(w, status, message)
 		return nil
 	}
+	if !requireReceivingDeployment(w, r, tx) {
+		_ = tx.Rollback(r.Context())
+		return nil
+	}
 	if err = lockReceivingRequest(r.Context(), tx, token); err != nil {
 		return fail(500, "failed to lock receiving command")
 	}

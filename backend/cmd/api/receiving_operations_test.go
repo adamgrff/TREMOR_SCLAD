@@ -39,7 +39,7 @@ func (c receivingOperationCase) call(db *pgxpool.Pool, token string) *httptest.R
 		r.SetPathValue("sku", c.sku)
 	}
 	w := httptest.NewRecorder()
-	c.handler(db, w, r)
+	c.handler(db, w, receivingIdentityRequest(db, r))
 	return w
 }
 
@@ -239,7 +239,7 @@ func TestReceivingPendingRevisionAllWriters(t *testing.T) {
 	r.SetPathValue("sessionID", fmt.Sprint(session))
 	r.SetPathValue("productID", "1")
 	w := httptest.NewRecorder()
-	receivingQuantityHandler(db, w, r)
+	receivingQuantityHandler(db, w, receivingIdentityRequest(db, r))
 	requireReceivingStatus(t, w, 204)
 	check()
 	placement := receivingPlace(t, db, session, 3)

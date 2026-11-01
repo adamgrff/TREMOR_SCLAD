@@ -1,0 +1,152 @@
+{
+  "format": 1,
+  "profile": "clean-v2",
+  "canonicalization": "utf8-lf-v1",
+  "migrations": [
+    {
+      "version": 1,
+      "name": "001_init.sql",
+      "sha256": "171d232a8a9c0ca28c7187fc8a16025979a8cd751ec9dfb882284c49aea8a615",
+      "order": 1
+    },
+    {
+      "version": 3,
+      "name": "003_receiving_placements.sql",
+      "sha256": "8484c81fedc2cea07776a7a64328d686ba513656c375d878f875cdebb10c9415",
+      "order": 2
+    },
+    {
+      "version": 4,
+      "name": "004_receiving_sessions.sql",
+      "sha256": "cfb797e1a76c2eede424af14b79dab28284d0928b86cccb31340b8b5282533d6",
+      "order": 3
+    },
+    {
+      "version": 5,
+      "name": "005_receiving_drafts.sql",
+      "sha256": "aad182cdcb980c60850d6f70ff437670e37af273160a0ff6c9def051a009a2dc",
+      "order": 4
+    },
+    {
+      "version": 7,
+      "name": "007_receiving_history_deletion.sql",
+      "sha256": "11abecc33bc95e91a3ad0f6de332ebd84e0eb17bb9386ea273c5856371ac5773",
+      "order": 5
+    },
+    {
+      "version": 8,
+      "name": "008_product_catalog.sql",
+      "sha256": "96459ecba5408606abc9f9ffec5e52a78f51dfef45f0d4df3ed8fa5fd5cb1803",
+      "order": 6
+    },
+    {
+      "version": 9,
+      "name": "009_receiving_quantity_requests.sql",
+      "sha256": "997458dfb4523cdcc15d9660f51e1c3a13bab993c5941390369715fad72abe12",
+      "order": 7
+    },
+    {
+      "version": 10,
+      "name": "010_rack_cell_codes.sql",
+      "sha256": "3fc47cb324caeecf27c434ebb2a3867e23a416d04e5b641ab1ae61364772605d",
+      "order": 8
+    },
+    {
+      "version": 11,
+      "name": "011_assembly_preview_drafts.sql",
+      "sha256": "2e89fc9a336607580b70c535367ce0ceff254b31c507f7c71349ed0a3c94c1a9",
+      "order": 9
+    },
+    {
+      "version": 12,
+      "name": "012_assembly_problem_storage.sql",
+      "sha256": "c65600063ab9bce1e03fb938c5410856958be94bbdeef6f4658b760fcc463196",
+      "order": 10
+    },
+    {
+      "version": 13,
+      "name": "013_assembly_problem_context.sql",
+      "sha256": "a878bdde663ff83ef1079023e579066a382d9a94735b2431cbfda59b933c3cea",
+      "order": 11
+    },
+    {
+      "version": 14,
+      "name": "014_assembly_stock_checks.sql",
+      "sha256": "26644e0fdd2ee8e8b4f8c47495b30ffb433a3668380758bd450668357f81bded",
+      "order": 12
+    },
+    {
+      "version": 15,
+      "name": "015_assembly_warehouse_operations.sql",
+      "sha256": "4a55adcf139f54217bba31da52946138a530f8dbe74a37ab737b1f22d2ef4d08",
+      "order": 13
+    },
+    {
+      "version": 16,
+      "name": "016_assembly_sku_mappings.sql",
+      "sha256": "23bac51b2681119c67c9c089118d5567bcaa0fcfc0856550eed4162ff0aef75d",
+      "order": 14
+    },
+    {
+      "version": 17,
+      "name": "017_assembly_ozon_operations.sql",
+      "sha256": "f94caf30bc913720d5fe7e85ccd78d09187c844edff6e1474476289e01c9086b",
+      "order": 15
+    },
+    {
+      "version": 18,
+      "name": "018_assembly_disassembly.sql",
+      "sha256": "0647af52a98fcc2d3f4e5717c045f29d9b977e3c7b05d7b0aebaa867e57b0ea6",
+      "order": 16
+    },
+    {
+      "version": 19,
+      "name": "019_assembly_disassembly_return_reversals.sql",
+      "sha256": "d8c96911d725c3978f384c53ad27ea5307b5dfa1906af6fe68c26dd86293aca0",
+      "order": 17
+    },
+    {
+      "version": 20,
+      "name": "020_receiving_intake_events.sql",
+      "sha256": "8042ff827c961fcc2b165693a482734bacf90e446af1946d26ef96580456171c",
+      "order": 18
+    },
+    {
+      "version": 21,
+      "name": "021_assembly_lifecycle_events.sql",
+      "sha256": "c246fddb21b976b4a8263f9e9370a34c9163b1676c58df82bb2cd586866a307a",
+      "order": 19
+    },
+    {
+      "version": 22,
+      "name": "022_receiving_operation_receipts.sql",
+      "sha256": "36854f5bcac31909d91f8c502a60342b821e300b95fcca0250a3b60ba39675ea",
+      "order": 20
+    },
+    {
+      "version": 23,
+      "name": "023_receiving_receipts_immutable.sql",
+      "sha256": "e4aaee2c00eb3f7472125355400c5e948263415d02089edfcf7a8b72b56f7cd3",
+      "order": 21
+    },
+    {
+      "version": 24,
+      "name": "024_deployment_identity.sql",
+      "sha256": "4f1459d528f0160437d66750280398be60cd53a35834cdb22daa243eeb7e266f",
+      "order": 22
+    }
+  ],
+  "excluded": [
+    {
+      "version": 2,
+      "name": "002_seed.sql",
+      "reason": "demo"
+    }
+  ],
+  "gaps": [
+    {
+      "version": 6,
+      "reason": "historical-gap"
+    }
+  ]
+}

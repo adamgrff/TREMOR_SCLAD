@@ -47,6 +47,7 @@ type LatestReceivingResponse = {
 }
 
 type ReceivingSessionDetails = {
+  deploymentId?: string
   pendingRevision: string
   id: number
   status: 'active' | 'completed'
@@ -142,11 +143,13 @@ function ReceivingPage({ theme }: { theme: Theme }) {
   const [manualRecovery, setManualRecovery] = useState(false)
   const [journalUnavailable, setJournalUnavailable] = useState(false)
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
+  const [journalMessage, setJournalMessage] = useState('')
   const [scanRecoveryNeeded, setScanRecoveryNeeded] = useState(false)
 
   const [receivingState, setReceivingState] =
     useState<ReceivingState>('start')
   const [sessionId, setSessionId] = useState<number | null>(null)
+  const [sessionDeploymentId, setSessionDeploymentId] = useState<string | null>(null)
   const [pendingRevision, setPendingRevision] = useState<string | null>(null)
   const [quantityItem, setQuantityItem] = useState<ReceivingItem | null>(null)
   const [currentItems, setCurrentItems] = useState<ReceivingItem[]>([])
@@ -245,6 +248,13 @@ function ReceivingPage({ theme }: { theme: Theme }) {
   }
 
   function restoreSession(session: ReceivingSessionDetails) {
+    const bound = scanCommands.current!.acceptsSnapshot(session.deploymentId)
+    setSessionDeploymentId(bound ? session.deploymentId! : null)
+    setQuantityItem(null)
+    if (!bound) {
+      setJournalUnavailable(true)
+      setJournalMessage(current => current || 'Состояние сессии относится к неподтверждённому развёртыванию. Разрешён только просмотр; сохранённые команды не изменены.')
+    }
     const restoredPendingItems: ReceivingItem[] = session.pendingItems.map(
       (item) => ({
         name: item.name,
@@ -267,11 +277,7 @@ function ReceivingPage({ theme }: { theme: Theme }) {
     setPendingRevision(session.pendingRevision)
     setSessionId(session.status === 'active' ? session.id : null)
     setCompletedSessionId(session.status === 'completed' ? session.id : null)
-    if (session.status === 'active') {
-      rememberActiveReceivingSession(session.id)
-    } else {
-      rememberActiveReceivingSession(null)
-    }
+    if (bound) rememberActiveReceivingSession(session.status === 'active' ? session.id : null)
 
     setCurrentItems(restoredPendingItems)
     setPlacedItems(restoredPlacedItems)
@@ -310,6 +316,7 @@ function ReceivingPage({ theme }: { theme: Theme }) {
   }
 
   function restoreLatestReceiving(receiving: LatestReceivingResponse) {
+    setSessionDeploymentId(null)
     setActiveSessions([])
     setPendingRevision(null)
     setQuantityItem(null)
@@ -402,6 +409,7 @@ function ReceivingPage({ theme }: { theme: Theme }) {
     else if (initial.type === 'latest') restoreLatestReceiving(initial.receiving)
     else {
       setSessionId(null)
+      setSessionDeploymentId(null)
       setPendingRevision(null)
       setCompletedSessionId(null)
       setQuantityItem(null)
@@ -426,9 +434,11 @@ function ReceivingPage({ theme }: { theme: Theme }) {
         recovered = { type: 'session', session: await loadReceivingSession(id) }
       })
       setJournalUnavailable(false)
+      setJournalMessage('')
     } catch (reason) {
       if (!(reason instanceof ReceivingJournalUnavailable)) throw reason
       setJournalUnavailable(true)
+      setJournalMessage(reason.message)
     }
     return recovered ?? await loadInitialReceivingData()
   }
@@ -643,7 +653,7 @@ function ReceivingPage({ theme }: { theme: Theme }) {
           </span>
         </div>
 
-        {journalUnavailable && <p role="status" className="receivingPage__scanMessage ds-v1 ui-v1-type-secondary">Журнал команд недоступен. Доступен только просмотр. Для восстановления записи включите хранилище и обновите страницу.</p>}
+        {journalUnavailable && <p role="status" className="receivingPage__scanMessage ds-v1 ui-v1-type-secondary">{journalMessage || 'Журнал команд недоступен. Доступен только просмотр. Для восстановления записи включите хранилище и обновите страницу.'}</p>}
         {activeSessions.length > 0 && <section className="receivingPage__panel ds-v1 ui-v1-window" aria-label="Выбор активной приёмки">
           <h2 className="receivingPage__panelTitle ds-v1 ui-v1-type-section">АКТИВНЫЕ ПРИЁМКИ</h2>
           {activeSessions.map(session => <p key={session.id}><button type="button" className="receivingHistory__button ds-v1 ui-v1-button" disabled={isLoadingHistory || scanRecoveryNeeded} onClick={() => void selectReceivingSession(session.id)}>Приёмка №{session.id} · {formatPlacementTime(session.startedAt)} · ожидают: {session.pendingQuantity} · размещений: {session.placementCount}</button></p>)}
@@ -863,8 +873,8 @@ function ReceivingPage({ theme }: { theme: Theme }) {
             setScanMessage(`Приёмка №${id} удалена из истории. Остатки товаров сохранены.`)
           }
         }} />
-        <ProductCatalog sessionId={sessionId} disabled={isBusy || isFinished || sessionId === null} revision={catalogRevision} onReceivingChanged={refreshReceivingSession} />
-        {quantityItem && sessionId !== null && <ReceivingQuantityDialog sessionId={sessionId} product={{ name: quantityItem.name, sku: quantityItem.code, quantity: quantityItem.quantity }} onClose={() => setQuantityItem(null)} onSaved={refreshReceivingSession} />}
+        <ProductCatalog sessionId={sessionId} sessionDeploymentId={sessionDeploymentId} readOnly={isBusy} disabled={isBusy || isFinished || sessionId === null} revision={catalogRevision} onReceivingChanged={refreshReceivingSession} />
+        {quantityItem && sessionId !== null && <ReceivingQuantityDialog deploymentId={sessionDeploymentId} sessionId={sessionId} product={{ name: quantityItem.name, sku: quantityItem.code, quantity: quantityItem.quantity }} onClose={() => setQuantityItem(null)} onSaved={refreshReceivingSession} />}
       </section>
     </main>
   )
