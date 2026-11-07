@@ -1,0 +1,60 @@
+services:
+  pg:
+    platform: linux/amd64
+    image: ${E1A_TEST_IMAGE:?unique locally built test image required}
+    build:
+      context: ../..
+      dockerfile: test/e1a/Dockerfile
+      args:
+        GO_IMAGE: ${E1A_GO_IMAGE:?reviewed Go image digest required}
+        PG_IMAGE: ${E1A_PG_IMAGE:?reviewed PostgreSQL 18 image digest required}
+    environment:
+      POSTGRES_USER: e1a_test_admin
+      POSTGRES_PASSWORD: ${E1A_TEST_PASSWORD:?new disposable password required}
+      POSTGRES_DB: tremor_e1a_test
+      POSTGRES_INITDB_ARGS: --locale-provider=builtin --locale=C.UTF-8 --encoding=UTF8 --auth-host=scram-sha-256
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      PGDATA: /var/lib/postgresql/18/docker
+    command: [postgres, -c, listen_addresses=127.0.0.1, -c, port=5432]
+    mem_limit: 3g
+    memswap_limit: 3g
+    shm_size: 256m
+    tmpfs:
+      - /var/lib/postgresql:rw,nosuid,nodev,size=1536m
+      - /tmp:rw,nosuid,nodev,size=128m
+    networks: [isolated]
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID:?unique run ID required}
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U e1a_test_admin -d tremor_e1a_test']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  tests:
+    platform: linux/amd64
+    image: ${E1A_TEST_IMAGE:?unique locally built test image required}
+    entrypoint: [/bin/bash, /opt/e1a/run.sh]
+    network_mode: service:pg
+    depends_on:
+      pg:
+        condition: service_healthy
+    environment:
+      E1A_T1_APPROVED: ${E1A_T1_APPROVED:?explicit T1 permission required}
+      PGPASSWORD: ${E1A_TEST_PASSWORD:?new disposable password required}
+    read_only: true
+    mem_limit: 1g
+    memswap_limit: 1g
+    tmpfs:
+      # Override the inherited PostgreSQL image VOLUME: no anonymous volume.
+      - /var/lib/postgresql:rw,nosuid,nodev,size=16m
+      # Child test binaries run from /opt; temporary manifests only use /tmp.
+      - /tmp:rw,nosuid,nodev,size=256m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID:?unique run ID required}
+networks:
+  isolated:
+    internal: true
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID:?unique run ID required}
