@@ -1,0 +1,78 @@
+name: E1A fixed-source regression
+
+on:
+  push:
+    branches: [ci/e1a-fixed-21fa6cd]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e1a-fixed-source
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: github.repository == 'adamgrff/TREMOR_SCLAD' && github.ref == 'refs/heads/ci/e1a-fixed-21fa6cd'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_SHA: 21fa6cd6bf8cf6d0de37953d39eed243680ec359
+      SOURCE_TREE: 53d259004b87eef5ed6a39cf544385ca635be23d
+      WORKFLOW_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout CI control
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          fetch-depth: 2
+          persist-credentials: false
+          clean: false
+          submodules: false
+          lfs: false
+      - name: Checkout accepted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 21fa6cd6bf8cf6d0de37953d39eed243680ec359
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+          clean: false
+          submodules: false
+          lfs: false
+      - name: Offline verifier self-tests
+        run: python3 -B control/.github/e1a/verify.py self-test
+      - name: Build and run once
+        id: regression
+        timeout-minutes: 30
+        run: bash control/.github/e1a/ci.sh run "$GITHUB_WORKSPACE/source"
+      - name: Collect diagnostics and clean own resources
+        id: cleanup
+        if: ${{ always() }}
+        timeout-minutes: 5
+        run: bash control/.github/e1a/ci.sh collect-cleanup "$GITHUB_WORKSPACE/source"
+      - name: Upload sanitized evidence
+        id: evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e1a-${{ github.run_id }}-${{ github.run_attempt }}-21fa6cd
+          path: ${{ runner.temp }}/e1a-evidence/
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 14
+          overwrite: false
+      - name: Require complete success
+        if: ${{ always() }}
+        env:
+          REGRESSION_OUTCOME: ${{ steps.regression.outcome }}
+          CLEANUP_OUTCOME: ${{ steps.cleanup.outcome }}
+          EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
+        run: |
+          test "$REGRESSION_OUTCOME" = success
+          test "$CLEANUP_OUTCOME" = success
+          test "$EVIDENCE_OUTCOME" = success
