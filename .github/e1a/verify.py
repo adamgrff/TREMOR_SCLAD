@@ -5,6 +5,7 @@ self-test/check do not invoke Docker. run/collect-cleanup require ci.sh's GitHub
 push admission too. Synthetic self-tests validate the verifier, NOT PostgreSQL.
 The source fixtures, not text markers alone, implement the SQL assertions.
 """
+import copy
 import csv
 import hashlib
 import io
@@ -24,6 +25,7 @@ from unittest import mock
 
 SOURCE = "21fa6cd6bf8cf6d0de37953d39eed243680ec359"
 TREE = "53d259004b87eef5ed6a39cf544385ca635be23d"
+INITIAL_CONTROL = "31b65b4f6afd379e11625480b57d7341467acc68"
 PREFIX = "TestExtensionIntegration"
 PASS = {PREFIX + n for n in (
     "AdmissionT0 BusinessPreservation CHECKLiteralRegression CHECKMapping "
@@ -61,6 +63,40 @@ CONTROL_PATHS = {".github/workflows/e1a-fixed-source.yml", ".github/e1a/ci.sh",
 def need(condition, reason):
     if not condition:
         raise ValueError(reason)
+
+
+def strict_bytes(value):
+    """Compose UnitBytes JSON: nonnegative integer or canonical ASCII decimal."""
+    if type(value) is int:
+        need(value >= 0, "negative byte count")
+        return value
+    need(type(value) is str and re.fullmatch(r"0|[1-9][0-9]*", value) is not None,
+         "byte count must be an integer or unsigned decimal string")
+    return int(value)
+
+
+def validate_memory(service, name):
+    need(name in ("pg", "tests"), "unexpected memory-limit service")
+    need("mem_limit" in service and "memswap_limit" in service,
+         "missing memory limit: " + name)
+    memory = strict_bytes(service["mem_limit"])
+    swap = strict_bytes(service["memswap_limit"])
+    need(memory == (3 if name == "pg" else 1) * 1024**3 and swap == memory,
+         "incorrect memory limit: " + name)
+
+
+def verify_source_identity(head, tree, status):
+    need(head == SOURCE, "source SHA")
+    need(tree == TREE, "source tree")
+    need(not status, "dirty source")
+
+
+def verify_control_ancestry(workflow, hotfix_line, initial_line):
+    need(re.fullmatch(r"[0-9a-f]{40}", workflow) is not None and
+         workflow not in (SOURCE, INITIAL_CONTROL), "workflow SHA")
+    # Exactly one parent at BOTH links; shallow/missing ancestry fails closed.
+    need(hotfix_line.split() == [workflow, INITIAL_CONTROL], "hotfix parent/merge")
+    need(initial_line.split() == [INITIAL_CONTROL, SOURCE], "initial control parent/merge")
 
 
 def digest(data):
@@ -289,14 +325,17 @@ class Controller:
         self.save()
 
     def source_check(self):
-        need(self.command("source_head", ["git", "-C", str(self.source), "rev-parse", "HEAD"])[1].strip() == SOURCE, "source SHA")
-        need(self.command("source_tree", ["git", "-C", str(self.source), "rev-parse", "HEAD^{tree}"])[1].strip() == TREE, "source tree")
-        need(not self.command("source_status", ["git", "-C", str(self.source), "status", "--porcelain"])[1].strip(), "dirty source")
+        head = self.command("source_head", ["git", "-C", str(self.source), "rev-parse", "HEAD"])[1].strip()
+        tree = self.command("source_tree", ["git", "-C", str(self.source), "rev-parse", "HEAD^{tree}"])[1].strip()
+        status = self.command("source_status", ["git", "-C", str(self.source), "status", "--porcelain"])[1].strip()
+        verify_source_identity(head, tree, status)
         control = Path(__file__).resolve().parents[2]
         workflow = os.environ["WORKFLOW_SHA"]
         need(re.fullmatch(r"[0-9a-f]{40}", workflow) is not None and workflow != SOURCE, "workflow SHA")
         need(self.command("control_head", ["git", "-C", str(control), "rev-parse", "HEAD"])[1].strip() == workflow, "control SHA")
-        need(self.command("control_parent", ["git", "-C", str(control), "rev-parse", "HEAD^"])[1].strip() == SOURCE, "control parent")
+        hotfix = self.command("control_parent", ["git", "-C", str(control), "rev-list", "--parents", "-n", "1", "HEAD"])[1].strip()
+        initial = self.command("control_grandparent", ["git", "-C", str(control), "rev-list", "--parents", "-n", "1", INITIAL_CONTROL])[1].strip()
+        verify_control_ancestry(workflow, hotfix, initial)
         need(not self.command("control_status", ["git", "-C", str(control), "status", "--porcelain"])[1].strip(), "dirty control")
         changed = self.command("control_diff", ["git", "-C", str(control), "diff", "--name-status", SOURCE, "HEAD"])[1].splitlines()
         need({tuple(x.split("\t")) for x in changed} == {("A", p) for p in CONTROL_PATHS}, "control scope")
@@ -397,9 +436,8 @@ class Controller:
              config["networks"]["isolated"]["internal"] is True, "Compose topology")
         for name, service in config["services"].items():
             need(service["platform"] == "linux/amd64" and service["image"] == self.env["E1A_TEST_IMAGE"] and
-                 not service.get("ports") and not service.get("volumes") and not service.get("privileged") and
-                 service["mem_limit"] == (3 if name == "pg" else 1) * 1024**3 and
-                 service["memswap_limit"] == service["mem_limit"], "Compose service isolation")
+                 not service.get("ports") and not service.get("volumes") and not service.get("privileged"), "Compose service isolation")
+            validate_memory(service, name)
         pg, tests = config["services"]["pg"], config["services"]["tests"]
         need(Path(pg["build"]["context"]).resolve() == self.source / "backend" and
              pg["build"]["dockerfile"] == "test/e1a/Dockerfile" and
@@ -602,6 +640,92 @@ class VerifierTests(unittest.TestCase):
 
     def check(self):
         return verify_bundle(self.d, inventory=False)
+
+    def test_byte_limits(self):
+        for name, size in (("pg", 3221225472), ("tests", 1073741824)):
+            for memory in (size, str(size)):
+                for swap in (size, str(size)):
+                    with self.subTest(service=name, memory=memory, swap=swap):
+                        self.assertEqual(strict_bytes(memory), size)
+                        validate_memory({"mem_limit": memory, "memswap_limit": swap}, name)
+            for field in ("mem_limit", "memswap_limit"):
+                invalid = [True, False, float(size), None, -size, str(-size), "3g", "1 GiB",
+                           str(size) + "x", " " + str(size), str(size) + "\n", "", "0" + str(size),
+                           "٣٢٢١٢٢٥٤٧٢", size - 1, 0]
+                for value in invalid:
+                    with self.subTest(service=name, field=field, invalid=value):
+                        service = {"mem_limit": size, "memswap_limit": size, field: value}
+                        with self.assertRaises(ValueError):
+                            validate_memory(service, name)
+                service = {"mem_limit": size, "memswap_limit": size}
+                del service[field]
+                with self.assertRaises(ValueError):
+                    validate_memory(service, name)
+
+    def test_control_chain(self):
+        workflow = "a" * 40
+        hotfix = workflow + " " + INITIAL_CONTROL
+        initial = INITIAL_CONTROL + " " + SOURCE
+        verify_control_ancestry(workflow, hotfix, initial)
+        for h, i in ((workflow + " " + SOURCE, initial),
+                     (workflow + " " + "b" * 40, initial),
+                     (hotfix, INITIAL_CONTROL + " " + "b" * 40),
+                     (hotfix + " " + SOURCE, initial),
+                     (hotfix, initial + " " + "b" * 40),
+                     (workflow, initial), (hotfix, INITIAL_CONTROL),
+                     (hotfix, "b" * 40 + " " + SOURCE)):
+            with self.subTest(hotfix=h, initial=i), self.assertRaises(ValueError):
+                verify_control_ancestry(workflow, h, i)
+
+    def test_fixed_source_guard(self):
+        verify_source_identity(SOURCE, TREE, "")
+        for head, tree, status in (("b" * 40, TREE, ""), (SOURCE, "b" * 40, ""),
+                                   (SOURCE, TREE, " M backend/internal/migrations/extension_runner.go")):
+            with self.assertRaises(ValueError):
+                verify_source_identity(head, tree, status)
+        c = object.__new__(Controller); c.source = Path("/synthetic-source")
+        with mock.patch.object(c, "command", side_effect=[(0, SOURCE), (0, TREE), (0, "dirty")]):
+            with self.assertRaisesRegex(ValueError, "dirty source"):
+                c.source_check()
+
+    def test_compose_json_contract(self):
+        c = object.__new__(Controller)
+        c.source = Path("/synthetic-source").resolve()
+        c.state = {"project": "e1a-offline-hotfix"}
+        c.env = {"E1A_TEST_IMAGE": "tremor-e1a:offline"}; c.password = "offline-only"
+        config = {"networks": {"isolated": {"internal": True}}, "services": {}}
+        for name, size in (("pg", 3221225472), ("tests", 1073741824)):
+            config["services"][name] = {"platform": "linux/amd64", "image": c.env["E1A_TEST_IMAGE"],
+                "mem_limit": str(size), "memswap_limit": str(size)}
+        pg, tests = config["services"]["pg"], config["services"]["tests"]
+        pg.update(build={"context": str(c.source / "backend"), "dockerfile": "test/e1a/Dockerfile",
+                         "args": {"GO_IMAGE": IMAGES["go"], "PG_IMAGE": IMAGES["pg"]}},
+                  environment={"POSTGRES_PASSWORD": c.password, "POSTGRES_HOST_AUTH_METHOD": "scram-sha-256"},
+                  command=["postgres", "-c", "listen_addresses=127.0.0.1", "-c", "port=5432"])
+        tests.update(network_mode="service:pg", read_only=True, environment={"PGPASSWORD": c.password})
+        # The former Python comparison rejects the exact UnitBytes JSON form.
+        self.assertNotEqual(pg["mem_limit"], 3 * 1024**3)
+        with mock.patch.object(c, "json_command", return_value=config):
+            c.validate_compose()
+        mutations = {
+            "extra_service": lambda v: v["services"].update(extra={}),
+            "external_network": lambda v: v["networks"]["isolated"].update(internal=False),
+            "published_port": lambda v: v["services"]["pg"].update(ports=[{"published": 5432}]),
+            "bind_mount": lambda v: v["services"]["pg"].update(volumes=[{"type": "bind"}]),
+            "privileged": lambda v: v["services"]["pg"].update(privileged=True),
+            "platform": lambda v: v["services"]["pg"].update(platform="linux/arm64"),
+            "wrong_limit": lambda v: v["services"]["pg"].update(mem_limit="3221225471"),
+            "swap_mismatch": lambda v: v["services"]["tests"].update(memswap_limit="3221225472"),
+            "missing_swap": lambda v: v["services"]["pg"].pop("memswap_limit"),
+            "network_mode": lambda v: v["services"]["tests"].update(network_mode="host"),
+            "writable_tests": lambda v: v["services"]["tests"].update(read_only=False),
+            "wrong_context": lambda v: v["services"]["pg"]["build"].update(context="/another-source"),
+        }
+        for name, mutation in mutations.items():
+            altered = copy.deepcopy(config); mutation(altered)
+            with self.subTest(mutation=name), mock.patch.object(c, "json_command", return_value=altered):
+                with self.assertRaises(ValueError):
+                    c.validate_compose()
 
     def edit_json(self, name, fn):
         p = self.d / name; value = read_json(p); fn(value); write_json(p, value)
