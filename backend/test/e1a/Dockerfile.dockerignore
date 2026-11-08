@@ -1,0 +1,17 @@
+**
+!go.mod
+!go.sum
+!internal/
+!internal/migrations/
+!internal/migrations/**
+!cmd/
+!cmd/migrate-extension/
+!cmd/migrate-extension/**
+!migrations/
+!migrations/**
+!test/
+!test/e1a/
+!test/e1a/Dockerfile
+!test/e1a/run.sh
+!test/e1a/run-suite.sh
+!test/e1a/init.sql
