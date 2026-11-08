@@ -6,6 +6,10 @@ Architecture A: trusted `tremor_deployer` applies reviewed SQL through the runne
 limited `tremor_migrator` is status/verify-only. No dispatcher or migration-step
 functions. Actual deployed roles, owners and ACL remain **UNKNOWN**.
 
+F1 corrects admission of incomplete/contradictory evidence. The original I1
+descriptor shape is no longer admitted: source_scope/final_scope are required and
+included in the release digest. There were and remain no production approvals.
+
 ## Trust and public API
 
 `DecodeSecurityTransition` validates a typed descriptor and exact payload bytes;
@@ -32,6 +36,8 @@ Protocol: `e1b-security-transition-v1`. Required fields:
 - source and final catalog readiness SHA256;
 - complete ordered before/after metadata inventories and explicit change list;
 - receipt location fixed to `tremor_deployment.security_transitions`, format 1.
+- separate source/final scopes defining exact presence/absence, object identities,
+  schema/parent references and applicable object-creator default privileges.
 
 The baseline lineage digest binds the complete validated baseline, not merely a
 row count. The future collector must calculate it from the original manifest and
@@ -79,19 +85,84 @@ An existing SD function changing owner, SD mode, search_path or definition must
 explicitly mark `execution_context_change=true`; unrelated ACL changes cannot
 masquerade as execution-context changes.
 
+Bound evidence additionally includes a scope digest and ordered physical object
+identities. OIDs belong exclusively to target-bound evidence, not approved
+descriptors. Every present physical object needs one nonzero OID; columns use the
+parent table OID plus positive attnum. Duplicate catalog identities are rejected.
+Definitions/default ACLs are compared as explicit scoped metadata, not physical
+objects requiring a synthetic OID.
+
+Ledger observations include owner and ACL, which must equal their table metadata;
+their OID must equal the corresponding physical identity. The ledger inventory
+must exactly match approved presence policy. F1 permits owner/ACL changes only
+through the descriptor's exact metadata deltas; immutable ledger fields remain
+unchanged. Existing physical identities remain stable when the object is retained.
+
 Bound immutable evidence includes database OID, ledger OIDs, markers, constraint
 digests and complete historical-row digests, business data, deployment identity,
 business receipts and sequence state. Ledger row digests must include every field,
 including timestamps. Final snapshots must retain this evidence exactly.
-An existing empty extension ledger can be present, but cannot disappear. Creation
+An existing empty extension ledger can be present only when explicitly required by
+both approved scopes, and cannot disappear. An absent extension ledger must have an
+explicit absent requirement, with no metadata, physical identity or ledger row.
+Creation
 of an absent extension ledger is outside this transition comparator and remains
 part of the later first-apply initialization contract.
 
-All assertions are **relative to supplied complete snapshots**. I1 cannot prove
-that a snapshot is truthful, complete, transactionally consistent, or actually
-read from PostgreSQL. I2 needs a trusted collector, effective privilege/default
+## F1 mandatory scope and admission
+
+Scope is release-approved policy, not a list inferred from the observed snapshot.
+`legacy-v1` permits explicit absence of not-yet-provisioned target roles and command/
+deployment schemas. `prepared-v1` requires all six target roles and three protected
+schemas present. Final scope must be prepared. Neither profile admits an absent
+baseline ledger; an applied extension prefix requires the extension ledger present.
+
+Fixed requirements cannot be removed by shrinking or rehashing a descriptor:
+
+- role entries for tremor_api, tremor_deployer, tremor_executor,
+  tremor_ledger_owner, tremor_migrator, tremor_owner;
+- protected target schema plus explicit presence policy for tremor_commands and
+  tremor_deployment;
+- schema_migrations present, schema_extensions explicitly present or absent;
+- nonempty approved creator list; prepared scope includes tremor_deployer;
+- functions/sequences/tables global AND schema-local default-privilege evidence for
+  every listed creator in every present in-scope schema, including resolved defaults when no
+  pg_default_acl row exists.
+
+Scope keys are canonical within a bounded identifier subset: role:name,
+schema:name, schema.table, schema.table.column, schema.function(args), and
+default_acl:schema:creator:class. Quoted identifiers/unsupported function signature
+syntax are refused by this version rather than guessed. Function OID identity
+also prevents alternate spellings from aliasing one physical object.
+An empty schema segment in a default_acl key denotes global defaults, not a missing
+schema observation. These records still require their creator role in scope.
+
+Present scope requirements and metadata are a bijection. Explicitly absent entries
+cannot appear in metadata/identities/ledgers. Missing required functions, schemas,
+roles, ownership/ACL data or physical identities fail admission. Owners, grantors,
+grantees (except PUBLIC), membership targets and membership grantors must resolve
+to present in-scope roles. Columns resolve to their table/schema and share the
+table owner/OID. Default privilege creators resolve to their role. Membership
+dependencies are closed within scope, with self/cyclic memberships rejected.
+Prepared target roles except deployer cannot have dangerous role flags or role
+memberships; owner/executor/ledger-owner remain NOLOGIN. Additional roles and
+objects are governed by the exact approved inventories. This is not an inventory
+of unrelated cluster objects and not a semantic safety review of approved SQL.
+
+Binding validates the descriptor and its source scope. All bound-consuming public
+paths (comparison, expected receipt, source/final recovery and state classification)
+revalidate the sealed descriptor/source: source equality cannot skip admission.
+Unavailable evidence remains unknown; supplied inconsistent evidence is rejected.
+There is no caller-provided validated flag or scope override.
+
+Structural completeness and consistency are now enforced **within the approved
+scope**. They do not prove truth, transactional consistency or PostgreSQL origin.
+I2 needs a trusted collector, effective privilege/default
 ACL expansion, full membership graph, unsupported-object rejection and target
-inspection. Comparing digests does not establish these properties by itself.
+inspection. The collector must discover all relevant objects/role dependencies,
+check coverage against policy, and refuse incomplete reads. It must not mint release
+approval. A future separately sealed collected-evidence interface can enforce this
+boundary; F1 does not invent or issue a PostgreSQL-provenance token.
 
 ## Receipt, states and recovery
 

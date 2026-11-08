@@ -115,6 +115,24 @@ type SecurityTransitionDescriptor struct {
 	After              []TransitionMetadata      `json:"after"`
 	Changes            []TransitionDelta         `json:"changes"`
 	Receipt            TransitionReceiptLocation `json:"receipt"`
+	SourceScope        TransitionScope           `json:"source_scope"`
+	FinalScope         TransitionScope           `json:"final_scope"`
+}
+
+// Scope is release policy, never inferred from observed evidence. Both phases
+// enumerate presence AND absence. No observed "complete" or "validated" flag exists.
+type TransitionScope struct {
+	Profile  string                  `json:"profile"`
+	Objects  []TransitionRequirement `json:"objects"`
+	Creators []string                `json:"creators"`
+}
+
+type TransitionRequirement struct {
+	Key      string `json:"key"`
+	Kind     string `json:"kind"`
+	Schema   string `json:"schema"`
+	Parent   string `json:"parent"`
+	Presence string `json:"presence"`
 }
 
 // ApprovedSecurityTransition is sealed: callers cannot construct approval by
@@ -317,6 +335,34 @@ func validateTransitionDescriptor(d SecurityTransitionDescriptor) error {
 	}
 	if len(changes) != 0 {
 		return errors.New("delta for unknown object")
+	}
+	if err := validateTransitionScope(d.SourceScope, d.Target, d.Before); err != nil {
+		return err
+	}
+	if d.FinalScope.Profile != "prepared-v1" {
+		return errors.New("final prepared scope required")
+	}
+	if err := validateTransitionScope(d.FinalScope, d.Target, d.After); err != nil {
+		return err
+	}
+	for _, key := range []string{d.Target.Schema + ".schema_migrations", d.Target.Schema + ".schema_extensions"} {
+		var bp, ap string
+		for _, r := range d.SourceScope.Objects {
+			if r.Key == key {
+				bp = r.Presence
+			}
+		}
+		for _, r := range d.FinalScope.Objects {
+			if r.Key == key {
+				ap = r.Presence
+			}
+		}
+		if bp != ap {
+			return errors.New("transition cannot create/remove migration ledgers")
+		}
+		if strings.HasSuffix(key, ".schema_extensions") && len(d.Frontier.Entries) > 0 && bp != "present" {
+			return errors.New("applied prefix requires extension ledger")
+		}
 	}
 	return nil
 }
