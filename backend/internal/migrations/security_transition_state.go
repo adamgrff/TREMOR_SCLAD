@@ -288,7 +288,7 @@ func validateTransitionIdentities(s TransitionSnapshot, scope TransitionScope) (
 		}
 		previous = o.Key
 		catalog := r.Kind
-		if r.Kind == "table" || r.Kind == "sequence" || r.Kind == "column" {
+		if r.Kind == "table" || r.Kind == "view" || r.Kind == "sequence" || r.Kind == "column" {
 			catalog = "relation"
 		}
 		identity := fmt.Sprintf("%s/%d/%d", catalog, o.OID, o.SubID)
@@ -383,7 +383,7 @@ func validateTransitionScope(scope TransitionScope, target TransitionTarget, obj
 		}
 		if r.Kind == "column" {
 			p, ok := meta[r.Parent]
-			if !ok || p.Kind != "table" || p.Owner != m.Owner {
+			if !ok || (p.Kind != "table" && p.Kind != "view") || p.Owner != m.Owner {
 				return errors.New("unknown/inconsistent column parent")
 			}
 		}
@@ -471,7 +471,7 @@ func transitionRequirementIdentity(r TransitionRequirement) bool {
 		return strings.HasPrefix(r.Key, "role:") && simpleName.MatchString(strings.TrimPrefix(r.Key, "role:")) && r.Schema == "" && r.Parent == ""
 	case "schema":
 		return schemaName.MatchString(r.Schema) && r.Key == "schema:"+r.Schema && r.Parent == ""
-	case "table", "sequence":
+	case "table", "view", "sequence":
 		return schemaName.MatchString(r.Schema) && strings.HasPrefix(r.Key, r.Schema+".") && simpleName.MatchString(strings.TrimPrefix(r.Key, r.Schema+".")) && r.Parent == ""
 	case "function":
 		return schemaName.MatchString(r.Schema) && strings.HasPrefix(r.Key, r.Schema+".") && transitionFunctionIdentity.MatchString(strings.TrimPrefix(r.Key, r.Schema+".")) && r.Parent == ""

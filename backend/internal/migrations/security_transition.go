@@ -415,7 +415,7 @@ func transitionMetadataIndex(objects []TransitionMetadata) (map[string]Transitio
 		}
 		previous = o.Key
 		switch o.Kind {
-		case "schema", "table", "column", "function", "sequence", "default_acl", "role":
+		case "schema", "table", "view", "column", "function", "sequence", "default_acl", "role":
 		default:
 			return nil, errors.New("unknown metadata class")
 		}

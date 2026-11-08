@@ -6,6 +6,9 @@ Architecture A: trusted `tremor_deployer` applies reviewed SQL through the runne
 limited `tremor_migrator` is status/verify-only. No dispatcher or migration-step
 functions. Actual deployed roles, owners and ACL remain **UNKNOWN**.
 
+The subsequent [I2.1 collector](DB04_E1B_SECURITY_COLLECTOR.md) is separate from
+these offline contracts and the existing E1A runner. It does not apply transitions.
+
 F1 corrects admission of incomplete/contradictory evidence. The original I1
 descriptor shape is no longer admitted: source_scope/final_scope are required and
 included in the release digest. There were and remain no production approvals.

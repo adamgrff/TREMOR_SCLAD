@@ -1,0 +1,17 @@
+# Overlay for the existing E1A disposable harness; no new CI/build framework.
+# Supply an already compiled Linux/amd64 TEST binary and an immutable TEST image.
+services:
+  pg:
+    pull_policy: never
+    environment:
+      POSTGRES_DB: tremor_e1b_collector_test
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U e1a_test_admin -d tremor_e1b_collector_test']
+  tests:
+    pull_policy: never
+    entrypoint: [/opt/e1b/collector.test]
+    command: [-test.v, -test.count=1, -test.timeout=180s, '-test.run=^TestSecurityCollectorIntegrationDisposable$']
+    environment:
+      E1B_COLLECTOR_TEST_APPROVED: 'yes'
+    volumes:
+      - ${E1B_TEST_BINARY:?explicit freshly built TEST binary required}:/opt/e1b/collector.test:ro
