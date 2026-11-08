@@ -77,16 +77,17 @@ type TransitionMembership struct {
 // column name. DefinitionSHA covers definitions not represented by the typed fields.
 // Every collection is ordered, duplicate-free, and non-nil; order is part of v1.
 type TransitionMetadata struct {
-	Key             string                 `json:"key"`
-	Kind            string                 `json:"kind"`
-	Owner           string                 `json:"owner"`
-	ACL             TransitionACL          `json:"acl"`
-	DefinitionSHA   string                 `json:"definition_sha256"`
-	SecurityDefiner bool                   `json:"security_definer"`
-	SearchPath      []string               `json:"search_path"`
-	Protected       bool                   `json:"protected"`
-	RoleFlags       TransitionRoleFlags    `json:"role_flags"`
-	Memberships     []TransitionMembership `json:"memberships"`
+	SessionDefaults []TransitionSessionLayer `json:"session_defaults"`
+	Key             string                   `json:"key"`
+	Kind            string                   `json:"kind"`
+	Owner           string                   `json:"owner"`
+	ACL             TransitionACL            `json:"acl"`
+	DefinitionSHA   string                   `json:"definition_sha256"`
+	SecurityDefiner bool                     `json:"security_definer"`
+	SearchPath      []string                 `json:"search_path"`
+	Protected       bool                     `json:"protected"`
+	RoleFlags       TransitionRoleFlags      `json:"role_flags"`
+	Memberships     []TransitionMembership   `json:"memberships"`
 }
 
 type TransitionDelta struct {
@@ -412,6 +413,9 @@ func transitionMetadataIndex(objects []TransitionMetadata) (map[string]Transitio
 	for _, o := range objects {
 		if o.Key == "" || !utf8.ValidString(o.Key) || len(o.Key) > 1024 || strings.TrimSpace(o.Key) != o.Key || strings.IndexFunc(o.Key, unicode.IsControl) >= 0 || o.Key <= previous || !checksumPattern.MatchString(o.DefinitionSHA) || o.SearchPath == nil || o.Memberships == nil || o.ACL.Grants == nil {
 			return nil, errors.New("invalid/unsorted metadata inventory")
+		}
+		if err := validateSessionLayers(o, objects); err != nil {
+			return nil, err
 		}
 		previous = o.Key
 		switch o.Kind {

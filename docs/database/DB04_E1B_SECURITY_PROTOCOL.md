@@ -213,3 +213,15 @@ release approvals, API, Docker or CI. Foundation is not production-ready. Next:
 review offline contracts, implement target collection/protocol only with separate
 authorization, then disposable PostgreSQL 18 fresh/upgrade/ACL/crash tests using
 the existing E1A harness, followed by protected API gates and adapters.
+
+### И2.1-F2 mandatory catalog defaults
+
+Role metadata now requires four explicit session-default layers (global,
+database, role, role_database), including confirmed absent layers. These are
+part of approved source/final metadata, explicit deltas, digests and all
+binding/recovery checks. Descriptors without them must be rebuilt and independently
+approved; computing a new checksum alone does not grant approval. Logical layer
+identity is implied by the enclosing approved target and role; observed database
+and role OIDs are validated separately by the collector. See
+[collector contract](DB04_E1B_SECURITY_COLLECTOR.md#и21-f2-catalog-session-defaults)
+for exact policy, scope, runtime boundaries and regression evidence.

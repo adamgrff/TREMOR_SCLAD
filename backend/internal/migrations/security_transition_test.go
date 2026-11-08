@@ -14,7 +14,7 @@ func transitionFixture(t *testing.T) (SecurityTransitionDescriptor, []byte, Tran
 	h := digest([]byte("fixture"))
 	target := TransitionTarget{"7705152489884045356", "e1b_disposable", "public", "12345678-1234-1234-1234-123456789abc"}
 	meta := func(key, kind string) TransitionMetadata {
-		return TransitionMetadata{Key: key, Kind: kind, Owner: "old_owner", ACL: TransitionACL{"explicit", []TransitionGrant{}}, DefinitionSHA: h, SearchPath: []string{}, Memberships: []TransitionMembership{}}
+		return TransitionMetadata{SessionDefaults: []TransitionSessionLayer{}, Key: key, Kind: kind, Owner: "old_owner", ACL: TransitionACL{"explicit", []TransitionGrant{}}, DefinitionSHA: h, SearchPath: []string{}, Memberships: []TransitionMembership{}}
 	}
 	before := []TransitionMetadata{meta("public.schema_migrations", "table"), meta("public.stock", "table"), meta("public.stock.quantity", "column"), meta("tremor_commands.place(uuid)", "function")}
 	before[3].SecurityDefiner = true
@@ -37,6 +37,7 @@ func transitionFixture(t *testing.T) (SecurityTransitionDescriptor, []byte, Tran
 	for _, role := range []string{"old_owner", "tremor_api", "tremor_deployer", "tremor_executor", "tremor_ledger_owner", "tremor_migrator", "tremor_owner"} {
 		m := meta("role:"+role, "role")
 		m.Owner = ""
+		m.SessionDefaults = emptySessionLayers()
 		m.RoleFlags.Login = role == "old_owner" || role == "tremor_api" || role == "tremor_migrator" || role == "tremor_deployer"
 		before = append(before, m)
 		after = append(after, transitionClone(m))
@@ -381,7 +382,7 @@ func TestSecurityTransitionBindingAndMetadata(t *testing.T) {
 			x.Metadata[transitionTestIndex(x.Metadata, "public.stock.quantity")].ACL = TransitionACL{"explicit", []TransitionGrant{}}
 		},
 		"membership": func(x *TransitionSnapshot) {
-			x.Metadata = append(x.Metadata, TransitionMetadata{Key: "unexpected", Kind: "role"})
+			x.Metadata = append(x.Metadata, TransitionMetadata{SessionDefaults: []TransitionSessionLayer{}, Key: "unexpected", Kind: "role"})
 		},
 		"SD flag": func(x *TransitionSnapshot) {
 			x.Metadata[transitionTestIndex(x.Metadata, "tremor_commands.place(uuid)")].SecurityDefiner = false
@@ -545,7 +546,7 @@ func TestSecurityTransitionCreatedObjectsAndExactFrontier(t *testing.T) {
 	ext.Key = "public.schema_extensions"
 	d.Before = append(d.Before, ext)
 	d.After = append(d.After, transitionClone(ext))
-	m := TransitionMetadata{Key: "public.created", Kind: "table", Owner: "tremor_ledger_owner", ACL: TransitionACL{"explicit", []TransitionGrant{}}, DefinitionSHA: d.PayloadSHA, SearchPath: []string{}, Memberships: []TransitionMembership{}}
+	m := TransitionMetadata{SessionDefaults: []TransitionSessionLayer{}, Key: "public.created", Kind: "table", Owner: "tremor_ledger_owner", ACL: TransitionACL{"explicit", []TransitionGrant{}}, DefinitionSHA: d.PayloadSHA, SearchPath: []string{}, Memberships: []TransitionMembership{}}
 	d.After = append(d.After, m)
 	d.Changes = append(d.Changes, TransitionDelta{m.Key, transitionObjectDigest(TransitionMetadata{}, false), transitionDigest(m), false})
 	transitionTestRebuildPolicy(&d, &source)

@@ -142,3 +142,120 @@ writes or production deployment on the strength of this collector suite.
 PostgreSQL references: [privilege inquiries](https://www.postgresql.org/docs/18/functions-info.html),
 [membership catalog](https://www.postgresql.org/docs/18/catalog-pg-auth-members.html),
 [default ACL semantics](https://www.postgresql.org/docs/18/catalog-pg-default-acl.html).
+
+## И2.1-F2: catalog session defaults
+
+The collector previously fingerprinted `pg_roles.rolconfig`, which exposes only
+role-wide settings (`setdatabase=0`). It missed database-wide and role+database
+rows, as well as global all-role/all-database defaults. The previous 19 PG cases
+never changed these settings. Consequently ordinary binding and recovery received
+incomplete evidence despite structurally complete object inventories.
+
+### Contract and scope
+
+Every present scoped role now has mandatory `session_defaults` metadata containing
+exactly four ordered `TransitionSessionLayer` values: `global`, `database`, `role`,
+`role_database`. Each has an explicit `present` and non-null, ordered, unique list
+of typed `TransitionSessionSetting{name,value}`. Absent and unreadable differ:
+confirmed absence has `present=false, settings=[]`; missing/null layers fail.
+Non-role metadata cannot carry nonempty session defaults.
+
+The enclosing role and target specify logical identities. Observed database OID
+and role `ObjectIdentities` specify physical identities; release payloads do not
+pin target-specific role OIDs. The fixed query selects these exact OID pairs:
+
+| Layer | setdatabase | setrole |
+| --- | --- | --- |
+| global | 0 | 0 |
+| database | target DatabaseOID | 0 |
+| role | 0 | scoped role OID |
+| role_database | target DatabaseOID | scoped role OID |
+
+All applicable rows are retained, even if overridden. Other databases/roles are
+excluded. Unexpected or duplicate OID pairs, null catalog arrays, missing roles,
+invalid references and query errors fail collection. `pg_roles.rolconfig` is read
+again inside the same REPEATABLE READ read-only transaction and reconciled exactly
+with each role-wide layer, including NULL/absence. Shared global/database layers
+must agree across every scoped role.
+
+The typed layers live in release-approved `Before`/`After`, so their changes need
+explicit metadata deltas and independent release approval, just like other role
+metadata. They enter role `DefinitionSHA`, metadata digests, descriptor digest,
+target-bound snapshot digest, collector seal, binding, comparison and recovery.
+No legacy fingerprint path silently accepts a descriptor missing the field.
+The existing JSON decoder enforces mandatory fields, exact types, duplicate and
+unknown field rejection for these nested structures too. Existing test fixtures
+now explicitly specify all four absent layers; checks were not relaxed.
+Production release approval remains empty; the collector cannot approve policy.
+
+### Parameter policy and boundaries
+
+The reviewed v1 subset accepts only these settings and values:
+
+- `session_replication_role=origin`; `row_security=on`.
+- `check_function_bodies`, `standard_conforming_strings`, `escape_string_warning`:
+  `on`; `transform_null_equals`: `off`; `client_encoding`: `UTF8`.
+- `backslash_quote`: `off` or `safe_encoding`.
+- `search_path`: a restricted unquoted list beginning with `pg_catalog`, ending
+  with `pg_temp`, without duplicates; other entries must be protected scoped schemas.
+- `default_transaction_read_only`, `default_transaction_deferrable`: `on`/`off`;
+  isolation: `read committed`, `repeatable read`, `serializable`.
+- `statement_timeout`, `lock_timeout`, `idle_in_transaction_session_timeout`,
+  `idle_session_timeout`, `transaction_timeout`: bounded nonnegative decimal
+  durations with optional `ms`, `s`, `min` units.
+
+This is a deliberate fail-closed subset, not a classification of every PG GUC.
+Unknown/custom settings and all unsupported values fail, even if an operator
+computes a new digest. Supporting another setting requires reviewed code/policy.
+Within this subset, a value is still accepted only when it exactly matches the
+independently approved source/final metadata. Values are never included in error
+messages or test logs; formatting an individual setting redacts its value.
+Canonical JSON contains policy data and must not be used as an operational log.
+
+`CatalogLoginOverrides` derives only catalog overrides in increasing precedence:
+global < database < role < role_database. It is not proof of the complete effective
+runtime state. Server configuration, connection startup parameters and later
+session SET are separate sources, and are not certified here. There is no new
+runtime-setting collector. TEST-only fresh connections compare the selected
+catalog-derived override with actual `pg_settings`; SET ROLE does not reapply
+role login defaults.
+
+References: [pg_db_role_setting](https://www.postgresql.org/docs/18/catalog-pg-db-role-setting.html),
+[ALTER ROLE precedence and login behavior](https://www.postgresql.org/docs/18/sql-alterrole.html).
+
+### Reproduction and verification
+
+Original collector plus permanent new regression failed on a new isolated PG18.6:
+a TEST API role+database `session_replication_role=replica` took effect on a fresh
+login, but evidence was unchanged and recovery returned SOURCE_CONFIRMED. This
+proves false source confirmation, **not** an observed false PROTECTED or COMMIT.
+Old-code cluster system identifier: `7705865891418869803`.
+
+Fixed-code PostgreSQL run: 27/27 scenarios PASS (all previous 19 plus 8 new).
+Covered four catalog layers, new-login precedence, SET ROLE distinction, stable
+snapshots, unrelated-database exclusion, unchanged rolconfig with changed target
+settings, unsafe replication/search_path/RLS settings, unsupported custom GUC,
+unapproved database defaults, ACL/membership/ledger/receipt regressions and real
+runtime permission denials. Contradictory evidence cannot confirm recovery.
+Offline tests cover missing layers, duplicate fields/settings, wrong types/nulls,
+unknown role/database references, incomplete reads, rolconfig disagreement, shared
+layer contradictions, approved final-state defaults and rejection of mutated
+settings even with a matching receipt. No PostgreSQL transition was performed.
+
+PostgreSQL: 18.6 (Debian 18.6-1.pgdg12+2), system identifier
+`7705869010502365227` for the expanded passing run. Pinned local image:
+`tremor-e1a-test@sha256:475363c2a602b7b96dd7568ff86d45bdd703721f323e10ccac6bffe9f06e5fe2`.
+Unique project: `e1b-collector-eda18c47649845e4a906f8e8c01f8fd6`.
+No host ports, internal network, synthetic TEST database and temporary credentials.
+All three F2 disposable projects were cleaned, each with zero remaining project
+containers, networks and volumes. External evidence logs are kept outside Git.
+
+No baseline, manifest, E1A runner, API, production allowlist, ownership transition
+or production connection changed. This fixes the entry blocker for resuming the
+separately authorized И2.2 work; it does not implement that work or claim
+production readiness.
+
+Final offline verification: **45/45 top-level tests PASS** (all previous 41 plus
+four new groups), 268 passing test/subtest events; `go vet` PASS; `gofmt` reports
+zero unformatted files; `git diff --check` PASS. Synthetic query-boundary fault
+injection is labelled separately from the real PostgreSQL evidence.

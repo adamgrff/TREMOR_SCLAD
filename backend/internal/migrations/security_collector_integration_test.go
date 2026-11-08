@@ -271,6 +271,41 @@ func TestSecurityCollectorIntegrationDisposable(t *testing.T) {
 			t.Fatal("false COMMIT confirmation", got)
 		}
 	})
+	testCatalogSessionDefaults(t, ctx, admin, cfg, target, m, reference)
+	t.Run("db-specific-role-setting-drift", func(t *testing.T) {
+		a, initial := reference()
+		bound, e := BindCollectedSecurityTransition(a, initial)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e = admin.Exec(ctx, `ALTER ROLE tremor_api IN DATABASE tremor_e1b_collector_test SET session_replication_role=replica`); e != nil {
+			t.Fatal(e)
+		}
+		defer func() {
+			_, _ = admin.Exec(ctx, `ALTER ROLE tremor_api IN DATABASE tremor_e1b_collector_test RESET session_replication_role`)
+		}()
+		apiCfg := cfg.Copy()
+		apiCfg.User = "tremor_api"
+		api, e := pgx.ConnectConfig(ctx, apiCfg)
+		if e != nil {
+			t.Fatal(e)
+		}
+		defer closeConnection(api)
+		var setting string
+		if e = api.QueryRow(ctx, `SELECT current_setting('session_replication_role')`).Scan(&setting); e != nil {
+			t.Fatal(e)
+		}
+		if setting != "replica" {
+			t.Fatal("regression startup prerequisite not reproduced")
+		}
+		observed, e := CollectSecuritySnapshot(ctx, target, a, CollectTransitionSource, m)
+		if e != nil {
+			return
+		}
+		if reflect.DeepEqual(initial.snapshot, observed.snapshot) && ClassifyCollectedTransitionRecovery(bound, observed) == TransitionSourceConfirmed {
+			t.Fatal("BLOCKER: database-role startup setting changed but collector still confirms original source")
+		}
+	})
 	for _, tc := range []struct{ name, apply, restore string }{
 		{"missing-role", `ALTER ROLE tremor_migrator RENAME TO missing_migrator`, `ALTER ROLE missing_migrator RENAME TO tremor_migrator`},
 		{"unexpected-grant", `GRANT UPDATE ON public.collector_probe TO tremor_api`, `REVOKE UPDATE ON public.collector_probe FROM tremor_api`},

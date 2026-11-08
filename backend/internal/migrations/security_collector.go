@@ -310,6 +310,9 @@ func collectSecuritySnapshotTx(ctx context.Context, tx pgx.Tx, target Target, da
 	if err = collectSecurityEffective(ctx, tx, &c, scope, identities, databaseOID, target.Database); err != nil {
 		return c, err
 	}
+	if err = collectSessionDefaults(ctx, tx, &s); err != nil {
+		return c, err
+	}
 	// Effective inquiries include implicit memberships (e.g. pg_database_owner),
 	// superuser privileges and PUBLIC. Bind their results into compared metadata,
 	// not merely an auxiliary report that callers might accidentally ignore.
@@ -330,7 +333,7 @@ func collectSecuritySnapshotTx(ctx context.Context, tx pgx.Tx, target Target, da
 				paths = append(paths, p)
 			}
 		}
-		s.Metadata[i].DefinitionSHA = transitionDigest([]any{m.DefinitionSHA, ps, paths})
+		s.Metadata[i].DefinitionSHA = transitionDigest([]any{m.DefinitionSHA, ps, paths, m.SessionDefaults})
 	}
 	// Sequence values are not MVCC. Detect observable movement, never claim this is
 	// a lock or protection against concurrent ABA; deployment collection needs quiescence.

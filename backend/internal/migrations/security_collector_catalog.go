@@ -63,7 +63,7 @@ func collectSecurityObject(ctx context.Context, q queryer, r TransitionRequireme
 	if err = json.Unmarshal([]byte(raw), &o); err != nil || o.Definition == nil || o.Kind != r.Kind {
 		return TransitionMetadata{}, TransitionObjectIdentity{}, false, errors.New("catalog object kind/definition invalid")
 	}
-	m := TransitionMetadata{Key: r.Key, Kind: r.Kind, Owner: o.Owner, ACL: TransitionACL{Mode: "explicit", Grants: []TransitionGrant{}}, DefinitionSHA: "", SecurityDefiner: o.SD, SearchPath: []string{}, Protected: r.Kind == "schema", RoleFlags: o.Flags, Memberships: []TransitionMembership{}}
+	m := TransitionMetadata{SessionDefaults: []TransitionSessionLayer{}, Key: r.Key, Kind: r.Kind, Owner: o.Owner, ACL: TransitionACL{Mode: "explicit", Grants: []TransitionGrant{}}, DefinitionSHA: "", SecurityDefiner: o.SD, SearchPath: []string{}, Protected: r.Kind == "schema", RoleFlags: o.Flags, Memberships: []TransitionMembership{}}
 	resolved := []TransitionGrant{}
 	if r.Kind != "role" {
 		rows, e := q.Query(ctx, securityACLGrantsSQL, o.ACL)
