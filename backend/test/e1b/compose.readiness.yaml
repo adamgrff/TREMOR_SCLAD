@@ -3,6 +3,7 @@ services:
   tests:
     environment:
       I3_EXPORT: 'yes'
+      I3_READ_POLICY: ${I3_READ_POLICY:-no}
     volumes:
       - ${I3_ROOT:?TEST artifacts required}:/i3:rw
   verifier:
@@ -54,6 +55,7 @@ services:
       - ${E1B_TEST_BINARY}:/opt/e1b/collector.test:ro
       - ${I3_ROOT}/api:/runtime:ro
       - ${I3_ROOT}/verifier/password:/verifier-password/password:ro
+      - ${I3_ROOT}/verifier/bundle.json:/controller/bundle.json:ro
     read_only: true
     tmpfs: [/tmp, /var/lib/postgresql]
     cap_drop: [ALL]

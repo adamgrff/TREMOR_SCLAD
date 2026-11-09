@@ -78,6 +78,11 @@ export default function useAssemblyDraft<T>(initialState: T) {
     const reconcile = pending.current.uncertain === true
     try {
       const response = await fetch(`${API_BASE_URL}${pending.current.path}`, { method: pending.current.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending.current.body) })
+      if (response.status === 501 || response.status === 503) {
+        const failure = await response.json().catch(() => ({})) as { code?: string }
+        if (failure.code === 'protected_operation_unsupported') throw new Error('Операция пока недоступна в защищённом режиме. Локальные данные сохранены.')
+        if (failure.code === 'protected_not_ready') throw new Error('Защищённая база сейчас недоступна. Локальные данные сохранены; повторите проверку позже.')
+      }
       if (response.status === 409) {
         const conflict = await response.json() as { error?: string }
         pending.current = null

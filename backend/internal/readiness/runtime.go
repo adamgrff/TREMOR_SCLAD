@@ -19,7 +19,7 @@ func RuntimePool(ctx context.Context, cfg *pgxpool.Config, gate *Client, databas
 	copy.AfterRelease = nil
 	copy.BeforeClose = nil
 	copy.ConnConfig.Fallbacks = nil
-	copy.ConnConfig.RuntimeParams = map[string]string{"application_name": "tremor-protected-api", "search_path": "pg_catalog", "client_encoding": "UTF8", "standard_conforming_strings": "on", "default_transaction_read_only": "on"}
+	copy.ConnConfig.RuntimeParams = map[string]string{"application_name": "tremor-protected-api", "search_path": "pg_catalog," + pgx.Identifier{gate.target.Schema}.Sanitize(), "client_encoding": "UTF8", "standard_conforming_strings": "on", "default_transaction_read_only": "on"}
 	check := func(ctx context.Context, conn *pgx.Conn) error {
 		var user, db string
 		var oid uint32

@@ -1,0 +1,20 @@
+services:
+  api-http:
+    image: ${E1A_TEST_IMAGE}
+    pull_policy: never
+    network_mode: service:pg
+    entrypoint: [/opt/e1b/api.test]
+    command: [-test.v, -test.timeout=300s, '-test.run=^TestProtectedHTTPServiceDisposable$']
+    environment:
+      I3_HTTP_TEST: 'yes'
+      TREMOR_RUNTIME_CONFIG: /runtime/runtime.json
+    volumes:
+      - ${I3_API_BINARY:?fresh API TEST binary required}:/opt/e1b/api.test:ro
+      - ${I3_ROOT}/api:/runtime:ro
+    read_only: true
+    tmpfs: [/tmp, /var/lib/postgresql]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID}

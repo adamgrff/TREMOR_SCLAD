@@ -23,11 +23,13 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
 
 type i3Bundle struct {
+	FinalEvidence  TransitionSnapshot
 	Target         Target
 	Descriptor     SecurityTransitionDescriptor
 	TransitionSHA  string
@@ -90,9 +92,21 @@ func i3Export(t *testing.T, ctx context.Context, admin *pgx.Conn, target Target,
 	}
 	target.User = "tremor_migrator"
 	target.Password = ""
-	i3Write(t, "/i3/verifier/bundle.json", i3Bundle{target, b.approved.descriptor, b.approved.sha, b.source, a.plan, a.sha, m.base.Plan(), m.Plan(), m.bodies, m.chains})
+	root := target
+	root.User = "e1a_test_admin"
+	tx, e := admin.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if e != nil {
+		t.Fatal(e)
+	}
+	evidence, e := collectSecuritySnapshotTx(ctx, tx, root, oid, protectedPolicyDescriptor(b, a.plan.After), a.plan.After.Scope, m)
+	rollback(tx)
+	if e != nil {
+		t.Fatal(e)
+	}
+	i3Write(t, "/i3/verifier/bundle.json", i3Bundle{FinalEvidence: evidence.snapshot, Target: target, Descriptor: b.approved.descriptor, TransitionSHA: b.approved.sha, Source: b.source, Plan: a.plan, PlanSHA: a.sha, Base: m.base.Plan(), Extension: m.Plan(), Bodies: m.bodies, Chains: m.chains})
 	pub := i3Public{readiness.Target{Cluster: b.source.Target.ClusterID, Database: target.Database, Deployment: b.source.Target.DeploymentID, Schema: target.Schema}, oid}
 	i3Write(t, "/i3/api/target.json", pub)
+	i3Write(t, "/i3/api/runtime.json", map[string]any{"target": pub.Target, "database_oid": oid, "password_file": "/runtime/password", "ca_file": "/runtime/ca.pem", "cert_file": "/runtime/cert.pem", "key_file": "/runtime/key.pem", "verifier_url": "https://127.0.0.1:8443/internal/readiness"})
 	caKey, e := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if e != nil {
 		t.Fatal(e)
@@ -274,6 +288,9 @@ func TestI3APIIntegrationDisposable(t *testing.T) {
 	t.Log("REAL_CROSS_CONTAINER_MTLS_READY=PASS API_IDENTITY=tremor_api SECRET_ISOLATION=PASS ACL_DENIALS=PASS")
 }
 func TestI3FaultIntegrationDisposable(t *testing.T) {
+	if os.Getenv("I3_HTTP_ASSERT") == "yes" {
+		i3WaitHTTP(t)
+	}
 	if os.Getenv("I3_MODE") != "faults" {
 		t.Skip("isolated TEST controller only")
 	}
@@ -292,6 +309,7 @@ func TestI3FaultIntegrationDisposable(t *testing.T) {
 	if e = c.Check(ctx); e != nil {
 		t.Fatal("initial READY", e)
 	}
+	i3HTTPIntegrity(t, ctx, admin)
 	for _, fault := range []struct{ name, apply, restore string }{
 		{"grant", "GRANT SELECT ON public.warehouses TO PUBLIC", "REVOKE SELECT ON public.warehouses FROM PUBLIC"},
 		{"membership", "GRANT tremor_owner TO tremor_api", "REVOKE tremor_owner FROM tremor_api"},
@@ -310,6 +328,7 @@ func TestI3FaultIntegrationDisposable(t *testing.T) {
 			if e := c.Check(ctx); e == nil {
 				t.Fatal("false READY")
 			}
+			i3HTTPStatus(t, 503)
 		})
 		if e := c.Check(ctx); e != nil {
 			t.Fatal("restored state denied", e)
@@ -323,6 +342,7 @@ func TestI3FaultIntegrationDisposable(t *testing.T) {
 	if e = c.Check(ctx); e == nil {
 		t.Fatal("missing receipt accepted")
 	}
+	i3HTTPStatus(t, 503)
 	if _, e = admin.Exec(ctx, "INSERT INTO tremor_deployment.security_transitions SELECT * FROM saved_i3_receipt", pgx.QueryExecModeSimpleProtocol); e != nil {
 		t.Fatal(e)
 	}
@@ -335,6 +355,7 @@ func TestI3FaultIntegrationDisposable(t *testing.T) {
 	if c.Check(ctx) == nil {
 		t.Fatal("wrong approved receipt anchor accepted")
 	}
+	i3HTTPStatus(t, 503)
 	if _, e = admin.Exec(ctx, "UPDATE tremor_deployment.security_transitions t SET descriptor_sha256=s.descriptor_sha256 FROM saved_i3_receipt s WHERE t.transition_id=s.transition_id"); e != nil {
 		t.Fatal(e)
 	}
@@ -363,6 +384,8 @@ func TestI3FaultIntegrationDisposable(t *testing.T) {
 	if e = conn.QueryRow(ctx, "SELECT current_user").Scan(&u); e != nil || u != "tremor_migrator" {
 		t.Fatal("verifier identity")
 	}
+	i3HTTPStatus(t, 200)
+	i3HTTPIntegrity(t, ctx, admin)
 	t.Log("REAL_VERIFIER_DRIFT_REFUSAL=PASS READ_ONLY_ROLE_ACL=PASS")
 }
 
@@ -382,5 +405,73 @@ func TestI3OfflineIntegrationDisposable(t *testing.T) {
 	if called || w.Code != 503 {
 		t.Fatal("API failed open")
 	}
+	i3HTTPStatus(t, 503)
 	t.Log("REAL_OFFLINE_VERIFIER_API_503=PASS")
+}
+
+func i3WaitHTTP(t *testing.T) {
+	t.Helper()
+	client := &http.Client{Timeout: time.Second}
+	deadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, e := client.Get("http://127.0.0.1:8081/internal/test-ready")
+		if e == nil {
+			resp.Body.Close()
+			if resp.StatusCode == 204 {
+				return
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatal("real API HTTP suite did not complete")
+}
+func i3HTTPStatus(t *testing.T, want int) {
+	t.Helper()
+	if os.Getenv("I3_HTTP_ASSERT") != "yes" {
+		return
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	r, e := client.Get("http://127.0.0.1:8081/api/racks")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer r.Body.Close()
+	if r.StatusCode != want {
+		t.Fatalf("real API HTTP status=%d want=%d", r.StatusCode, want)
+	}
+}
+
+func i3HTTPIntegrity(t *testing.T, ctx context.Context, admin *pgx.Conn) {
+	t.Helper()
+	if os.Getenv("I3_HTTP_ASSERT") != "yes" {
+		return
+	}
+	var v i3Bundle
+	i3Read(t, "/controller/bundle.json", &v)
+	base, e := Load(filepath.Join("..", "..", "migrations", "manifest.clean-v2.json"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	m := &ExtensionManifest{plan: v.Extension, base: base, bodies: v.Bodies, chains: v.Chains}
+	b, e := BindSecurityTransition(ApprovedSecurityTransition{v.Descriptor, v.TransitionSHA}, v.Source.Target, v.Source)
+	if e != nil {
+		t.Fatal(e)
+	}
+	root := v.Target
+	root.User = "e1a_test_admin"
+	tx, e := admin.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer rollback(tx)
+	got, e := collectSecuritySnapshotTx(ctx, tx, root, v.Source.DatabaseOID, protectedPolicyDescriptor(b, v.Plan.After), v.Plan.After.Scope, m)
+	if e != nil {
+		t.Fatal(e)
+	}
+	want := v.FinalEvidence
+	s := got.snapshot
+	if s.BusinessDataSHA != want.BusinessDataSHA || s.IdentitySHA != want.IdentitySHA || s.BusinessReceiptsSHA != want.BusinessReceiptsSHA || s.SequenceStateSHA != want.SequenceStateSHA || !reflect.DeepEqual(s.Ledgers, want.Ledgers) {
+		t.Fatal("HTTP operations changed business/identity/receipts/sequences/ledgers")
+	}
+	t.Log("REAL_HTTP_BUSINESS_AND_LEDGER_PRESERVATION=PASS")
 }

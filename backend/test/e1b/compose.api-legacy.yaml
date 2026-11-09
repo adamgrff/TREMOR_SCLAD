@@ -1,0 +1,7 @@
+services:
+  tests:
+    entrypoint: [/opt/e1b/collector.test]
+    command: [-test.v, -test.count=1, -test.timeout=240s]
+    environment:
+      TREMOR_API_MODE: legacy-development
+      TEST_DATABASE_URL: 'host=127.0.0.1 port=5432 user=e1a_test_admin dbname=tremor_e1b_collector_test sslmode=disable password=${E1A_TEST_PASSWORD}'

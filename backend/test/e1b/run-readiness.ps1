@@ -2,6 +2,8 @@
 param(
  [Parameter(Mandatory=$true)][string]$EvidenceDirectory,
  [Parameter(Mandatory=$true)][string]$TestBinary,
+ [string]$ApiTestBinary='',
+ [switch]$PopulateTestData,
  [string]$DockerPath='C:\Users\tcat\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe'
 )
 $ErrorActionPreference='Stop'
@@ -9,7 +11,7 @@ $docker=$DockerPath
 $workspace=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $evidence=[IO.Path]::GetFullPath($EvidenceDirectory)
 if (!(Test-Path -LiteralPath $evidence -PathType Container) -or !(Test-Path -LiteralPath $TestBinary -PathType Leaf)){throw 'Existing TEST artifact directory and freshly compiled Linux binary required'}
-$env:E1B_UPGRADE='0'
+$env:E1B_UPGRADE=if($PopulateTestData){'1'}else{'0'}
 $env:E1A_RUN_ID='e1b-readiness-'+[guid]::NewGuid().ToString('N')
 $env:E1A_TEST_IMAGE='tremor-e1a-test@sha256:475363c2a602b7b96dd7568ff86d45bdd703721f323e10ccac6bffe9f06e5fe2'
 $env:E1A_GO_IMAGE='docker.io/library/golang@sha256:025eefc1e8dbe63201734a72aaa0a55d7a077f2d8410432f8ae2f3e939f32871'
@@ -20,6 +22,12 @@ $env:E1B_TEST_BINARY=[IO.Path]::GetFullPath($TestBinary)
 $env:I3_ROOT=Join-Path $evidence ($env:E1A_RUN_ID+'-private')
 New-Item -ItemType Directory -Path (Join-Path $env:I3_ROOT 'api'),(Join-Path $env:I3_ROOT 'verifier') | Out-Null
 $compose=@('compose','--env-file','NUL','-p',$env:E1A_RUN_ID,'-f',(Join-Path $workspace 'backend/test/e1a/compose.yaml'),'-f',(Join-Path $workspace 'backend/test/e1b/compose.execution.yaml'),'-f',(Join-Path $workspace 'backend/test/e1b/compose.readiness.yaml'))
+if ($ApiTestBinary) {
+ if (!(Test-Path -LiteralPath $ApiTestBinary -PathType Leaf)){throw 'Fresh API TEST binary required'}
+ $env:I3_API_BINARY=[IO.Path]::GetFullPath($ApiTestBinary)
+ $env:I3_READ_POLICY='yes'
+ $compose+=@('-f',(Join-Path $workspace 'backend/test/e1b/compose.api.yaml'))
+} else {$env:I3_READ_POLICY='no'}
 $runID=$env:E1A_RUN_ID
 $runExit=-1
 try {
@@ -33,15 +41,24 @@ try {
  if ($LASTEXITCODE -ne 0){throw 'Verifier start failed'}
  & $docker @compose run --rm api 2>&1 | Tee-Object -FilePath (Join-Path $evidence ($runID+'-api.log'))
  if ($LASTEXITCODE -ne 0){throw 'API TEST failed'}
- & $docker @compose run --rm faults 2>&1 | Tee-Object -FilePath (Join-Path $evidence ($runID+'-faults.log'))
+ if ($ApiTestBinary) {
+ & $docker @compose up --no-build -d api-http
+ if ($LASTEXITCODE -ne 0){throw 'HTTP API start failed'}
+ $faultArgs=@('run','--rm','-e','I3_HTTP_ASSERT=yes','faults')
+ } else {$faultArgs=@('run','--rm','faults')}
+ & $docker @compose @faultArgs 2>&1 | Tee-Object -FilePath (Join-Path $evidence ($runID+'-faults.log'))
  if ($LASTEXITCODE -ne 0){throw 'Fault TEST failed'}
  & $docker @compose logs verifier 2>&1 | Set-Content (Join-Path $evidence ($runID+'-verifier.log'))
  & $docker @compose stop verifier
- & $docker @compose run --rm -e I3_MODE=offline api '-test.v' '-test.timeout=15s' '-test.run=^TestI3OfflineIntegrationDisposable$' 2>&1 | Tee-Object -FilePath (Join-Path $evidence ($runID+'-offline.log'))
+ $offlineArgs=@('run','--rm','-e','I3_MODE=offline')
+ if($ApiTestBinary){$offlineArgs+=@('-e','I3_HTTP_ASSERT=yes')}
+ $offlineArgs+=@('api','-test.v','-test.timeout=15s','-test.run=^TestI3OfflineIntegrationDisposable$')
+ & $docker @compose @offlineArgs 2>&1 | Tee-Object -FilePath (Join-Path $evidence ($runID+'-offline.log'))
  if ($LASTEXITCODE -ne 0){throw 'Offline API TEST failed'}
  $runExit=$LASTEXITCODE
  Write-Output "TEST_RUN=$runID TEST_EXIT=$runExit"
 } finally {
+ if ($ApiTestBinary) {& $docker @compose logs api-http 2>&1 | Set-Content (Join-Path $evidence ($runID+'-api-http.log'))}
  & $docker @compose logs verifier 2>&1 | Set-Content (Join-Path $evidence ($runID+'-verifier.log'))
  $ids=@(& $docker @compose ps -a -q)
  if ($LASTEXITCODE -ne 0){throw 'Cannot enumerate own TEST containers'}
@@ -65,6 +82,8 @@ try {
  if ($resolved -ne (Join-Path $evidence ($runID+'-private'))){throw 'Secret cleanup target mismatch'}
  Remove-Item -LiteralPath $resolved -Recurse -Force
  Remove-Item Env:I3_ROOT
+ Remove-Item Env:I3_READ_POLICY -ErrorAction SilentlyContinue
+ Remove-Item Env:I3_API_BINARY -ErrorAction SilentlyContinue
  Remove-Item Env:E1A_TEST_PASSWORD
 }
 if ($runExit -ne 0){throw "Readiness TEST failed: exit $runExit"}

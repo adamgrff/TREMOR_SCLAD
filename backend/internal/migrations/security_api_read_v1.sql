@@ -1,0 +1,21 @@
+-- e1b-api-read-v1: explicit column grants only; apply through protected path.
+GRANT USAGE ON SCHEMA public TO tremor_api;
+GRANT SELECT (singleton,deployment_id) ON public.deployment_identity TO tremor_api;
+GRANT SELECT (id,name) ON public.categories,public.warehouses TO tremor_api;
+GRANT SELECT (id,category_id,name,sku,archived) ON public.products TO tremor_api;
+GRANT SELECT (id,code,warehouse_id,category_id,row_number,position_number) ON public.cells TO tremor_api;
+GRANT SELECT (cell_id,product_id,quantity) ON public.cell_stock TO tremor_api;
+GRANT SELECT (id,status,started_at,completed_at,deleted_at,pending_revision) ON public.receiving_sessions TO tremor_api;
+GRANT SELECT (session_id,product_id,quantity) ON public.receiving_session_items TO tremor_api;
+GRANT SELECT (id,receiving_session_id,cell_id,status,created_at) ON public.receiving_placements TO tremor_api;
+GRANT SELECT (placement_id,product_id,quantity) ON public.receiving_placement_items TO tremor_api;
+GRANT SELECT (id,occurred_at,product_id,quantity) ON public.receiving_intake_events TO tremor_api;
+GRANT SELECT (id,order_id,cycle_id,event_type,occurred_at,request_id,operation_id) ON public.assembly_lifecycle_events TO tremor_api;
+GRANT SELECT (id,source,status,order_number) ON public.assembly_order_records TO tremor_api;
+GRANT SELECT (order_id) ON public.assembly_order_heads TO tremor_api;
+GRANT SELECT (id,order_id,problem_type,created_at,recorded_at,disposition,problem_metadata,order_version_id,creation_order_version_id) ON public.assembly_problem_records TO tremor_api;
+GRANT SELECT (id,observed_at,outcome,operation_id) ON public.assembly_ozon_observations TO tremor_api;
+GRANT SELECT (id,purpose,order_id) ON public.assembly_ozon_operations TO tremor_api;
+GRANT SELECT (version_id,sku,payload) ON public.assembly_order_positions TO tremor_api;
+GRANT SELECT (problem_id,occurred_at,kind,payload,ordinal) ON public.assembly_problem_events TO tremor_api;
+GRANT SELECT (problem_id,sku,creation_payload) ON public.assembly_problem_affected_positions TO tremor_api;

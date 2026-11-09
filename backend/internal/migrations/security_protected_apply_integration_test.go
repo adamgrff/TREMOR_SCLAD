@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -13,6 +14,14 @@ func executionProtectedApplyTest(t *testing.T, ctx context.Context, admin *pgx.C
 	t.Helper()
 	path, plan := extensionFixture(t, anchor.base, anchor.plan.BaselineReadinessSHA256, 1)
 	sql := []byte("BEGIN;\nCREATE TABLE public.protected_probe(id integer PRIMARY KEY);\nALTER TABLE public.protected_probe OWNER TO tremor_owner;\nINSERT INTO public.protected_probe VALUES(1);\nGRANT SELECT ON public.protected_probe TO tremor_migrator;\nCREATE FUNCTION public.protected_context() RETURNS text LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS 'SELECT current_user::text';\nALTER FUNCTION public.protected_context() OWNER TO tremor_owner;\nCOMMIT;\n")
+	if os.Getenv("I3_READ_POLICY") == "yes" {
+		sql = []byte(strings.Replace(string(sql), "COMMIT;", APIReadPolicyV1+"\nCOMMIT;", 1))
+	}
+	canonical, err := CanonicalSQL(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql = canonical
 	if e := os.WriteFile(filepath.Join(filepath.Dir(path), plan.Migrations[0].Name), sql, 0600); e != nil {
 		t.Fatal(e)
 	}
