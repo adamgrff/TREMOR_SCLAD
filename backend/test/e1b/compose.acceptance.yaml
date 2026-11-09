@@ -1,0 +1,60 @@
+# Overlay of the existing disposable harness. No published ports or Docker socket.
+services:
+  pg:
+    tmpfs: !reset []
+    entrypoint: [/bin/bash, /opt/e1b/postgres-crash-supervisor.sh]
+    command: []
+    volumes:
+      - i4_pg:/var/lib/postgresql
+      - ../e1b/postgres-crash-supervisor.sh:/opt/e1b/postgres-crash-supervisor.sh:ro
+  tests:
+    command: [-test.v, -test.timeout=240s, '-test.run=^TestSecurityExecutionIntegrationDisposable$']
+    environment:
+      E1B_I4_ACCEPTANCE: 'yes'
+  faults:
+    environment:
+      E1B_I4_ACCEPTANCE: 'yes'
+    volumes:
+      - ${I3_ROOT}/control:/i3/control:rw
+  restore-pg:
+    image: ${E1A_TEST_IMAGE}
+    pull_policy: never
+    environment:
+      POSTGRES_USER: e1a_restore_admin
+      POSTGRES_PASSWORD: ${E1A_RESTORE_PASSWORD:?independent restore TEST credential required}
+      POSTGRES_DB: tremor_e1b_collector_test
+      POSTGRES_INITDB_ARGS: --locale-provider=builtin --locale=C.UTF-8 --encoding=UTF8 --auth-host=scram-sha-256
+      PGDATA: /var/lib/postgresql/18/docker
+    command: [postgres, -c, listen_addresses=127.0.0.1, -c, port=5432]
+    volumes: [i4_restore:/var/lib/postgresql]
+    networks: [isolated]
+    mem_limit: 1536m
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID}
+  restore-tests:
+    image: ${E1A_TEST_IMAGE}
+    pull_policy: never
+    network_mode: service:restore-pg
+    entrypoint: [/opt/e1b/collector.test]
+    command: [-test.v, -test.timeout=60s, '-test.run=^TestI4RestoreDisposable$']
+    environment:
+      I4_RESTORE: 'yes'
+      PGPASSWORD: ${E1A_RESTORE_PASSWORD}
+    volumes:
+      - ${E1B_TEST_BINARY}:/opt/e1b/collector.test:ro
+      - ${I3_ROOT}/verifier:/private:ro
+      - ${I3_ROOT}/control:/control:ro
+    read_only: true
+    tmpfs: [/tmp, /var/lib/postgresql]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID}
+volumes:
+  i4_pg:
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID}
+  i4_restore:
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID}

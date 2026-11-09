@@ -145,6 +145,9 @@ func executionProtectedApplyTest(t *testing.T, ctx context.Context, admin *pgx.C
 			t.Fatal("partial protected migration survived")
 		}
 	})
+	if i4Enabled() {
+		i4ConcurrentApply(t, ctx, admin, target, m, b, approval)
+	}
 	if e = ApplyProtectedExtension(ctx, target, m, b, approval); e != nil {
 		t.Fatal("protected apply", e)
 	}

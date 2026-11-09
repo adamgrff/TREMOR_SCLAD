@@ -26,7 +26,7 @@ func RuntimePool(ctx context.Context, cfg *pgxpool.Config, gate *Client, databas
 		if e := conn.QueryRow(ctx, `SELECT current_user,pg_catalog.current_database(),oid FROM pg_catalog.pg_database WHERE datname=pg_catalog.current_database()`).Scan(&user, &db, &oid); e != nil || user != "tremor_api" || db != gate.target.Database || oid != databaseOID {
 			return errors.New("runtime identity unavailable")
 		}
-		return gate.Check(ctx)
+		return checkRuntimeReadiness(ctx, gate)
 	}
 	copy.AfterConnect = check
 	copy.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool { return check(ctx, conn) == nil }

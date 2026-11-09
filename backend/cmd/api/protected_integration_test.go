@@ -50,6 +50,22 @@ func TestProtectedHTTPServiceDisposable(t *testing.T) {
 	pool.Close()
 	counter := &queryCounter{}
 	cfg.ConnConfig.Tracer = counter
+	acquire := cfg.BeforeAcquire
+	cfg.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+		ok := acquire(ctx, conn)
+		if !ok {
+			fmt.Printf("I4_RUNTIME_ACQUIRE_REJECT context=%v\n", ctx.Err())
+		}
+		return ok
+	}
+	connect := cfg.AfterConnect
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		err := connect(ctx, conn)
+		if err != nil {
+			fmt.Printf("I4_RUNTIME_CONNECT_REJECT error=%v context=%v\n", err, ctx.Err())
+		}
+		return err
+	}
 	pool, e = pgxpool.NewWithConfig(context.Background(), cfg)
 	if e != nil {
 		t.Fatal(e)
@@ -195,23 +211,26 @@ func TestProtectedHTTPServiceDisposable(t *testing.T) {
 	if bad.StatusCode != 503 || counter.n.Load() != before {
 		t.Fatal("wrong target reached SQL")
 	}
-	statuses := make(chan int, 8)
-	for i := 0; i < 8; i++ {
-		go func() {
-			r, e := client.Get("http://127.0.0.1:8081/api/racks")
-			if e != nil {
-				statuses <- 0
-				return
-			}
-			r.Body.Close()
-			statuses <- r.StatusCode
-		}()
-	}
-	for i := 0; i < 8; i++ {
-		code := <-statuses
-		if code != 200 && code != 503 {
-			t.Fatalf("concurrent status %d", code)
+	for round := 0; round < 3; round++ {
+		statuses := make(chan int, 8)
+		for i := 0; i < 8; i++ {
+			go func() {
+				r, e := client.Get("http://127.0.0.1:8081/api/racks")
+				if e != nil {
+					statuses <- 0
+					return
+				}
+				r.Body.Close()
+				statuses <- r.StatusCode
+			}()
 		}
+		for i := 0; i < 8; i++ {
+			code := <-statuses
+			if code != 200 && code != 503 {
+				t.Fatalf("concurrent status %d", code)
+			}
+		}
+		fmt.Printf("I4_HTTP_CONCURRENCY round=%d requests=8 status=200-or-503 no-retry=true\n", round)
 	}
 	var identity string
 	if e = pool.QueryRow(context.Background(), "SELECT current_user").Scan(&identity); e != nil || identity != "tremor_api" {

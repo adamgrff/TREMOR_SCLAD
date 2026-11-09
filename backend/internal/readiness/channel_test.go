@@ -71,6 +71,55 @@ func (p testPKI) leaf(t *testing.T, uri string, server bool) tls.Certificate {
 
 var testTarget = Target{"123", "test_db", "test_deployment", "public"}
 
+func TestRequestAdmissionIsFreshBoundAndRevoked(t *testing.T) {
+	p := pki(t)
+	var calls atomic.Int32
+	h, e := Handler(testTarget, func(context.Context) error {
+		if calls.Add(1) != 1 {
+			return errors.New("TEST verifier unavailable")
+		}
+		return nil
+	}, time.Second, 1)
+	if e != nil {
+		t.Fatal(e)
+	}
+	s := testServer(t, p, h)
+	c := testClient(t, p, s, p.leaf(t, "spiffe://tremor/api", false), testTarget, time.Second)
+	other := testClient(t, p, s, p.leaf(t, "spiffe://tremor/api", false), testTarget, time.Second)
+	var saved context.Context
+	entered := 0
+	next := c.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		entered++
+		saved = r.Context()
+		for i := 0; i < 3; i++ {
+			if checkRuntimeReadiness(saved, c) != nil {
+				t.Error("same admitted operation re-probed")
+			}
+		}
+		if calls.Load() != 1 {
+			t.Error("same operation created duplicate probes")
+		}
+		if checkRuntimeReadiness(saved, other) == nil {
+			t.Error("live admission accepted by different client")
+		}
+	}))
+	next.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "https://api/", nil))
+	if entered != 1 || calls.Load() != 2 {
+		t.Fatal("duplicate probe or absent handler")
+	}
+	if checkRuntimeReadiness(saved, c) == nil {
+		t.Fatal("completed operation retained READY")
+	}
+	w := httptest.NewRecorder()
+	next.ServeHTTP(w, httptest.NewRequest("GET", "https://api/", nil))
+	if entered != 1 || w.Code != 503 {
+		t.Fatal("unavailable verifier entered handler")
+	}
+	if checkRuntimeReadiness(saved, other) == nil {
+		t.Fatal("foreign client admission reused")
+	}
+}
+
 func testServer(t *testing.T, p testPKI, h http.Handler) *httptest.Server {
 	t.Helper()
 	cfg, e := ServerTLS(p.leaf(t, "spiffe://tremor/verifier", true), p.roots, "spiffe://tremor/api")

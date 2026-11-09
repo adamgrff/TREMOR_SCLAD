@@ -272,6 +272,15 @@ func TestSecurityExecutionIntegrationDisposable(t *testing.T) {
 			t.Fatal("history escaped rollback")
 		}
 	})
+	if i4Enabled() {
+		i4TransitionFaults(t, ctx, admin, dep, m, approved, sql)
+		closeConnection(admin)
+		admin, e = pgx.ConnectConfig(ctx, cfg)
+		if e != nil {
+			t.Fatal(e)
+		}
+		defer closeConnection(admin)
+	}
 	t.Run("commit-and-independent-recovery", func(t *testing.T) {
 		r, e := NewSecurityTransition(dep, m, approved, []byte(sql))
 		if e != nil {
@@ -282,6 +291,9 @@ func TestSecurityExecutionIntegrationDisposable(t *testing.T) {
 				return e
 			}
 			return errors.New("TEST backend terminated after successful COMMIT")
+		}
+		if i4Enabled() {
+			r = i4ConcurrentTransition(t, ctx, admin, dep, m, approved, sql)
 		}
 		state, e := r.Run(ctx)
 		if e != nil || state != TransitionProtected {

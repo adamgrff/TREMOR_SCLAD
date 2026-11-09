@@ -22,10 +22,17 @@ inside REPEATABLE READ, READ ONLY; foundationSecurity() remains unchanged.
 
 The API receives only its tremor_api password and client TLS key. RuntimePool
 rejects administrative users, removes fallback targets and inherited pool hooks,
-checks actual user/database/OID and obtains a fresh verdict on connection and pool
-acquisition. Require obtains another fresh verdict before a future protected HTTP
-action and maps failure to safe HTTP 503. These adapters are exercised by the TEST
-API container; existing cmd/api routes are deliberately not installed/refactored.
+checks actual user/database/OID on connection and pool acquisition. Outside an
+active admitted HTTP operation it also obtains a fresh verdict. Require obtains
+a fresh verdict before each protected HTTP action and maps failure to safe 503.
+I4 fixes duplicate admission inside that same action: a private Client-bound
+request capability avoids redundant verifier RPC during acquisition, is revoked
+when the handler returns, and cannot authorize a later request. No TTL verdict
+cache is used; identity SQL checks and independent PostgreSQL ACL remain active.
+See [I4 acceptance](DB04_E1B_I4_ACCEPTANCE.md) for the concurrent-500 evidence.
+These adapters are exercised by the TEST API container. At the original F1 stage,
+existing cmd/api routes were not installed/refactored; later I3 route integration
+is documented in [API protection](DB04_E1B_API_PROTECTION.md).
 The deployment operator must configure the API's fixed PostgreSQL endpoint and
 expected database OID together with the verifier's target. The database OID alone
 is not a cluster identity proof; the verifier checks system identity separately.

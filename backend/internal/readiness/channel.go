@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -230,6 +231,26 @@ func (c *Client) Require(next http.Handler) http.Handler {
 			_, _ = io.WriteString(w, `{"code":"protected_not_ready","error":"Protected service unavailable"}`)
 			return
 		}
-		next.ServeHTTP(w, r)
+		// This fresh verdict authorizes only this operation, not subsequent pool
+		// acquisitions on unrelated requests. Re-probing inside the handler can
+		// fail after admission under verifier load and turn an unavailable gate
+		// into a handler/database error. Identity checks still run on acquisition.
+		a := &requestAdmission{client: c}
+		a.active.Store(true)
+		defer a.active.Store(false)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), admissionKey{}, a)))
 	})
+}
+
+type admissionKey struct{}
+type requestAdmission struct {
+	client *Client
+	active atomic.Bool
+}
+
+func checkRuntimeReadiness(ctx context.Context, c *Client) error {
+	if a, ok := ctx.Value(admissionKey{}).(*requestAdmission); ok && a.client == c && a.active.Load() {
+		return nil
+	}
+	return c.Check(ctx)
 }
