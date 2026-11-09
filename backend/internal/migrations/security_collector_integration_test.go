@@ -271,6 +271,41 @@ func TestSecurityCollectorIntegrationDisposable(t *testing.T) {
 			t.Fatal("false COMMIT confirmation", got)
 		}
 	})
+
+	t.Run("parameter-grant-drift-regression", func(t *testing.T) {
+		a, before := reference()
+		bound, e := BindCollectedSecurityTransition(a, before)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e = admin.Exec(ctx, `GRANT SET ON PARAMETER session_replication_role TO tremor_api`); e != nil {
+			t.Fatal(e)
+		}
+		defer func() {
+			if _, e := admin.Exec(ctx, `REVOKE SET ON PARAMETER session_replication_role FROM tremor_api`); e != nil {
+				t.Fatal(e)
+			}
+		}()
+		var granted bool
+		if e = admin.QueryRow(ctx, `SELECT pg_catalog.has_parameter_privilege('tremor_api','session_replication_role','SET')`).Scan(&granted); e != nil || !granted {
+			t.Fatal("TEST parameter grant prerequisite failed")
+		}
+		observed, e := CollectSecuritySnapshot(ctx, target, a, CollectTransitionSource, m)
+		if e != nil {
+			return
+		}
+		if reflect.DeepEqual(before.snapshot, observed.snapshot) && ClassifyCollectedTransitionRecovery(bound, observed) == TransitionSourceConfirmed {
+			t.Fatal("BLOCKER: parameter GRANT invisible; source falsely confirmed")
+		}
+		if _, e = BindCollectedSecurityTransition(a, observed); e == nil {
+			t.Fatal("parameter grant drift bound")
+		}
+		if ClassifyCollectedTransitionRecovery(bound, observed) != TransitionEvidenceRejected {
+			t.Fatal("parameter grant drift recovery accepted")
+		}
+	})
+
+	testParameterPrivileges(t, ctx, admin, cfg, target, m, reference)
 	testCatalogSessionDefaults(t, ctx, admin, cfg, target, m, reference)
 	t.Run("db-specific-role-setting-drift", func(t *testing.T) {
 		a, initial := reference()
@@ -416,7 +451,7 @@ func TestSecurityCollectorIntegrationDisposable(t *testing.T) {
 
 func collectorTestScope(t *testing.T, q queryer) TransitionScope {
 	t.Helper()
-	s := TransitionScope{Profile: "prepared-v1", Objects: []TransitionRequirement{}, Creators: []string{"e1a_test_admin", "tremor_deployer"}}
+	s := TransitionScope{Parameters: []string{"lock_timeout", "row_security", "search_path", "session_replication_role", "statement_timeout"}, Profile: "prepared-v1", Objects: []TransitionRequirement{}, Creators: []string{"e1a_test_admin", "tremor_deployer"}}
 	for _, role := range []string{"e1a_test_admin", "pg_database_owner", "tremor_api", "tremor_deployer", "tremor_executor", "tremor_ledger_owner", "tremor_migrator", "tremor_owner", "collector_group", "collector_group_root", "collector_reader", "collector_observer"} {
 		s.Objects = append(s.Objects, TransitionRequirement{Key: "role:" + role, Kind: "role", Presence: "present"})
 	}

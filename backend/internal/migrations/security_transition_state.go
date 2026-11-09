@@ -32,18 +32,19 @@ type TransitionObjectIdentity struct {
 // These digests are evidence supplied by a future trusted collector, not proofs
 // that the caller actually inspected PostgreSQL. No collector ships in I1.
 type TransitionSnapshot struct {
-	Target              TransitionTarget           `json:"target"`
-	DatabaseOID         uint32                     `json:"database_oid"`
-	Frontier            TransitionFrontier         `json:"frontier"`
-	ReadinessSHA        string                     `json:"readiness_sha256"`
-	Metadata            []TransitionMetadata       `json:"metadata"`
-	Ledgers             []TransitionLedgerSnapshot `json:"ledgers"`
-	BusinessDataSHA     string                     `json:"business_data_sha256"`
-	IdentitySHA         string                     `json:"identity_sha256"`
-	BusinessReceiptsSHA string                     `json:"business_receipts_sha256"`
-	SequenceStateSHA    string                     `json:"sequence_state_sha256"`
-	ScopeSHA            string                     `json:"scope_sha256"`
-	ObjectIdentities    []TransitionObjectIdentity `json:"object_identities"`
+	ParameterIdentities []TransitionParameterIdentity `json:"parameter_identities"`
+	Target              TransitionTarget              `json:"target"`
+	DatabaseOID         uint32                        `json:"database_oid"`
+	Frontier            TransitionFrontier            `json:"frontier"`
+	ReadinessSHA        string                        `json:"readiness_sha256"`
+	Metadata            []TransitionMetadata          `json:"metadata"`
+	Ledgers             []TransitionLedgerSnapshot    `json:"ledgers"`
+	BusinessDataSHA     string                        `json:"business_data_sha256"`
+	IdentitySHA         string                        `json:"identity_sha256"`
+	BusinessReceiptsSHA string                        `json:"business_receipts_sha256"`
+	SequenceStateSHA    string                        `json:"sequence_state_sha256"`
+	ScopeSHA            string                        `json:"scope_sha256"`
+	ObjectIdentities    []TransitionObjectIdentity    `json:"object_identities"`
 }
 
 type TransitionReceipt struct {
@@ -93,6 +94,9 @@ func validateTransitionSnapshot(s TransitionSnapshot, scope TransitionScope) err
 		return errors.New("snapshot scope is not approved")
 	}
 	if err := validateTransitionScope(scope, s.Target, s.Metadata); err != nil {
+		return err
+	}
+	if err := validateParameterIdentities(s); err != nil {
 		return err
 	}
 	meta, _ := transitionMetadataIndex(s.Metadata)
@@ -147,7 +151,7 @@ func CompareSecurityTransition(b BoundSecurityTransition, final TransitionSnapsh
 	if final.Target != b.source.Target || final.DatabaseOID != b.source.DatabaseOID || !reflect.DeepEqual(final.Frontier, d.Frontier) || final.ReadinessSHA != d.FinalReadinessSHA || !reflect.DeepEqual(final.Metadata, d.After) {
 		return errors.New("unexpected final catalog/frontier/security state")
 	}
-	if !sameTransitionLedgers(final.Ledgers, b.source.Ledgers) || !preservedTransitionIdentities(b.source.ObjectIdentities, final.ObjectIdentities) || final.BusinessDataSHA != b.source.BusinessDataSHA || final.IdentitySHA != b.source.IdentitySHA || final.BusinessReceiptsSHA != b.source.BusinessReceiptsSHA || final.SequenceStateSHA != b.source.SequenceStateSHA {
+	if !preservedParameterIdentities(b.source.ParameterIdentities, final.ParameterIdentities) || !sameTransitionLedgers(final.Ledgers, b.source.Ledgers) || !preservedTransitionIdentities(b.source.ObjectIdentities, final.ObjectIdentities) || final.BusinessDataSHA != b.source.BusinessDataSHA || final.IdentitySHA != b.source.IdentitySHA || final.BusinessReceiptsSHA != b.source.BusinessReceiptsSHA || final.SequenceStateSHA != b.source.SequenceStateSHA {
 		return errors.New("immutable transition evidence changed")
 	}
 	return nil
@@ -310,6 +314,9 @@ func validateTransitionIdentities(s TransitionSnapshot, scope TransitionScope) (
 // legacy-v1 permits explicit absence of not-yet-provisioned target roles/schemas;
 // prepared-v1 requires them present. Neither profile permits an absent baseline.
 func validateTransitionScope(scope TransitionScope, target TransitionTarget, objects []TransitionMetadata) error {
+	if err := validateParameterScope(scope.Parameters, objects); err != nil {
+		return err
+	}
 	if scope.Profile != "legacy-v1" && scope.Profile != "prepared-v1" {
 		return errors.New("unsupported security scope profile")
 	}

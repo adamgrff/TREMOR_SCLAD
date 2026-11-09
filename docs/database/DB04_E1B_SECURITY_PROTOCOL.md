@@ -225,3 +225,16 @@ identity is implied by the enclosing approved target and role; observed database
 and role OIDs are validated separately by the collector. See
 [collector contract](DB04_E1B_SECURITY_COLLECTOR.md#и21-f2-catalog-session-defaults)
 for exact policy, scope, runtime boundaries and regression evidence.
+
+### И2.1-F3 parameter permissions
+
+SourceScope/FinalScope now require explicit `parameters` lists with fixed minima
+(row_security, search_path, session_replication_role). Every present scoped role
+must provide the exact parameter ACL/effective-privilege inventory; the bound
+snapshot separately provides catalog-row identities or explicit absence. Missing
+or contradictory evidence cannot bind or confirm recovery. All changes require
+independent release approval and exact metadata deltas, including grant options.
+The collector reads the complete shared parameter ACL catalog, so an unlisted
+new grant is refused rather than filtered out. These permissions are separate
+from catalog login defaults and actual session settings. See the И2.1-F3 section
+of DB04_E1B_SECURITY_COLLECTOR.md for policy, coverage mapping and test evidence.

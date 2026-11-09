@@ -259,3 +259,156 @@ Final offline verification: **45/45 top-level tests PASS** (all previous 41 plus
 four new groups), 268 passing test/subtest events; `go vet` PASS; `gofmt` reports
 zero unformatted files; `git diff --check` PASS. Synthetic query-boundary fault
 injection is labelled separately from the real PostgreSQL evidence.
+
+## И2.1-F3: PostgreSQL parameter privileges
+
+### Root cause and actual reproduction
+
+F2 collected login defaults but omitted the distinct cluster-wide
+`pg_parameter_acl` privilege catalog. Role attributes, memberships, `rolconfig`
+and `pg_db_role_setting` do not encode a parameter GRANT. The E1A readiness
+catalog does not cover it either; that comparator remains unchanged.
+
+A permanent PostgreSQL regression was first run against F2 code before the fix.
+In a new isolated PG18.6 cluster, TEST administrator granted SET on
+`session_replication_role` to `tremor_api`; `has_parameter_privilege` confirmed the
+permission. The old collector returned the identical snapshot and recovery
+returned SOURCE_CONFIRMED. The regression failed as intended. This proves false
+source confirmation, not a real false PROTECTED or successful transition COMMIT.
+Original-code system identifier: `7706069491071791147`.
+
+### Mandatory approved scope and typed evidence
+
+`TransitionScope.Parameters` is an independently approved, ordered, unique list
+for each source/final phase. `row_security`, `search_path` and
+`session_replication_role` are mandatory and cannot be removed. The current
+reviewed vocabulary additionally permits `statement_timeout` and `lock_timeout`.
+Both optional names must be explicitly listed to include their confirmed absent
+state. Unknown names/contexts fail until reviewed code and policy support them.
+
+Every present scoped role has mandatory `ParameterPrivileges`, containing the
+exact approved names. Each record contains canonical name, PG context, bootstrap
+ACL owner, catalog-row presence, ACL mode and resolved grants, intrinsic USERSET
+status, effective SET / ALTER SYSTEM, and both effective grant options. Raw grant
+records retain grantor/grantee/PUBLIC, privilege and grant option. Shared catalog
+facts must be identical across roles; effective rights differ by actor.
+
+`TransitionSnapshot.ParameterIdentities` separately contains each name and
+observed `pg_parameter_acl` OID. OID zero means confirmed absent row, never a failed
+read. Physical OIDs are not put in release descriptors. Existing nonzero OIDs are
+preserved when the row remains present across a transition comparison; explicitly
+approved creation/removal has distinct presence metadata.
+
+The collector reads **all** rows of the shared catalog and unions the approved
+names to represent absence. Thus a new grant cannot hide by omitting its parameter
+from operator-supplied scope. An extra unapproved name or unknown grantor/grantee
+causes refusal. All ACL references must resolve within approved role coverage;
+PUBLIC is the one pseudo-role exception. A pre-existing grant to another cluster
+role requires explicitly approved coverage of that reference, rather than silent
+filtering. This is not a request for all cluster roles to be inventoried.
+
+Queries are fixed SELECT statements, executed inside the existing single
+REPEATABLE READ read-only transaction. The collector also calls
+`has_parameter_privilege` for each actor/name and SET / ALTER SYSTEM, with and
+without WITH GRANT OPTION. Complete actor/name coverage is required; duplicate,
+unknown, omitted or unreadable results fail. The validator independently checks
+ACL/effective agreement using direct and inherited privileges, PUBLIC, actual
+superuser attributes and PostgreSQL's implicit bootstrap-owner grant options.
+NULL ACL on an existing row is resolved using PG parameter default ACL semantics;
+absence of a row is represented separately.
+
+`has_parameter_privilege(SET)` is not a test of every ordinary session SET:
+PostgreSQL USERSET parameters can be changed without any delegated parameter
+privilege. `IntrinsicUserSet` is therefore separate and context-validated. The
+real TEST API can SET `row_security=on` without such a GRANT, while privileged SET
+of `session_replication_role` is denied before a grant. No blanket SET ban exists.
+
+These records enter role DefinitionSHA, metadata/descriptor digests, ScopeSHA,
+bound snapshot digest and collector seal. Binding, source/final comparison and
+both recovery/state classifiers all use the new mandatory evidence. Unexpected
+supported grants/options change fingerprints and reject the previous approval.
+Unsupported or unreadable evidence cannot produce a usable sealed collection.
+No code path converts a catalog error into empty ACL. Missing fields in older
+JSON descriptors fail strict decoding; rebuilding a digest does not independently
+approve the replacement descriptor. Production release approval remains empty.
+
+This data certifies catalog permissions, not server configuration or every actual
+runtime setting. Session defaults, connection options and subsequent session SET
+remain distinct categories. Parameter queries read names/context/permissions,
+never GUC values, and diagnostics do not publish settings values.
+
+References: [parameter ACL catalog](https://www.postgresql.org/docs/18/catalog-pg-parameter-acl.html),
+[parameter GRANT](https://www.postgresql.org/docs/18/sql-grant.html),
+[effective privilege inquiries](https://www.postgresql.org/docs/18/functions-info.html),
+[PG18 ACL-mask implementation](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/catalog/aclchk.c).
+
+### One-time coverage of agreed requirements
+
+This table covers the agreed contract and approved objects/creators, not every
+possible PostgreSQL object or unobserved runtime action. No additional proven
+critical omission was identified within these categories during this check.
+
+| Security requirement | PostgreSQL source | Collector field | Validator | Regression |
+| --- | --- | --- | --- | --- |
+| Role attributes and memberships | pg_roles, pg_auth_members, pg_has_role MEMBER/USAGE/SET | Metadata.RoleFlags/Memberships/DefinitionSHA; RolePaths | validateTransitionScope, exact metadata comparison | missing-role, dangerous-set-role, complete-repeatable-source; offline role/membership negatives |
+| Database/schema privileges | pg_database.datacl/owner, pg_namespace.nspacl, has_database_privilege/has_schema_privilege | target schema DefinitionSHA binds database security; schema ACL/owner; role DefinitionSHA and privilege report bind effective rights | scope/reference validation and approved metadata comparison | unexpected-database-CREATE, missing-schema, real-runtime-denials |
+| Object ownership and ACL | pg_class, pg_attribute, aclexplode, has_table/column/sequence_privilege | Metadata.Owner/ACL, separate column objects, ObjectIdentities, effective privilege report | transitionMetadataIndex, validateTransitionScope/Identities, CompareSecurityTransition | changed-owner, unexpected-grant, column SELECT positive and runtime denials |
+| Functions and SECURITY DEFINER | pg_proc, pg_get_functiondef, dependencies, has_function_privilege | Owner, SecurityDefiner, SearchPath, ACL, DefinitionSHA | execution-context delta requirement and exact metadata comparison | changed-SD, public-execute, missing-function; offline SD-context negatives |
+| Default privileges | pg_default_acl, acldefault, approved creators and global/local scopes | default_acl metadata, Mode/Grants/DefinitionSHA | required global/schema-local creator coverage and exact deltas | complete-repeatable-source global/local assertions; offline default_acl mutation |
+| Session defaults | pg_db_role_setting, pg_roles.rolconfig | Metadata.SessionDefaults, CatalogLoginOverrides | validateSessionLayers, fixed approved scope and binding/recovery | prior F2 precedence/new-login, role+DB drift, RLS/search_path negatives, incomplete-read tests |
+| Parameter privileges | all pg_parameter_acl, pg_settings context, aclexplode, has_parameter_privilege | Scope.Parameters, Metadata.ParameterPrivileges, ParameterIdentities | validateParameterScope/Privileges/Identities and exact comparison/recovery | parameter-grant-drift-regression, PUBLIC, inheritance, grant option, ALTER SYSTEM privilege, unknown grantee, catalog-read-denied; offline completeness/JSON/effective contradictions |
+| Ledger identity and integrity | pg_class, baseline/extension ledger rows, marker, constraints, indexes, scoped data/receipts/sequence reads | Ledgers, ObjectIdentities, Frontier, readiness and immutable hashes | unchanged E1A shape/prefix checks; cross-inventory validation; sameTransitionLedgers/CompareSecurityTransition | ledger-and-identity-preserved, historical-transition-receipt, contradictory-offline-evidence; offline OID/receipt/frontier negatives |
+
+### Test boundaries
+
+New PostgreSQL cases cover absent grants, intrinsic USERSET, TEST-approved explicit
+USERSET grant, direct SET drift, ALTER SYSTEM privilege, PUBLIC, inherited grant,
+WITH GRANT OPTION, an additional reviewed parameter, unknown grantee, unsupported
+parameter and real catalog SELECT denial for TEST observer. No actual ALTER SYSTEM
+command was executed. Error/partial-stream injection is labelled offline, while
+catalog permission denial is a real PostgreSQL test.
+
+Offline tests also reject missing/substituted scope, omitted parameter inventory,
+unknown references, duplicate grants/results, contradictory effective permissions,
+malformed JSON, physical-identity mismatches, identical incomplete source/final
+and contradictory recovery with a matching synthetic receipt. The approved
+metadata-delta positive is an offline contract test, not a real security transition.
+
+No roles/ownership/ledger transition, migration apply, API work, production
+connection, new CI framework or E1A modification belongs to this fix.
+
+### Final F3 verification and limits
+
+- 52/52 offline top-level tests PASS (all previous 45 plus seven new groups),
+  295 passing test/subtest events. Old/new test-name comparison found zero missing
+  previous offline cases.
+- 38/38 PostgreSQL scenarios PASS, including all previous 27 plus 11 new cases.
+  Old/new scenario-name comparison found zero missing previous PG cases.
+- go vet PASS; gofmt reports zero unformatted files; git diff --check PASS;
+  secret-pattern scan reports zero hits, followed by manual review of TEST-only
+  credentials handling (no new literal credentials).
+- Final run: PostgreSQL 18.6 (Debian 18.6-1.pgdg12+2), system identifier
+  `7706074271493242924`, project
+  `e1b-collector-90d3eeddf4db4ffb827df698c85be474`.
+- Fixed local image digest:
+  `tremor-e1a-test@sha256:475363c2a602b7b96dd7568ff86d45bdd703721f323e10ccac6bffe9f06e5fe2`.
+  Runtime inspection confirms no host ports and an internal network.
+- All five F3 projects (original failing regression, one Compose startup failure,
+  and three passing runs) were removed; post-cleanup label-filtered queries found
+  zero project containers, networks and volumes. The Compose healthcheck startup
+  failure did not run Go tests and is not counted as PASS; fresh later runs passed.
+- Main SHA/tree and every main-tracked file remain unchanged. All seven user
+  untracked-file SHA-256 values match the saved fingerprints. Feature changes are
+  confined to 11 E1B collector/contracts/tests/docs files.
+
+The reviewed parameter-name/context vocabulary is intentionally small. Broader
+names need reviewed policy/code support. Pure effective-ACL reconciliation handles
+the explicitly scoped inheritance graph, superuser attributes and bootstrap-owner
+rights; any additional implicit-right case it cannot reconcile is rejected, not
+silently accepted. Shared-catalog references outside approved role coverage also
+fail closed. Actual runtime configuration and session actions remain separate
+from these catalog facts. Offline DTOs provide structural consistency, not DB
+origin proof; only a completed collector result has its private collection seal.
+No security transition, protected migration apply or actual ALTER SYSTEM command
+was executed. The fix permits resuming the separate И2.2 entry checks; it is not
+production admission or proof that И2.2 is already implemented.
