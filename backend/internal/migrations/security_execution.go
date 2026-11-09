@@ -116,6 +116,9 @@ type SecurityTransitionRunner struct {
 }
 
 func NewSecurityTransition(target Target, m *ExtensionManifest, a ApprovedSecurityTransition, payload []byte) (*SecurityTransitionRunner, error) {
+	if !historyScope(a.descriptor.FinalScope) || historyScope(a.descriptor.SourceScope) {
+		return nil, historyError()
+	}
 	raw, _ := json.Marshal(a.descriptor)
 	_, sha, err := DecodeSecurityTransition(raw, payload)
 	if err != nil || a.sha == "" || sha != a.sha || !securityTargetMatches(target, a.descriptor.Target) || target.User != "tremor_deployer" || m == nil || m.base == nil || m.ManifestSHA256() != a.descriptor.Frontier.ExtensionManifestSHA || baselineDigest(m.base) != a.descriptor.Frontier.BaselineManifestSHA {
@@ -229,7 +232,7 @@ func (r *SecurityTransitionRunner) Run(ctx context.Context) (SecurityTransitionS
 		final, err = collectSecuritySnapshotTx(ctx, tx, r.target, uint32(id.DatabaseOID), d, d.FinalScope, r.manifest)
 	}
 	if err == nil {
-		err = CompareSecurityTransition(bound, final.snapshot)
+		err = compareSecurityTransitionEffects(bound, final.snapshot)
 		if err == nil && (transitionDigest(final.snapshot.Metadata) != anchor.MetadataSHA || final.snapshot.ScopeSHA != anchor.ScopeSHA || final.snapshot.ReadinessSHA != anchor.LegacyReadinessSHA) {
 			err = ErrUnsafe
 		}
@@ -250,6 +253,9 @@ func (r *SecurityTransitionRunner) Run(ctx context.Context) (SecurityTransitionS
 		if err == nil && tag.RowsAffected() != 1 {
 			err = ErrUnsafe
 		}
+	}
+	if err == nil {
+		err = recordLedgerHistory(ctx, tx, r.target, bound, d.Frontier, r.approved.sha, "")
 	}
 	if err == nil {
 		err = securityStage(r.hooks, "after_receipt", tx)
@@ -287,12 +293,15 @@ func (r *SecurityTransitionRunner) Run(ctx context.Context) (SecurityTransitionS
 
 // This path contains observations only and never an apply callback.
 func RecoverSecurityTransition(ctx context.Context, t Target, m *ExtensionManifest, b BoundSecurityTransition) (SecurityTransitionState, error) {
-	if !validBoundSecurityTransition(b) || !securityTargetMatches(t, b.approved.descriptor.Target) {
+	if !validBoundSecurityTransition(b) || !securityTargetMatches(t, b.approved.descriptor.Target) || !historyScope(b.approved.descriptor.FinalScope) {
 		return TransitionRejected, ErrUnsafe
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	final, err := CollectSecuritySnapshot(ctx, t, b.approved, CollectTransitionFinal, m)
+	if errors.Is(err, ErrLedgerHistory) {
+		return TransitionRejected, err
+	}
 	if err == nil {
 		result := ClassifyCollectedTransitionRecovery(b, final)
 		if result == TransitionFinalConfirmed {

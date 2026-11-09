@@ -274,7 +274,7 @@ func TestI3APIIntegrationDisposable(t *testing.T) {
 	if e = pool.QueryRow(ctx, "SELECT current_user").Scan(&user); e != nil || user != "tremor_api" {
 		t.Fatal("runtime identity", e)
 	}
-	for _, sql := range []string{"SELECT * FROM public.schema_migrations", "SELECT * FROM tremor_deployment.security_transitions", "CREATE TABLE public.forbidden(id int)", "DELETE FROM public.schema_migrations", "SET ROLE tremor_migrator", "SET ROLE tremor_owner", "SELECT public.protected_context()"} {
+	for _, sql := range []string{"SELECT * FROM public.schema_migrations", "SELECT * FROM tremor_deployment.security_transitions", "SELECT * FROM tremor_deployment.ledger_history_v1", "CREATE TABLE public.forbidden(id int)", "DELETE FROM public.schema_migrations", "SET ROLE tremor_migrator", "SET ROLE tremor_owner", "SELECT public.protected_context()"} {
 		if _, e = pool.Exec(ctx, sql); e == nil {
 			t.Fatal("API privilege accepted")
 		}

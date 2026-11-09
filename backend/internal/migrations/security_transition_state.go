@@ -32,6 +32,7 @@ type TransitionObjectIdentity struct {
 // These digests are evidence supplied by a future trusted collector, not proofs
 // that the caller actually inspected PostgreSQL. No collector ships in I1.
 type TransitionSnapshot struct {
+	History             *LedgerHistoryEvidence        `json:"ledger_history,omitempty"`
 	ParameterIdentities []TransitionParameterIdentity `json:"parameter_identities"`
 	Target              TransitionTarget              `json:"target"`
 	DatabaseOID         uint32                        `json:"database_oid"`
@@ -79,6 +80,9 @@ func BindSecurityTransition(a ApprovedSecurityTransition, expected TransitionTar
 }
 
 func validateTransitionSnapshot(s TransitionSnapshot, scope TransitionScope) error {
+	if s.History != nil && (!historyScope(scope) || snapshotHistoryValid(s) != nil) {
+		return historyError()
+	}
 	if validateTransitionTarget(s.Target) != nil || validateTransitionFrontier(s.Frontier) != nil || s.DatabaseOID == 0 || !checksumPattern.MatchString(s.ReadinessSHA) {
 		return errors.New("invalid snapshot binding")
 	}
@@ -141,6 +145,18 @@ func (b BoundSecurityTransition) ExpectedReceipt() TransitionReceipt {
 // the immutable snapshot remains exact, including historical ledger timestamps
 // encoded in RowsSHA and the already existing business receipts.
 func CompareSecurityTransition(b BoundSecurityTransition, final TransitionSnapshot) error {
+	if err := compareSecurityTransitionEffects(b, final); err != nil {
+		return err
+	}
+	if historyScope(b.approved.descriptor.FinalScope) {
+		return boundHistoryValid(b, final, b.approved.sha, b.source.Frontier.ExtensionManifestSHA)
+	}
+	return nil
+}
+
+// Pre-receipt effects validation is private to the approved writer. It does not
+// certify a committed/protected state; the public comparator also requires history.
+func compareSecurityTransitionEffects(b BoundSecurityTransition, final TransitionSnapshot) error {
 	if !validBoundSecurityTransition(b) {
 		return errors.New("unbound transition")
 	}
@@ -199,6 +215,9 @@ func ClassifyTransitionRecovery(b BoundSecurityTransition, observed *TransitionS
 		return TransitionSourceConfirmed
 	}
 	if CompareSecurityTransition(b, *observed) == nil && receipt != nil && *receipt == b.ExpectedReceipt() {
+		if historyScope(b.approved.descriptor.FinalScope) && boundHistoryValid(b, *observed, b.approved.sha, b.source.Frontier.ExtensionManifestSHA) != nil {
+			return TransitionEvidenceRejected
+		}
 		return TransitionFinalConfirmed
 	}
 	return TransitionEvidenceRejected

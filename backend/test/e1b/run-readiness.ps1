@@ -4,6 +4,7 @@ param(
  [Parameter(Mandatory=$true)][string]$TestBinary,
  [string]$ApiTestBinary='',
  [switch]$PopulateTestData,
+ [switch]$HistoryRegression,
  [string]$DockerPath='C:\Users\tcat\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe'
 )
 $ErrorActionPreference='Stop'
@@ -11,6 +12,7 @@ $docker=$DockerPath
 $workspace=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $evidence=[IO.Path]::GetFullPath($EvidenceDirectory)
 if (!(Test-Path -LiteralPath $evidence -PathType Container) -or !(Test-Path -LiteralPath $TestBinary -PathType Leaf)){throw 'Existing TEST artifact directory and freshly compiled Linux binary required'}
+if($HistoryRegression -and !$ApiTestBinary){throw 'History regression requires real API TEST binary'}
 $env:E1B_UPGRADE=if($PopulateTestData){'1'}else{'0'}
 $env:E1A_RUN_ID='e1b-readiness-'+[guid]::NewGuid().ToString('N')
 $env:E1A_TEST_IMAGE='tremor-e1a-test@sha256:475363c2a602b7b96dd7568ff86d45bdd703721f323e10ccac6bffe9f06e5fe2'
@@ -45,6 +47,7 @@ try {
  & $docker @compose up --no-build -d api-http
  if ($LASTEXITCODE -ne 0){throw 'HTTP API start failed'}
  $faultArgs=@('run','--rm','-e','I3_HTTP_ASSERT=yes','faults')
+ if($HistoryRegression){$faultArgs+=@('-test.v','-test.timeout=120s','-test.run=^TestI4HistoricalLedgerTimestampDriftDisposable$')}
  } else {$faultArgs=@('run','--rm','faults')}
  & $docker @compose @faultArgs 2>&1 | Tee-Object -FilePath (Join-Path $evidence ($runID+'-faults.log'))
  if ($LASTEXITCODE -ne 0){throw 'Fault TEST failed'}

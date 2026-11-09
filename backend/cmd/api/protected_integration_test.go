@@ -59,6 +59,7 @@ func TestProtectedHTTPServiceDisposable(t *testing.T) {
 	root := http.NewServeMux()
 	root.Handle("/", corsMiddleware(routes))
 	var tested atomic.Bool
+	root.HandleFunc("GET /internal/test-sql-count", func(w http.ResponseWriter, r *http.Request) { _ = json.NewEncoder(w).Encode(counter.n.Load()) })
 	root.HandleFunc("GET /internal/test-ready", func(w http.ResponseWriter, r *http.Request) {
 		if !tested.Load() {
 			w.WriteHeader(503)

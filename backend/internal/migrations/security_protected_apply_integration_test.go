@@ -55,6 +55,15 @@ func executionProtectedApplyTest(t *testing.T, ctx context.Context, admin *pgx.C
 	scope := executionTestScope(t, tx)
 	root := target
 	root.User = "e1a_test_admin"
+	// Metadata-only TEST rehearsal: hide current control receipts inside this
+	// rolled-back transaction. It is deliberately not a verified protected state.
+	// The actual apply must write/verify history and receipt atomically.
+	if _, e = tx.Exec(ctx, "DELETE FROM tremor_deployment.ledger_history_v1 WHERE transition_id=$1", b.approved.descriptor.ID); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = tx.Exec(ctx, "DELETE FROM tremor_deployment.security_transitions WHERE transition_id=$1", b.approved.descriptor.ID); e != nil {
+		t.Fatal(e)
+	}
 	observed, e := collectSecuritySnapshotTx(ctx, tx, root, oid, d, scope, m)
 	if e != nil {
 		t.Fatal(e)

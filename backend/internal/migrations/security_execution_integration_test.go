@@ -138,6 +138,7 @@ func TestSecurityExecutionIntegrationDisposable(t *testing.T) {
 			sql += "ALTER FUNCTION " + o.Key + " OWNER TO tremor_owner; REVOKE ALL ON FUNCTION " + o.Key + " FROM PUBLIC,tremor_api,tremor_migrator,tremor_executor;\n"
 		}
 	}
+	sql += LedgerHistoryControlSQL
 	sql += `ALTER DEFAULT PRIVILEGES FOR ROLE e1a_test_admin REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC; ALTER DEFAULT PRIVILEGES FOR ROLE tremor_deployer REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC; GRANT SELECT(name) ON public.warehouses TO tremor_api; COMMIT;`
 	sql = strings.Replace(sql, "BEGIN;", "BEGIN; REVOKE ALL ON DATABASE "+pgx.Identifier{target.Database}.Sanitize()+" FROM PUBLIC,tremor_api,tremor_migrator,tremor_executor; GRANT CONNECT ON DATABASE "+pgx.Identifier{target.Database}.Sanitize()+" TO tremor_api,tremor_migrator,tremor_deployer;", 1)
 	body, e := MigrationBody([]byte(sql))
@@ -252,6 +253,25 @@ func TestSecurityExecutionIntegrationDisposable(t *testing.T) {
 			t.Fatal("crash rollback not confirmed", state, e)
 		}
 	})
+	t.Run("unknown-commit-before-server-commit-history-rollback", func(t *testing.T) {
+		r, e := NewSecurityTransition(dep, m, approved, []byte(sql))
+		if e != nil {
+			t.Fatal(e)
+		}
+		r.hooks.commit = func(context.Context, pgx.Tx) error { return errors.New("TEST unknown outcome: no COMMIT sent") }
+		state, e := r.Run(ctx)
+		if state != TransitionLegacyVerified || !errors.Is(e, ErrCommitUnknown) {
+			t.Fatal("uncommitted transition not recovered as source", state, e)
+		}
+		state, e = r.Run(ctx)
+		if state != TransitionLegacyVerified || !errors.Is(e, ErrCommitUnknown) {
+			t.Fatal("unknown transition replayed SQL", state, e)
+		}
+		var absent bool
+		if e = admin.QueryRow(ctx, "SELECT to_regclass('tremor_deployment.ledger_history_v1') IS NULL").Scan(&absent); e != nil || !absent {
+			t.Fatal("history escaped rollback")
+		}
+	})
 	t.Run("commit-and-independent-recovery", func(t *testing.T) {
 		r, e := NewSecurityTransition(dep, m, approved, []byte(sql))
 		if e != nil {
@@ -272,6 +292,7 @@ func TestSecurityExecutionIntegrationDisposable(t *testing.T) {
 			t.Fatal("second call not observation-only", e)
 		}
 		b, _ := r.Bound()
+		executionHistoryTransitionTest(t, ctx, admin, dep, m, b)
 		executionSecurityTest(t, ctx, admin, cfg, dep, m, b)
 		executionProtectedApplyTest(t, ctx, admin, dep, m, b, oid)
 	})

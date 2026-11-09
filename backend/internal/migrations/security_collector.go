@@ -78,6 +78,9 @@ func ClassifyCollectedTransitionRecovery(b BoundSecurityTransition, c CollectedS
 	if !c.valid() {
 		return TransitionOutcomeUnknown
 	}
+	if c.receipt != nil && !historyScope(b.approved.descriptor.FinalScope) {
+		return TransitionEvidenceRejected
+	}
 	return ClassifyTransitionRecovery(b, &c.snapshot, c.receipt)
 }
 
@@ -261,7 +264,7 @@ func collectSecuritySnapshotInContext(ctx context.Context, tx pgx.Tx, target Tar
 			continue
 		}
 		if req.Kind == "table" && req.Key != target.Schema+".schema_migrations" && req.Key != target.Schema+".schema_extensions" {
-			if req.Key == "tremor_deployment.security_transitions" {
+			if req.Key == "tremor_deployment.security_transitions" || req.Key == ledgerHistoryKey {
 				continue
 			}
 			name := strings.TrimPrefix(req.Key, req.Schema+".")
@@ -369,6 +372,12 @@ func collectSecuritySnapshotInContext(ctx context.Context, tx pgx.Tx, target Tar
 		rows.Close()
 		if e != nil {
 			return c, e
+		}
+	}
+	if c.receipt != nil && historyScope(scope) {
+		s.History, err = readHistoryEvidence(ctx, tx, target, s, *c.receipt)
+		if err != nil {
+			return c, err
 		}
 	}
 	if err = validateTransitionSnapshot(s, scope); err != nil {

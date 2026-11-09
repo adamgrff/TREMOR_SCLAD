@@ -47,7 +47,7 @@ func protectedPolicyDescriptor(b BoundSecurityTransition, c ProtectedCheckpoint)
 	d.Frontier = c.Frontier
 	return d
 }
-func checkProtectedCheckpoint(ctx context.Context, tx pgx.Tx, t Target, m *ExtensionManifest, b BoundSecurityTransition, c ProtectedCheckpoint, oid uint32) (CollectedSecuritySnapshot, ExtensionState, error) {
+func checkProtectedCheckpoint(ctx context.Context, tx pgx.Tx, t Target, m *ExtensionManifest, b BoundSecurityTransition, c ProtectedCheckpoint, oid uint32, historyOperation, historyManifest string) (CollectedSecuritySnapshot, ExtensionState, error) {
 	state, err := inspectSecurityLineage(ctx, tx, t, m, b.source.Target.DeploymentID, "tremor_ledger_owner", "tremor_ledger_owner", false)
 	if err != nil {
 		return CollectedSecuritySnapshot{}, state, err
@@ -58,6 +58,9 @@ func checkProtectedCheckpoint(ctx context.Context, tx pgx.Tx, t Target, m *Exten
 	}
 	if err = foundationSecurity(got); err != nil {
 		return got, state, err
+	}
+	if boundHistoryValid(b, got.snapshot, historyOperation, historyManifest) != nil {
+		return got, state, historyError()
 	}
 	receipt := b.ExpectedReceipt()
 	if got.receipt == nil || *got.receipt != receipt || !reflect.DeepEqual(got.snapshot.Metadata, c.Metadata) || got.snapshot.ReadinessSHA != c.ReadinessSHA {
@@ -134,14 +137,14 @@ func ApplyProtectedExtension(ctx context.Context, t Target, m *ExtensionManifest
 		}
 	}
 	if applied == k+1 {
-		_, _, err = checkProtectedCheckpoint(ctx, tx, t, m, b, p.After, uint32(id.DatabaseOID))
+		_, _, err = checkProtectedCheckpoint(ctx, tx, t, m, b, p.After, uint32(id.DatabaseOID), a.sha, p.ManifestSHA)
 		return err
 	}
 	if applied != k {
 		return ErrUnsafe
 	}
 
-	_, state, err := checkProtectedCheckpoint(ctx, tx, t, m, b, p.Before, uint32(id.DatabaseOID))
+	preflight, state, err := checkProtectedCheckpoint(ctx, tx, t, m, b, p.Before, uint32(id.DatabaseOID), b.approved.sha, b.source.Frontier.ExtensionManifestSHA)
 	if err != nil {
 		return err
 	}
@@ -167,7 +170,11 @@ func ApplyProtectedExtension(ctx context.Context, t Target, m *ExtensionManifest
 	if err != nil || tag.RowsAffected() != 1 {
 		return errors.New("protected migration receipt failure")
 	}
-	_, post, err := checkProtectedCheckpoint(ctx, tx, t, m, b, p.After, uint32(id.DatabaseOID))
+	previousSHA := preflight.snapshot.History.Records[len(preflight.snapshot.History.Records)-1].SHA
+	if err = recordLedgerHistory(ctx, tx, t, b, p.After.Frontier, a.sha, previousSHA); err != nil {
+		return err
+	}
+	_, post, err := checkProtectedCheckpoint(ctx, tx, t, m, b, p.After, uint32(id.DatabaseOID), a.sha, p.ManifestSHA)
 	if err != nil {
 		return err
 	}
@@ -194,7 +201,7 @@ func ApplyProtectedExtension(ctx context.Context, t Target, m *ExtensionManifest
 		return ErrCommitUnknown
 	}
 	defer rollback(read)
-	_, durable, e := checkProtectedCheckpoint(ctx, read, t, m, b, p.After, uint32(fid.DatabaseOID))
+	_, durable, e := checkProtectedCheckpoint(ctx, read, t, m, b, p.After, uint32(fid.DatabaseOID), a.sha, p.ManifestSHA)
 	if e != nil {
 		return ErrCommitUnknown
 	}
@@ -224,6 +231,6 @@ func VerifyProtectedExtension(ctx context.Context, t Target, m *ExtensionManifes
 		return err
 	}
 	defer rollback(tx)
-	_, _, err = checkProtectedCheckpoint(ctx, tx, t, m, b, a.plan.After, uint32(id.DatabaseOID))
+	_, _, err = checkProtectedCheckpoint(ctx, tx, t, m, b, a.plan.After, uint32(id.DatabaseOID), a.sha, a.plan.ManifestSHA)
 	return err
 }

@@ -17,7 +17,7 @@ func executionSecurityTest(t *testing.T, ctx context.Context, admin *pgx.Conn, c
 				t.Fatal(e)
 			}
 			defer closeConnection(conn)
-			for _, sql := range []string{`INSERT INTO public.warehouses(name) VALUES('unauthorized')`, `TRUNCATE public.warehouses`, `CREATE TABLE public.unauthorized(id int)`, `DELETE FROM public.schema_migrations`, `DELETE FROM tremor_deployment.security_transitions`, `SET ROLE tremor_owner`, `SET ROLE tremor_ledger_owner`, `SELECT public.assembly_events_immutable()`} {
+			for _, sql := range []string{`INSERT INTO public.warehouses(name) VALUES('unauthorized')`, `TRUNCATE public.warehouses`, `CREATE TABLE public.unauthorized(id int)`, `DELETE FROM public.schema_migrations`, `DELETE FROM tremor_deployment.security_transitions`, `DELETE FROM tremor_deployment.ledger_history_v1`, `SET ROLE tremor_owner`, `SET ROLE tremor_ledger_owner`, `SELECT public.assembly_events_immutable()`} {
 				_, e = conn.Exec(ctx, sql)
 				pg, ok := e.(*pgconn.PgError)
 				if !ok || pg.Code != "42501" {
