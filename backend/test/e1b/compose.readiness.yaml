@@ -1,0 +1,63 @@
+# Disposable-only overlay; immutable images, no host ports and no Docker socket.
+services:
+  tests:
+    environment:
+      I3_EXPORT: 'yes'
+    volumes:
+      - ${I3_ROOT:?TEST artifacts required}:/i3:rw
+  verifier:
+    image: ${E1A_TEST_IMAGE}
+    pull_policy: never
+    network_mode: service:pg
+    entrypoint: [/opt/e1b/collector.test]
+    command: [-test.v, -test.timeout=300s, '-test.run=^TestI3VerifierServiceDisposable$']
+    environment:
+      I3_MODE: verifier
+    volumes:
+      - ${E1B_TEST_BINARY}:/opt/e1b/collector.test:ro
+      - ${I3_ROOT}/verifier:/private:ro
+    read_only: true
+    tmpfs: [/tmp, /var/lib/postgresql]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID}
+  api:
+    image: ${E1A_TEST_IMAGE}
+    pull_policy: never
+    network_mode: service:pg
+    entrypoint: [/opt/e1b/collector.test]
+    command: [-test.v, -test.timeout=30s, '-test.run=^TestI3APIIntegrationDisposable$']
+    environment:
+      I3_MODE: api
+    volumes:
+      - ${E1B_TEST_BINARY}:/opt/e1b/collector.test:ro
+      - ${I3_ROOT}/api:/runtime:ro
+    read_only: true
+    tmpfs: [/tmp, /var/lib/postgresql]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID}
+  faults:
+    image: ${E1A_TEST_IMAGE}
+    pull_policy: never
+    network_mode: service:pg
+    entrypoint: [/opt/e1b/collector.test]
+    command: [-test.v, -test.timeout=90s, '-test.run=^TestI3FaultIntegrationDisposable$']
+    environment:
+      I3_MODE: faults
+      PGPASSWORD: ${E1A_TEST_PASSWORD}
+    volumes:
+      - ${E1B_TEST_BINARY}:/opt/e1b/collector.test:ro
+      - ${I3_ROOT}/api:/runtime:ro
+      - ${I3_ROOT}/verifier/password:/verifier-password/password:ro
+    read_only: true
+    tmpfs: [/tmp, /var/lib/postgresql]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    labels:
+      tremor.e1a.run: ${E1A_RUN_ID}

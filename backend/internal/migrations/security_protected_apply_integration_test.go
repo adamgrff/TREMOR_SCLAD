@@ -156,5 +156,6 @@ func executionProtectedApplyTest(t *testing.T, ctx context.Context, admin *pgx.C
 	if _, e = admin.Exec(ctx, "ALTER FUNCTION public.protected_context() SECURITY DEFINER"); e != nil {
 		t.Fatal(e)
 	}
+	i3Export(t, ctx, admin, target, m, b, approval, oid)
 	t.Log("protected migration and repeat without replay: PASS")
 }
