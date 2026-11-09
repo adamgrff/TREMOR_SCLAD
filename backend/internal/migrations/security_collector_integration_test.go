@@ -53,6 +53,7 @@ func TestSecurityCollectorIntegrationDisposable(t *testing.T) {
 	if _, err = runner.Run(ctx, "apply"); err != nil {
 		t.Fatal(err)
 	}
+	testLegacyReadinessBaseline(t, ctx, admin, target, base)
 	// Preparation only in this new TEST cluster. No migration ledger transition.
 	setup := `CREATE ROLE tremor_owner NOLOGIN; CREATE ROLE tremor_ledger_owner NOLOGIN; CREATE ROLE tremor_executor NOLOGIN; CREATE ROLE tremor_api LOGIN; CREATE ROLE tremor_migrator LOGIN; CREATE ROLE tremor_deployer LOGIN;
  CREATE ROLE collector_reader NOLOGIN; CREATE ROLE collector_group NOLOGIN; CREATE ROLE collector_group_root NOLOGIN; CREATE ROLE collector_observer LOGIN;
@@ -305,6 +306,7 @@ func TestSecurityCollectorIntegrationDisposable(t *testing.T) {
 		}
 	})
 
+	testCollectorReadinessContext(t, ctx, admin, target, m, reference)
 	testParameterPrivileges(t, ctx, admin, cfg, target, m, reference)
 	testCatalogSessionDefaults(t, ctx, admin, cfg, target, m, reference)
 	t.Run("db-specific-role-setting-drift", func(t *testing.T) {

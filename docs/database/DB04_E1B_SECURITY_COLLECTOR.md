@@ -412,3 +412,135 @@ origin proof; only a completed collector result has its private collection seal.
 No security transition, protected migration apply or actual ALTER SYSTEM command
 was executed. The fix permits resuming the separate И2.2 entry checks; it is not
 production admission or proof that И2.2 is already implemented.
+
+## И2.1-F4: legacy readiness context compatibility
+
+### Root cause and unchanged E1A contract
+
+E1A `ExtensionRunner.inspect` executes `SET LOCAL search_path TO pg_catalog,` plus
+its safely quoted `Target.Schema` before calling `extensionCatalog`. E1B had
+called the same function with the connection's `pg_catalog` path. The SQL is the
+same, but its text projection uses visibility-sensitive PostgreSQL deparsers:
+`pg_get_constraintdef`, `pg_get_expr`, `pg_get_viewdef`, `pg_get_indexdef`,
+`pg_get_functiondef`, `pg_get_triggerdef`, `pg_get_ruledef`, `format_type` and
+`pg_describe_object`. No text replacement can safely reconcile these definitions.
+
+The original FAIL was reproduced again on HEAD 9bbe711 before changing code, in
+one REPEATABLE READ READ ONLY transaction on an unchanged clean-v2 baseline:
+
+- collector path `pg_catalog`:
+  `a5fb566fbaaebceffefab307678c3b5e06c71573974ce32ccf5784c24b9bc489`;
+- E1A path `pg_catalog,public`:
+  `e648ad5a6084d251016ed325bc306fe214f0d460be119cb834c4903a890270f7`.
+
+The same FK was rendered as `REFERENCES public.warehouses(id)` versus
+`REFERENCES warehouses(id)`. Original-failure system identifier:
+`7706102551411097643`. This was a compatibility failure; no false PROTECTED,
+transition COMMIT or privilege escalation was claimed.
+
+### Narrow E1B adapter
+
+`collectorLegacyReadiness` validates the schema using the existing target schema
+rules, captures the current path, sets the exact E1A path using
+`pgx.Identifier{Target.Schema}.Sanitize()`, calls the **unchanged**
+`extensionCatalog`, then restores the exact saved path via parameterized
+transaction-local `set_config`. Setting, reading or restoring failure returns an
+error and no successful readiness hash. Caller SQL or descriptor SQL is never
+executed. There is no independent copy of extensionCatalogSQL.
+
+At the internal collector transaction boundary, metadata/data collection now
+uses canonical `pg_catalog`, UTC and row_security=off regardless of caller state.
+The wrapper saves all three settings and restores them on every return; a failed
+restoration discards the result. The public collector seals a result only after
+successful collection/context restoration and completion of its read-only
+transaction. This also makes the internal path safe to reuse after an E1A-style
+inspection has changed search_path. No default role/database settings are changed.
+
+Target.Schema is not hardcoded to public. A real `warehouse_scope` schema and a
+real quoted reserved-word schema `"order"` were tested. Mixed-case, embedded-quote
+or otherwise unsupported logical schema names remain rejected under the existing
+E1A Target.Validate rules; those guards were not broadened.
+
+### Two separate fingerprints and approval boundaries
+
+- `TransitionSnapshot.ReadinessSHA` remains the legacy `pg18-catalog-v2` projection
+  in E1A's visibility context. It is not replaced with a security-metadata hash.
+- `CollectedSecuritySnapshot.SecurityFingerprint()` exposes a versioned,
+  deterministic E1B metadata fingerprint binding target/database OID, approved
+  scope, metadata, object identities and parameter identities. Metadata already
+  includes roles/memberships/effective rights, ACL, SD context, defaults and
+  parameter privileges. This fingerprint excludes legacy readiness and business
+  rows; the existing bound snapshot digest separately binds the complete evidence.
+- Neither fingerprint approves a release or creates a transition anchor. Existing
+  binding/recovery checks remain unchanged and require independently approved
+  source/final state. A pre-F4 collector-context hash cannot silently become an
+  approved legacy checkpoint. The production allowlists remain empty.
+
+Ownership, ACL or other catalog changes can legitimately change legacy readiness.
+A previous manifest hash must not be treated as valid after such changes. A future
+security transition needs its separately approved exact-frontier anchor; F4 does
+not implement that transition or anchor activation.
+
+### Immutable manifest evidence
+
+There is no production extension readiness manifest shipped in this checkout;
+the production extension approval list is empty. The accepted baseline manifest
+contains migration checksums, not a legacy catalog SHA. Tests therefore use a
+fixed TEST release manifest literal in `security_readiness_integration_test.go`:
+its baseline digest is
+`f4f65a9dd08e5f3357671294cf344808f821e191bb2612e2e3f2a28bc63a32d5`
+and its readiness SHA is the pre-F4 E1A value `e648ad5a...` above. These values are
+not computed from the current collector output. The literal is loaded through
+unchanged LoadExtension, accepted by unchanged ExtensionRunner.verify, compared
+with E1B output, and byte-checked unchanged afterward. The malicious-hash negative
+uses a separate temporary TEST document, never rewrites this fixed artifact, and
+is rejected by the unchanged comparator/production apply allowlist.
+
+This is TEST approval evidence, not a production-release authorization claim.
+No baseline SQL, accepted manifest, E1A code, comparator, or approval list changed.
+
+### Results
+
+- 56 offline top-level tests PASS: all previous 52 plus four new groups. Name-set
+  comparison found zero missing previous cases. go vet PASS; formatting clean;
+  git diff --check PASS; secret-pattern scan plus manual review performed.
+- 47 PostgreSQL scenarios PASS: all previous 38 plus nine new readiness cases.
+  Name-set comparison found zero missing previous scenarios.
+- New cases prove raw deparser divergence; exact E1A/E1B/fixed-manifest equality;
+  catalog-drift refusal; refusal of the old incorrect hash; precise non-public
+  and quoted-schema context; full snapshot and fingerprint stability across caller
+  path/timezone/RLS settings; restoration of caller context; and legacy-readiness
+  stability versus changed security fingerprint after a parameter GRANT, with
+  binding/recovery refusal of that security drift.
+- SET/read/restore/catalog-error paths are covered by offline driver faults.
+  Nested legacy-restore and outer caller-restore faults are also injected into
+  otherwise real PostgreSQL collection: no valid/bindable result is returned.
+  Those faults are explicitly driver injection, not a claimed real server crash
+  or network failure. Real PostgreSQL context restoration was checked directly.
+
+Passing run: PostgreSQL 18.6 (Debian 18.6-1.pgdg12+2), system identifier
+`7706105037277929515`; project
+`e1b-collector-ba5523eb23cd43f19f24ca2960274607`.
+Pinned image:
+`tremor-e1a-test@sha256:475363c2a602b7b96dd7568ff86d45bdd703721f323e10ccac6bffe9f06e5fe2`.
+The existing harness used an internal network, no host ports, new TEST credentials,
+synthetic data and resource limits. Both F4 projects (original FAIL and fixed PASS)
+were removed, with no project containers/networks/volumes left.
+
+The remaining boundaries are unchanged: catalog evidence does not certify every
+server/connection/runtime setting; offline DTOs are not PostgreSQL-origin proof;
+unsupported metadata fails closed; and I2.2 must still implement its own approved
+transition/apply protocol. F4 permits resuming I2.2 entry checks, not production
+admission. No security transition, protected apply, API work or new CI framework
+was implemented.
+
+Sources checked:
+[PG18 deparser source](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/adt/ruleutils.c),
+[PG18 catalog information functions](https://www.postgresql.org/docs/18/functions-info.html).
+
+F4 changed files: new `security_readiness.go`, `security_readiness_test.go` and
+`security_readiness_integration_test.go`; integration updates in
+`security_collector.go` / `security_collector_integration_test.go`; this collector
+report and `DB04_E1B_SECURITY_PROTOCOL.md`. All are E1B components. Main SHA/tree,
+all main-tracked files and the seven user-file SHA-256 values were verified
+unchanged before the single local commit.

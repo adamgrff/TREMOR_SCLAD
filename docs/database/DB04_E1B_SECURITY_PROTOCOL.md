@@ -238,3 +238,15 @@ The collector reads the complete shared parameter ACL catalog, so an unlisted
 new grant is refused rather than filtered out. These permissions are separate
 from catalog login defaults and actual session settings. See the И2.1-F3 section
 of DB04_E1B_SECURITY_COLLECTOR.md for policy, coverage mapping and test evidence.
+
+### И2.1-F4 readiness context
+
+ReadinessSHA is the legacy E1A projection, computed by the unchanged
+extensionCatalog in exactly `pg_catalog,<quoted Target.Schema>` visibility.
+Collector metadata/data is collected in canonical pg_catalog/UTC/row_security=off;
+all caller context is restored, and restore failure prevents a successful result.
+SecurityFingerprint is a separate versioned metadata digest with no release or
+transition-admission authority. Ownership/ACL changes still require an explicitly
+approved new transition anchor; old readiness is not automatically carried over.
+The accepted manifests/comparators/approval lists remain unchanged. See F4 evidence
+and limitations in DB04_E1B_SECURITY_COLLECTOR.md.

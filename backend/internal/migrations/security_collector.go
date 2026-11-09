@@ -111,11 +111,6 @@ func CollectSecuritySnapshot(ctx context.Context, target Target, a ApprovedSecur
 		return CollectedSecuritySnapshot{}, errors.New("cannot begin read-only collection")
 	}
 	defer rollback(tx)
-	// Read-only session normalization, not object/data modification.
-	var normalized, rowSecurity string
-	if err = tx.QueryRow(ctx, `SELECT pg_catalog.set_config('TimeZone','UTC',true),pg_catalog.set_config('row_security','off',true)`).Scan(&normalized, &rowSecurity); err != nil {
-		return CollectedSecuritySnapshot{}, errors.New("cannot normalize collection timezone")
-	}
 	c, err := collectSecuritySnapshotTx(ctx, tx, target, uint32(id.DatabaseOID), d, scope, m)
 	if err != nil {
 		return CollectedSecuritySnapshot{}, fmt.Errorf("security collection rejected: %w", err)
@@ -128,7 +123,7 @@ func CollectSecuritySnapshot(ctx context.Context, target Target, a ApprovedSecur
 	return c, nil
 }
 
-func collectSecuritySnapshotTx(ctx context.Context, tx pgx.Tx, target Target, databaseOID uint32, d SecurityTransitionDescriptor, scope TransitionScope, m *ExtensionManifest) (CollectedSecuritySnapshot, error) {
+func collectSecuritySnapshotInContext(ctx context.Context, tx pgx.Tx, target Target, databaseOID uint32, d SecurityTransitionDescriptor, scope TransitionScope, m *ExtensionManifest) (CollectedSecuritySnapshot, error) {
 	c := CollectedSecuritySnapshot{privileges: []CollectedPrivilege{}, paths: []CollectedRolePath{}}
 	s := TransitionSnapshot{Target: d.Target, DatabaseOID: databaseOID, Metadata: []TransitionMetadata{}, Ledgers: []TransitionLedgerSnapshot{}, ObjectIdentities: []TransitionObjectIdentity{}, ScopeSHA: transitionDigest(scope)}
 	var db, user, server, deployment string
@@ -254,7 +249,7 @@ func collectSecuritySnapshotTx(ctx context.Context, tx pgx.Tx, target Target, da
 	if !reflect.DeepEqual(s.Frontier, d.Frontier) {
 		return c, errors.New("observed migration frontier differs from release policy")
 	}
-	s.ReadinessSHA, err = extensionCatalog(ctx, tx, target.Schema)
+	s.ReadinessSHA, err = collectorLegacyReadiness(ctx, tx, target.Schema)
 	if err != nil {
 		return c, err
 	}
