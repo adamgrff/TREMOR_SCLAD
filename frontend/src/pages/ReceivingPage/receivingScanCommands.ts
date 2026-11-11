@@ -22,6 +22,7 @@ export class ReceivingCommandRejected extends Error {}
 export class ReceivingRecoveryOrderUnknown extends Error {}
 export class ReceivingJournalUnavailable extends Error {}
 export class ReceivingDeploymentBlocked extends ReceivingJournalUnavailable {}
+export class ReceivingProtectedBlocked extends ReceivingJournalUnavailable {}
 let confirmedDeployment: string | null = null
 const identityBlocked = 'Идентичность развёртывания не подтверждена или изменилась. Команды сохранены без изменений. Разрешён только просмотр; требуется безопасное восстановление.'
 const staleContext = 'Развёртывание изменилось или источник данных не подтверждён. Операция не отправлена. Безопасно перезагрузите данные перед новым действием; сохранённые команды не изменены.'
@@ -104,7 +105,7 @@ export class ReceivingScanCommands {
     try {
       const raw = this.storage().getItem('tremor.receiving.activeSession.v2')
       if (raw && (JSON.parse(raw) as { deploymentId?: string }).deploymentId !== this.deploymentId) throw new ReceivingDeploymentBlocked(identityBlocked)
-    } catch (reason) { if (reason instanceof ReceivingDeploymentBlocked) throw reason; throw new ReceivingJournalUnavailable('Привязка локальной сессии недоступна. Разрешён только просмотр.') }
+    } catch (reason) { if (reason instanceof ReceivingDeploymentBlocked || reason instanceof ReceivingProtectedBlocked) throw reason; throw new ReceivingJournalUnavailable('Привязка локальной сессии недоступна. Разрешён только просмотр.') }
     for (const [key, value] of entries) {
       const command = JSON.parse(value ?? 'null') as Command | null
       if (!command || !uuid.test(command.requestId) || (command.deploymentId !== undefined && !uuid.test(command.deploymentId)) || key !== prefix + command.requestId
@@ -160,8 +161,10 @@ export class ReceivingScanCommands {
       method: target.method, headers: { 'Content-Type': 'application/json', 'X-Tremor-Deployment-Id': command.deploymentId! }, body: JSON.stringify(target.body),
     })
     if (!response.ok) {
-      if ([400, 409, 503].includes(response.status)) {
+      if ([400, 409, 501, 503].includes(response.status)) {
         const failure = await response.clone?.().json().catch(() => ({})) ?? {} as { code?: string }
+        if (failure.code === 'protected_operation_unsupported') throw new ReceivingProtectedBlocked('Операция пока недоступна в защищённом режиме. Команда сохранена, данные не изменены.')
+        if (failure.code === 'protected_not_ready') throw new ReceivingProtectedBlocked('Защищённая база сейчас недоступна. Команда сохранена; повторите проверку позже.')
         if (failure.code?.startsWith('deployment_identity_')) { confirmedDeployment = null; this.ready = false; throw new ReceivingDeploymentBlocked(identityBlocked) }
       }
       // Only an explicit pre-COMMIT business rejection is safe to resolve as
@@ -237,7 +240,7 @@ export class ReceivingScanCommands {
       await this.resolve(command, synchronize)
       this.ready = true
     } catch (reason) {
-      if (reason instanceof ReceivingDeploymentBlocked) throw reason
+      if (reason instanceof ReceivingDeploymentBlocked || reason instanceof ReceivingProtectedBlocked) throw reason
       if (reason instanceof ReceivingCommandRejected) { this.ready = true; throw reason }
       if (reason instanceof Error && reason.message === ambiguousOrder) throw reason
       throw new Error(uncertain)
